@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TIMEFRAMES, type Candle, type Timeframe, type TradeDTO } from '@alphabot/shared';
+import { TIMEFRAMES, type Candle, type Timeframe, type TradeDTO } from '@autotrade/shared';
 import { api } from '../api/client';
 import { PriceChart, type ChartMarker } from '../components/PriceChart';
 

@@ -36,4 +36,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.get('/auth/me', { preHandler: [authGuard] }, async (req) => {
     return { user: req.authUser };
   });
+
+  // Clerk session token → backend JWT (used after Clerk signs the user in).
+  app.post('/auth/clerk-sync', authLimit, async (req, reply) => {
+    const body = req.body as { sessionToken?: string };
+    if (!body?.sessionToken) {
+      return reply.code(400).send({ error: { code: 'MISSING_TOKEN', message: 'sessionToken is required' } });
+    }
+    const { user, tokens } = await authService.clerkSync(body.sessionToken);
+    return reply.send({ user, ...tokens });
+  });
 }

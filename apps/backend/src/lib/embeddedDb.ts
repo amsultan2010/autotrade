@@ -29,7 +29,7 @@ export async function startEmbeddedPostgres(): Promise<void> {
     if (firstRun) await pg.initialise();
     await pg.start();
     try {
-      await pg.createDatabase('alphabot');
+      await pg.createDatabase('autotrade');
     } catch {
       /* already exists */
     }

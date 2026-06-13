@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, type BotSettingsDTO } from '@alphabot/shared';
+import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, type BotSettingsDTO } from '@autotrade/shared';
 import { api, ApiError } from '../api/client';
 
 export function Settings() {

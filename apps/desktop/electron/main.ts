@@ -10,12 +10,12 @@ import { join } from 'node:path';
 import { existsSync, readFileSync, writeFileSync, rmSync, openSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 
-const isDev = process.env.ALPHABOT_DEV === '1';
+const isDev = process.env.AUTOTRADE_DEV === '1';
 const tokenFile = () => join(app.getPath('userData'), 'refresh.bin');
 
 // Where the backend lives on this machine (overridable). The packaged app runs
 // it as its own database-backed server process.
-const BACKEND_DIR = process.env.ALPHABOT_BACKEND_DIR ?? 'C:\\Users\\peak\\alphabot\\apps\\backend';
+const BACKEND_DIR = process.env.AUTOTRADE_BACKEND_DIR ?? 'C:\\Users\\peak\\autotrade\\apps\\backend';
 const API_HEALTH = 'http://localhost:4000/health';
 let backendProc: ChildProcess | null = null;
 
@@ -55,10 +55,6 @@ async function ensureBackend(): Promise<void> {
   await waitForBackend(60_000);
 }
 
-// Give the app a stable Windows identity (taskbar grouping, app resolution).
-app.setName('Quantara');
-app.setAppUserModelId('ai.quantara.desktop');
-
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
@@ -66,7 +62,7 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 680,
     backgroundColor: '#0b1120',
-    title: 'Quantara.ai',
+    title: 'Autotrade',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
@@ -133,7 +129,7 @@ async function maybeDevAutoLogin(): Promise<void> {
   if (existsSync(tokenFile())) return; // already have a session
   if (!safeStorage.isEncryptionAvailable()) return;
   try {
-    const api = process.env.ALPHABOT_API_URL ?? 'http://localhost:4000/api/v1';
+    const api = process.env.AUTOTRADE_API_URL ?? 'http://localhost:4000/api/v1';
     const res = await fetch(`${api}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -148,6 +144,8 @@ async function maybeDevAutoLogin(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  app.setName('Autotrade');
+  if (process.platform === 'win32') app.setAppUserModelId('ai.autotrade.desktop');
   // Packaged app: boot our own backend (+ embedded DB) before showing the UI.
   if (!isDev) await ensureBackend();
   await maybeDevAutoLogin();

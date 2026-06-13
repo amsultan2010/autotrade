@@ -7,7 +7,7 @@
  * `no_data`/403, upgrade the plan or swap providers via the factory — the
  * engines are unaffected.
  */
-import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@alphabot/shared';
+import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { MarketDataError, type MarketDataProvider } from './types.js';
 
 const BASE = 'https://finnhub.io/api/v1';

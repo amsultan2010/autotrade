@@ -3,7 +3,7 @@
  * (Finnhub / Polygon / Alpaca / Twelve Data) without touching the engines.
  * No provider scrapes TradingView.
  */
-import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@alphabot/shared';
+import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 
 export interface MarketDataProvider {
   readonly name: string;

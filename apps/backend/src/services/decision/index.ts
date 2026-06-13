@@ -16,7 +16,7 @@ import type {
   Timeframe,
   TradeAction,
   TradeSignal,
-} from '@alphabot/shared';
+} from '@autotrade/shared';
 import type { MultiTimeframeAnalysis } from '../analysis/index.js';
 import { STRATEGY_FNS, type StrategyResult } from './strategies.js';
 

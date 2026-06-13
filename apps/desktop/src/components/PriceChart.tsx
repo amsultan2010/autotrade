@@ -7,7 +7,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Candle } from '@alphabot/shared';
+import type { Candle } from '@autotrade/shared';
 
 export interface ChartMarker {
   time: number; // epoch ms

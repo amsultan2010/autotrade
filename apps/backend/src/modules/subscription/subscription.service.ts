@@ -9,7 +9,7 @@ import { env } from '../../config/env.js';
 import { getStripe } from '../../lib/stripe.js';
 import { AppError, BadRequestError } from '../../lib/errors.js';
 import { isEntitled } from '../../middleware/subscription.js';
-import type { SubscriptionInfo, SubscriptionStatus } from '@alphabot/shared';
+import type { SubscriptionInfo, SubscriptionStatus } from '@autotrade/shared';
 
 /** Map Stripe subscription status → our enum. */
 function mapStatus(s: Stripe.Subscription.Status): SubscriptionStatus {

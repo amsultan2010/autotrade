@@ -1,7 +1,7 @@
 /**
  * Seed a DEVELOPER account so you can log in without paying (req #3).
  * Configure via env: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD.
- * Run: pnpm --filter @alphabot/backend db:seed
+ * Run: pnpm --filter @autotrade/backend db:seed
  */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
@@ -10,7 +10,7 @@ import argon2 from 'argon2';
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  const email = (process.env.SEED_ADMIN_EMAIL ?? 'dev@quantara.ai').toLowerCase();
+  const email = (process.env.SEED_ADMIN_EMAIL ?? 'dev@autotrade.ai').toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123!';
 
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });

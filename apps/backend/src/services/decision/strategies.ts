@@ -4,7 +4,7 @@
  * the specific reasons that fired. Strategies are deterministic and auditable;
  * the decision engine applies per-user learning weights on top (req #9, #10).
  */
-import type { StrategyId, Timeframe, TradeSide } from '@alphabot/shared';
+import type { StrategyId, Timeframe, TradeSide } from '@autotrade/shared';
 import type { MultiTimeframeAnalysis, TimeframeAnalysis } from '../analysis/index.js';
 
 export interface StrategyResult {

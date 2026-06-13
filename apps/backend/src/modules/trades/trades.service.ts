@@ -1,6 +1,6 @@
 /** Performance analytics computed from the immutable trade ledger (req #12). */
 import { prisma } from '../../lib/prisma.js';
-import type { PerformanceSummary } from '@alphabot/shared';
+import type { PerformanceSummary } from '@autotrade/shared';
 
 function since(days: number): Date {
   const d = new Date();

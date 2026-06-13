@@ -13,7 +13,7 @@
  * balance + unrealized P/L of still-open positions (mark-to-market).
  */
 import type { Prisma, Trade } from '@prisma/client';
-import type { MistakeTag, TradeSignal } from '@alphabot/shared';
+import type { MistakeTag, TradeSignal } from '@autotrade/shared';
 import { prisma } from '../../lib/prisma.js';
 import { getMarketData } from '../marketdata/index.js';
 import { recordOutcome } from '../learning/index.js';

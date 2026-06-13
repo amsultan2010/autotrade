@@ -1,5 +1,5 @@
 /**
- * API client for the AlphaBot backend. Holds the access token in memory only;
+ * API client for the Autotrade backend. Holds the access token in memory only;
  * the refresh token lives in the OS-encrypted store via the preload bridge.
  * Transparently refreshes on 401 and retries once.
  */
@@ -13,11 +13,22 @@ import type {
   SymbolSearchResult,
   Timeframe,
   TradeDTO,
-} from '@alphabot/shared';
+} from '@autotrade/shared';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:4000/api/v1';
 
+// In browser dev mode the Electron preload bridge doesn't exist — use a no-op stub.
+if (!window.autotrade) {
+  (window as unknown as Record<string, unknown>).autotrade = {
+    getRefreshToken: async () => null,
+    setRefreshToken: async () => true,
+    clearRefreshToken: async () => true,
+    openExternal: async () => {},
+  };
+}
+
 let accessToken: string | null = null;
+let tokenGetter: (() => Promise<string | null>) | null = null;
 
 export class ApiError extends Error {
   constructor(
@@ -34,7 +45,12 @@ export function setAccessToken(token: string | null): void {
 }
 
 async function refreshAccess(): Promise<boolean> {
-  const refreshToken = await window.alphabot.getRefreshToken();
+  if (tokenGetter) {
+    const token = await tokenGetter();
+    if (token) { accessToken = token; return true; }
+    return false;
+  }
+  const refreshToken = await window.autotrade.getRefreshToken();
   if (!refreshToken) return false;
   const res = await fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
@@ -42,12 +58,12 @@ async function refreshAccess(): Promise<boolean> {
     body: JSON.stringify({ refreshToken }),
   });
   if (!res.ok) {
-    await window.alphabot.clearRefreshToken();
+    await window.autotrade.clearRefreshToken();
     return false;
   }
   const tokens = (await res.json()) as AuthTokens;
   accessToken = tokens.accessToken;
-  await window.alphabot.setRefreshToken(tokens.refreshToken);
+  await window.autotrade.setRefreshToken(tokens.refreshToken);
   return true;
 }
 
@@ -83,13 +99,27 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 
 // ── Auth ──
 export const api = {
+  setTokenGetter(getter: (() => Promise<string | null>) | null): void {
+    tokenGetter = getter;
+    if (!getter) accessToken = null;
+  },
+
+  async clerkSync(sessionToken: string): Promise<void> {
+    const data = await request<{ user: unknown } & AuthTokens>('/auth/clerk-sync', {
+      method: 'POST',
+      body: JSON.stringify({ sessionToken }),
+    });
+    accessToken = data.accessToken;
+    await window.autotrade.setRefreshToken(data.refreshToken);
+  },
+
   async register(email: string, password: string) {
     const data = await request<{ user: AuthUser } & AuthTokens>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
     accessToken = data.accessToken;
-    await window.alphabot.setRefreshToken(data.refreshToken);
+    await window.autotrade.setRefreshToken(data.refreshToken);
     return data.user;
   },
 
@@ -99,7 +129,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
     accessToken = data.accessToken;
-    await window.alphabot.setRefreshToken(data.refreshToken);
+    await window.autotrade.setRefreshToken(data.refreshToken);
     return data.user;
   },
 
@@ -114,7 +144,7 @@ export const api = {
   },
 
   async logout() {
-    const refreshToken = await window.alphabot.getRefreshToken();
+    const refreshToken = await window.autotrade.getRefreshToken();
     if (refreshToken) {
       try {
         await request('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) });
@@ -123,7 +153,7 @@ export const api = {
       }
     }
     accessToken = null;
-    await window.alphabot.clearRefreshToken();
+    await window.autotrade.clearRefreshToken();
   },
 
   // ── Subscription ──

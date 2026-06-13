@@ -4,7 +4,7 @@
  *   - crypto       → /v1beta3/crypto/us/... (24/7, BTC/USD style symbols)
  * Symbols containing "/" are treated as crypto and routed to the crypto feed.
  */
-import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@alphabot/shared';
+import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { env } from '../../config/env.js';
 import { ALPACA_DATA_BASE, alpacaHeaders, alpacaTradingBase } from '../../lib/alpaca.js';
 import { MarketDataError, type MarketDataProvider, type SymbolSnapshot } from './types.js';

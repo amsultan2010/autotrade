@@ -10,7 +10,7 @@
  * the number of stock symbols, so keep stock watchlists modest.
  */
 import WebSocket from 'ws';
-import type { Candle } from '@alphabot/shared';
+import type { Candle } from '@autotrade/shared';
 import { env } from '../../config/env.js';
 import { isCryptoSymbol } from './alpaca.provider.js';
 import type { StreamHandlers, StreamingProvider } from './streaming.types.js';

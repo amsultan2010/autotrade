@@ -12,6 +12,6 @@ const api = {
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
 };
 
-contextBridge.exposeInMainWorld('alphabot', api);
+contextBridge.exposeInMainWorld('autotrade', api);
 
-export type AlphabotBridge = typeof api;
+export type AutotradeBridge = typeof api;

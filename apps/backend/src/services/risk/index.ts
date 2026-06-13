@@ -3,7 +3,7 @@
  * It enforces the user's hard caps and sizes positions; it can VETO any signal
  * regardless of confidence, and `mode=DISABLED` is an instant kill-switch.
  */
-import type { ExecutionMode, TradeSignal, TradeSide } from '@alphabot/shared';
+import type { ExecutionMode, TradeSignal, TradeSide } from '@autotrade/shared';
 
 export interface RiskSettings {
   mode: ExecutionMode;

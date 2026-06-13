@@ -12,7 +12,7 @@ export function Paywall() {
     setError(null);
     try {
       const { url } = await api.checkout();
-      await window.alphabot.openExternal(url); // Stripe Checkout in the system browser
+      await window.autotrade.openExternal(url); // Stripe Checkout in the system browser
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not start checkout');
     } finally {
@@ -24,7 +24,7 @@ export function Paywall() {
     <div className="auth-screen">
       <div className="auth-card wide">
         <div className="logo-lg">
-          Quantara<span className="accent">.ai</span> Pro
+          Autotrade Pro
         </div>
         <p className="muted">One plan. Full access. Cancel anytime.</p>
 
@@ -39,7 +39,7 @@ export function Paywall() {
         {error && <div className="error-banner">{error}</div>}
 
         <button className="btn-primary full" disabled={busy} onClick={() => void subscribe()}>
-          {busy ? 'Opening checkout…' : 'Subscribe to Quantara Pro'}
+          {busy ? 'Opening checkout…' : 'Subscribe to Autotrade Pro'}
         </button>
         <button className="btn-ghost full" onClick={() => void refreshSubscription()}>
           I've already subscribed — refresh status

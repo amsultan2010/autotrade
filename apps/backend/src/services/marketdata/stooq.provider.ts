@@ -10,7 +10,7 @@
  * For full multi-timeframe intraday + production, switch MARKET_DATA_PROVIDER
  * to a licensed API (Finnhub paid / Twelve Data / Alpaca). Not TradingView.
  */
-import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@alphabot/shared';
+import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { MarketDataError, type MarketDataProvider } from './types.js';
 
 /** Stooq uses suffixes (.us, .de, .uk…). Default unsuffixed symbols to US. */

@@ -5,9 +5,9 @@
  * This is a unit-style check of the engine's MATH and logic. It is NOT a market
  * data source and is NOT wired into paper trading — the product only ever
  * analyzes real candles from a licensed provider. Run: pnpm --filter
- * @alphabot/backend exec tsx scripts/verify-engine.ts
+ * @autotrade/backend exec tsx scripts/verify-engine.ts
  */
-import type { Candle } from '@alphabot/shared';
+import type { Candle } from '@autotrade/shared';
 import { computeSnapshot } from '../src/services/analysis/indicators.js';
 import { decide } from '../src/services/decision/index.js';
 import { evaluateRisk } from '../src/services/risk/index.js';

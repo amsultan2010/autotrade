@@ -1,4 +1,4 @@
-import type { Role, UserStatus } from '@alphabot/shared';
+import type { Role, UserStatus } from '@autotrade/shared';
 
 /** Authenticated principal attached to the request by authGuard. */
 export interface RequestUser {

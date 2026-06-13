@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { TIMEFRAMES, type Timeframe } from '@alphabot/shared';
+import { TIMEFRAMES, type Timeframe } from '@autotrade/shared';
 import { prisma } from '../../lib/prisma.js';
 import { parse } from '../../lib/validate.js';
 import { requireEntitled } from '../../middleware/guards.js';

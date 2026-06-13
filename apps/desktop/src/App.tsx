@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { useUser, useClerk } from '@clerk/react';
 import { useAuth } from './state/auth';
+import { ConstellationBg } from './components/ConstellationBg';
+import { ScanlineOverlay } from './components/ScanlineOverlay';
 import { Login } from './pages/Login';
 import { Paywall } from './pages/Paywall';
 import { Dashboard } from './pages/Dashboard';
@@ -21,32 +24,43 @@ const NAV: Array<{ id: View; label: string; icon: string; adminOnly?: boolean }>
 ];
 
 export function App() {
-  const { user, subscription, loading, logout } = useAuth();
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  const { subscription, loading } = useAuth();
   const [view, setView] = useState<View>('dashboard');
 
-  if (loading) {
+  if (loading || !isLoaded) {
     return (
-      <div className="splash">
-        <div className="logo-lg">Quantara<span className="accent">.ai</span></div>
-        <div className="muted">Securing session…</div>
-      </div>
+      <>
+        <ConstellationBg />
+        <ScanlineOverlay />
+        <div className="splash">
+          <div className="logo-lg">Autotrade</div>
+          <div className="muted">Securing session…</div>
+        </div>
+      </>
     );
   }
 
-  // Not authenticated → login/register.
-  if (!user) return <Login />;
+  if (!clerkUser) return <><ConstellationBg /><Login /></>;
 
-  // Authenticated but not entitled → paywall (req #2: no active sub = blocked).
-  if (subscription && !subscription.entitled) return <Paywall />;
+  if (subscription && !subscription.entitled) return <><ConstellationBg /><Paywall /></>;
+
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
+  // Role stored in Clerk public metadata; falls back to USER.
+  const role = (clerkUser.publicMetadata?.role as string | undefined) ?? 'USER';
 
   return (
+    <>
+    <ConstellationBg />
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          Quantara<span className="accent">.ai</span>
+          <div className="brand-mark">AT</div>
+          <span className="brand-name">Autotrade</span>
         </div>
         <nav>
-          {NAV.filter((n) => !n.adminOnly || user.role === 'ADMIN' || user.role === 'DEVELOPER').map((n) => (
+          {NAV.filter((n) => !n.adminOnly || role === 'ADMIN' || role === 'DEVELOPER').map((n) => (
             <button
               key={n.id}
               className={`nav-item ${view === n.id ? 'active' : ''}`}
@@ -59,13 +73,13 @@ export function App() {
         </nav>
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="avatar">{user.email[0]?.toUpperCase()}</div>
+            <div className="avatar">{email[0]?.toUpperCase()}</div>
             <div className="user-meta">
-              <div className="user-email">{user.email}</div>
-              <div className="user-role">{user.role}</div>
+              <div className="user-email">{email}</div>
+              <div className="user-role">{role}</div>
             </div>
           </div>
-          <button className="btn-ghost" onClick={() => void logout()}>
+          <button className="btn-ghost" onClick={() => void signOut()}>
             Sign out
           </button>
         </div>
@@ -79,6 +93,20 @@ export function App() {
         {view === 'settings' && <Settings />}
         {view === 'admin' && <Admin />}
       </main>
+
+      <nav className="mobile-nav">
+        {NAV.filter((n) => !n.adminOnly || role === 'ADMIN' || role === 'DEVELOPER').map((n) => (
+          <button
+            key={n.id}
+            className={`mob-nav-item ${view === n.id ? 'active' : ''}`}
+            onClick={() => setView(n.id)}
+          >
+            <span className="mob-nav-icon">{n.icon}</span>
+            {n.label}
+          </button>
+        ))}
+      </nav>
     </div>
+    </>
   );
 }

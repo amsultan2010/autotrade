@@ -1,4 +1,4 @@
-# Quantara.ai
+# Autotrade
 
 Personalized, subscription-gated AI trading bot. A **Windows desktop client
 (`.exe`)** backed by a secure Node/TypeScript API. Paper trading runs on **real
@@ -25,8 +25,8 @@ packages/shared  Types shared by backend + desktop
 
 ### Zero-install local database
 
-`pnpm --filter @alphabot/backend dev:db` starts a real, embedded PostgreSQL on
-`localhost:5432` (user/pass `postgres/postgres`, database `alphabot`, data in
+`pnpm --filter @autotrade/backend dev:db` starts a real, embedded PostgreSQL on
+`localhost:5432` (user/pass `postgres/postgres`, database `autotrade`, data in
 `apps/backend/.pgdata`). No Docker, no admin, no account. Leave it running in
 its own terminal. For production, point `DATABASE_URL` at a managed Postgres.
 
@@ -41,25 +41,25 @@ pnpm build:shared     # build shared types once
 
 ```bash
 # terminal 1 — start the zero-install dev database (leave running)
-pnpm --filter @alphabot/backend dev:db
+pnpm --filter @autotrade/backend dev:db
 
 # terminal 2
 cp apps/backend/.env.example apps/backend/.env      # then add TWELVEDATA_API_KEY
 pnpm db:generate                                    # prisma client
-pnpm --filter @alphabot/backend prisma:migrate      # create schema
-pnpm --filter @alphabot/backend db:seed             # create a DEVELOPER login
+pnpm --filter @autotrade/backend prisma:migrate      # create schema
+pnpm --filter @autotrade/backend db:seed             # create a DEVELOPER login
 pnpm dev:backend                                    # http://localhost:4000
 ```
 
 Sanity-check the decision engine without any data key:
 
 ```bash
-pnpm --filter @alphabot/backend exec tsx scripts/verify-engine.ts
+pnpm --filter @autotrade/backend exec tsx scripts/verify-engine.ts
 ```
 
 Health check: `GET http://localhost:4000/health`.
 
-**Seeded developer account** (`db:seed`): `dev@alphabot.ai` / `ChangeMe123!`
+**Seeded developer account** (`db:seed`): `dev@autotrade.ai` / `ChangeMe123!`
 (override with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`). Developers and
 admins **bypass the subscription paywall** by role (req #3).
 
@@ -72,7 +72,7 @@ pnpm dev:desktop      # launches Vite + Electron, points at localhost:4000
 Build the installable Windows `.exe`:
 
 ```bash
-pnpm --filter @alphabot/desktop dist     # → apps/desktop/release/Quantara.ai Setup x.y.z.exe
+pnpm --filter @autotrade/desktop dist     # → apps/desktop/release/Autotrade Setup x.y.z.exe
 ```
 
 (Optional) drop a `build/icon.ico` in `apps/desktop/` to brand the installer.

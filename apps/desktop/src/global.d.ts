@@ -1,6 +1,6 @@
 export {};
 
-interface AlphabotBridge {
+interface AutotradeBridge {
   getRefreshToken(): Promise<string | null>;
   setRefreshToken(token: string): Promise<boolean>;
   clearRefreshToken(): Promise<boolean>;
@@ -9,6 +9,6 @@ interface AlphabotBridge {
 
 declare global {
   interface Window {
-    alphabot: AlphabotBridge;
+    autotrade: AutotradeBridge;
   }
 }

@@ -1,73 +1,142 @@
+import { SignIn, SignUp } from '@clerk/react';
 import { useState } from 'react';
-import { useAuth } from '../state/auth';
-import { ApiError } from '../api/client';
+
+const clerkAppearance = {
+  variables: {
+    colorBackground: 'rgba(14, 19, 24, 0.0)',
+    colorInputBackground: 'rgba(0,0,0,0.3)',
+    colorInputText: '#eef2f7',
+    colorText: '#eef2f7',
+    colorTextSecondary: '#7e94a8',
+    colorPrimary: '#00c896',
+    colorDanger: '#ff3b52',
+    colorSuccess: '#00c896',
+    borderRadius: '6px',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    fontSize: '15px',
+    spacingUnit: '18px',
+  },
+  elements: {
+    card: {
+      background: 'transparent',
+      boxShadow: 'none',
+      padding: '0',
+    },
+    headerTitle: {
+      display: 'none',
+    },
+    headerSubtitle: {
+      display: 'none',
+    },
+    socialButtonsBlockButton: {
+      background: 'rgba(0,0,0,0.3)',
+      border: '1px solid rgba(255,255,255,0.11)',
+      color: '#eef2f7',
+      borderRadius: '6px',
+      fontSize: '14px',
+      fontWeight: '500',
+    },
+    dividerLine: {
+      background: 'rgba(255,255,255,0.06)',
+    },
+    dividerText: {
+      color: '#3f5165',
+      fontSize: '12px',
+    },
+    formFieldLabel: {
+      color: '#3f5165',
+      fontSize: '12px',
+      fontWeight: '600',
+      letterSpacing: '0.8px',
+      textTransform: 'uppercase',
+      marginBottom: '7px',
+    },
+    formFieldInput: {
+      background: 'rgba(0,0,0,0.3)',
+      border: '1px solid rgba(255,255,255,0.11)',
+      color: '#eef2f7',
+      padding: '14px 16px',
+      borderRadius: '6px',
+      fontSize: '16px',
+    },
+    formFieldInputShowPasswordButton: {
+      color: '#7e94a8',
+    },
+    formButtonPrimary: {
+      background: '#00c896',
+      color: '#031a12',
+      border: '0',
+      padding: '14px 22px',
+      borderRadius: '6px',
+      fontWeight: '700',
+      fontSize: '15px',
+    },
+    footerActionLink: {
+      color: '#00c896',
+      fontWeight: '600',
+    },
+    footerActionText: {
+      color: '#7e94a8',
+    },
+    identityPreviewText: {
+      color: '#eef2f7',
+    },
+    identityPreviewEditButton: {
+      color: '#00c896',
+    },
+    formResendCodeLink: {
+      color: '#00c896',
+    },
+    otpCodeFieldInput: {
+      background: 'rgba(0,0,0,0.3)',
+      border: '1px solid rgba(255,255,255,0.11)',
+      color: '#eef2f7',
+      borderRadius: '6px',
+    },
+    alert: {
+      background: 'rgba(255,59,82,0.12)',
+      border: '1px solid rgba(255,59,82,0.3)',
+      borderRadius: '6px',
+    },
+    alertText: {
+      color: '#ff3b52',
+    },
+  },
+};
 
 export function Login() {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      if (mode === 'login') await login(email, password);
-      else await register(email, password);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <div className="logo-lg">
-          Quantara<span className="accent">.ai</span>
-        </div>
+        <div className="logo-lg">Autotrade</div>
         <p className="muted">AI-powered trading, personalized to you.</p>
 
         <div className="seg">
-          <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
+          <button className={mode === 'signin' ? 'active' : ''} onClick={() => setMode('signin')}>
             Sign in
           </button>
-          <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>
+          <button className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>
             Create account
           </button>
         </div>
 
-        <form onSubmit={submit}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-          />
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={mode === 'register' ? 'Min 10 chars, upper, lower, number' : '••••••••'}
-            required
-          />
-          {error && <div className="error-banner">{error}</div>}
-          <button className="btn-primary full" disabled={busy} type="submit">
-            {busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
-          </button>
-        </form>
+        <div style={{ marginTop: 10 }}>
+          {mode === 'signin' ? (
+            <SignIn
+              appearance={clerkAppearance}
+              fallbackRedirectUrl="/"
+            />
+          ) : (
+            <SignUp
+              appearance={clerkAppearance}
+              fallbackRedirectUrl="/"
+            />
+          )}
+        </div>
 
-        <p className="fine-print">
-          Subscription required to use Quantara. After creating an account you'll be prompted to
-          subscribe.
-        </p>
+        <p className="fine-print">A subscription is required after creating your account.</p>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@
  *   fastify.get('/admin/users', { preHandler: [authGuard, roleGuard(['ADMIN','DEVELOPER'])] }, ...)
  */
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { Role } from '@alphabot/shared';
+import type { Role } from '@autotrade/shared';
 import { ForbiddenError, UnauthorizedError } from '../lib/errors.js';
 
 export function roleGuard(allowed: Role[]) {

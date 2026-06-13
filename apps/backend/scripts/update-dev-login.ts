@@ -4,8 +4,8 @@
  * creating a new account.
  *
  * Run:
- *   OLD_EMAIL=dev@alphabot.ai NEW_EMAIL=dev@quantara.ai NEW_PASSWORD='...' \
- *     pnpm --filter @alphabot/backend exec tsx scripts/update-dev-login.ts
+ *   OLD_EMAIL=dev@autotrade.ai NEW_EMAIL=dev@autotrade.ai NEW_PASSWORD='...' \
+ *     pnpm --filter @autotrade/backend exec tsx scripts/update-dev-login.ts
  */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
@@ -14,7 +14,7 @@ import argon2 from 'argon2';
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  const oldEmail = (process.env.OLD_EMAIL ?? 'dev@alphabot.ai').toLowerCase();
+  const oldEmail = (process.env.OLD_EMAIL ?? 'dev@autotrade.ai').toLowerCase();
   const newEmail = (process.env.NEW_EMAIL ?? oldEmail).toLowerCase();
   const newPassword = process.env.NEW_PASSWORD;
   if (!newPassword) {

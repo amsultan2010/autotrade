@@ -8,7 +8,7 @@
  * stream events — keeping one decision/risk/execution path (req #7).
  */
 import type { BotSettings } from '@prisma/client';
-import type { RiskLevel, StrategyId, Timeframe } from '@alphabot/shared';
+import type { RiskLevel, StrategyId, Timeframe } from '@autotrade/shared';
 import { prisma } from '../lib/prisma.js';
 import { analyzeSymbol } from '../services/analysis/index.js';
 import { decide } from '../services/decision/index.js';

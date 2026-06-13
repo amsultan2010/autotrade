@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { SymbolSearchResult } from '@alphabot/shared';
+import type { SymbolSearchResult } from '@autotrade/shared';
 import { api } from '../api/client';
 
 interface Row {

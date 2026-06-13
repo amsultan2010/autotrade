@@ -6,6 +6,7 @@
  * (reuse) revokes the entire family — classic refresh-token theft mitigation.
  */
 import { randomUUID } from 'node:crypto';
+import { createClerkClient } from '@clerk/backend';
 import { prisma } from '../../lib/prisma.js';
 import { env } from '../../config/env.js';
 import {
@@ -17,7 +18,7 @@ import {
 import { signAccessToken } from '../../lib/jwt.js';
 import { ConflictError, UnauthorizedError } from '../../lib/errors.js';
 import { DEFAULT_WATCHLIST } from '../../config/defaults.js';
-import type { AuthTokens, AuthUser } from '@alphabot/shared';
+import type { AuthTokens, AuthUser } from '@autotrade/shared';
 
 function refreshExpiry(): Date {
   return new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -126,4 +127,41 @@ export async function logout(rawToken: string): Promise<void> {
     where: { tokenHash, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+}
+
+/** Verify a Clerk session token, then find-or-create the local user and issue backend JWTs. */
+export async function clerkSync(sessionToken: string): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+  if (!env.CLERK_SECRET_KEY) throw new UnauthorizedError('Clerk not configured');
+
+  const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+  const session = await clerk.sessions.verifySession(sessionToken, sessionToken).catch(() => {
+    throw new UnauthorizedError('Invalid Clerk session token');
+  });
+
+  const clerkUser = await clerk.users.getUser(session.userId);
+  const email = clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+  if (!email) throw new UnauthorizedError('Clerk user has no primary email');
+
+  const normalized = email.trim().toLowerCase();
+
+  let user = await prisma.user.findFirst({ where: { email: normalized }, select: { id: true, email: true, role: true, status: true } });
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email: normalized,
+        passwordHash: '',
+        paperAccount: { create: { balance: env.PAPER_STARTING_BALANCE, equity: env.PAPER_STARTING_BALANCE } },
+        botSettings: { create: {} },
+        subscription: { create: { status: 'NONE' } },
+        watchlist: { create: DEFAULT_WATCHLIST },
+      },
+      select: { id: true, email: true, role: true, status: true },
+    });
+  }
+
+  if (user.status === 'DISABLED') throw new UnauthorizedError('This account has been disabled');
+
+  const tokens = await issueTokens(user, randomUUID());
+  return { user, tokens };
 }

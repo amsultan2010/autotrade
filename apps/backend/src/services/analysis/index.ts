@@ -3,7 +3,7 @@
  * multi-timeframe indicator picture for a symbol. Pure analysis: it makes no
  * trading decision and never touches money (req #7 separation of concerns).
  */
-import type { IndicatorSnapshot, Timeframe } from '@alphabot/shared';
+import type { IndicatorSnapshot, Timeframe } from '@autotrade/shared';
 import { getMarketData } from '../marketdata/index.js';
 import { computeSnapshot, type ExtraReads } from './indicators.js';
 

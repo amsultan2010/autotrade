@@ -3,7 +3,7 @@
  * REST MarketDataProvider: this maintains a persistent connection and pushes
  * live trades/bars as they happen. Swappable like everything else.
  */
-import type { Candle } from '@alphabot/shared';
+import type { Candle } from '@autotrade/shared';
 
 export interface StreamHandlers {
   /** Fired on every live trade (tick). */

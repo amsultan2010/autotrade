@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { TRADE_RESULTS, EXECUTION_MODES } from '@alphabot/shared';
+import { TRADE_RESULTS, EXECUTION_MODES } from '@autotrade/shared';
 import { prisma } from '../../lib/prisma.js';
 import { parse } from '../../lib/validate.js';
 import { requireEntitled } from '../../middleware/guards.js';

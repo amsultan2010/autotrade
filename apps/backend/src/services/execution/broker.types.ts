@@ -5,7 +5,7 @@
  * The engines depend on this interface, never on a concrete broker, so live
  * trading is added by writing one adapter — nothing else changes.
  */
-import type { TradeSide } from '@alphabot/shared';
+import type { TradeSide } from '@autotrade/shared';
 
 export interface BrokerOrder {
   symbol: string;

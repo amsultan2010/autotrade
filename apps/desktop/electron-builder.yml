@@ -1,6 +1,6 @@
-appId: ai.quantara.desktop
-productName: Quantara.ai
-copyright: Copyright © 2026 Quantara.ai
+appId: ai.autotrade.desktop
+productName: Autotrade
+copyright: Copyright © 2026 Autotrade
 
 directories:
   output: release
@@ -26,7 +26,7 @@ win:
   # icon: build/icon.ico
 
 portable:
-  artifactName: Quantara.ai-portable-${version}.exe
+  artifactName: Autotrade-portable-${version}.exe
 
 nsis:
   oneClick: false
@@ -34,7 +34,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Quantara.ai
+  shortcutName: Autotrade
 
 # Auto-update can be wired later via the admin AppVersion endpoint + a feed.
 publish: null

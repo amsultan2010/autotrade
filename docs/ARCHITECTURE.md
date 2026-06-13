@@ -1,4 +1,4 @@
-# Quantara.ai — Architecture & Design
+# Autotrade — Architecture & Design
 
 > Personalized, subscription-gated AI trading bot. Windows desktop client (`.exe`)
 > backed by a secure Node/TS API. This document is the source of truth for the
@@ -91,7 +91,7 @@
 ## 3. Folder structure
 
 ```
-alphabot/
+autotrade/
 ├─ package.json                # pnpm workspace root
 ├─ pnpm-workspace.yaml
 ├─ tsconfig.base.json
@@ -169,7 +169,7 @@ Passwords never stored or logged. Tokens stored only as hashes server-side.
 ## 6. Subscription verification flow
 
 ```
-No free tier. One paid tier ("Quantara Pro").
+No free tier. One paid tier ("Autotrade Pro").
 Checkout: backend creates Stripe Checkout Session → user pays → redirected back.
 Webhook: Stripe → backend → upsert Subscription(status, currentPeriodEnd).
 Gate:    subscriptionGuard runs on EVERY protected feature route:

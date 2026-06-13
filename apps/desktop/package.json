@@ -1,13 +1,13 @@
 {
-  "name": "@alphabot/desktop",
+  "name": "@autotrade/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Quantara.ai Windows desktop client",
+  "description": "Autotrade Windows desktop client",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
     "dev:vite": "vite",
-    "dev:electron": "tsc -p electron/tsconfig.json && wait-on tcp:5173 && cross-env ALPHABOT_DEV=1 electron .",
+    "dev:electron": "tsc -p electron/tsconfig.json && wait-on tcp:5173 && cross-env AUTOTRADE_DEV=1 node node_modules/electron/cli.js .",
     "build:renderer": "vite build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build": "npm run build:electron && npm run build:renderer",
@@ -15,7 +15,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p electron/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@alphabot/shared": "workspace:*",
+    "@autotrade/shared": "workspace:*",
+    "@clerk/react": "^6.9.1",
     "lightweight-charts": "^4.2.3"
   },
   "devDependencies": {

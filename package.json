@@ -1,21 +1,21 @@
 {
-  "name": "alphabot",
+  "name": "autotrade",
   "version": "0.1.0",
   "private": true,
-  "description": "AlphaBot.ai — personalized AI-powered trading bot (Windows desktop + backend)",
+  "description": "Autotrade — personalized AI-powered trading bot (Windows desktop + backend)",
   "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev:backend": "pnpm --filter @alphabot/backend dev",
-    "dev:desktop": "pnpm --filter @alphabot/desktop dev",
+    "dev:backend": "pnpm --filter @autotrade/backend dev",
+    "dev:desktop": "pnpm --filter @autotrade/desktop dev",
     "build": "pnpm -r build",
-    "build:shared": "pnpm --filter @alphabot/shared build",
+    "build:shared": "pnpm --filter @autotrade/shared build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @alphabot/backend prisma:generate",
-    "db:migrate": "pnpm --filter @alphabot/backend prisma:migrate"
+    "db:generate": "pnpm --filter @autotrade/backend prisma:generate",
+    "db:migrate": "pnpm --filter @autotrade/backend prisma:migrate"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

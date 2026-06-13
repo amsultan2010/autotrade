@@ -5,7 +5,7 @@
  * real server on localhost:5432 with user/pass postgres/postgres and a
  * persistent data dir (./.pgdata). No admin rights, no account, no Docker.
  *
- * Run:  pnpm --filter @alphabot/backend dev:db   (keep it running)
+ * Run:  pnpm --filter @autotrade/backend dev:db   (keep it running)
  * Then in another terminal: prisma migrate / db:seed / dev.
  *
  * NOT for production — use a managed Postgres there.
@@ -39,12 +39,12 @@ async function main(): Promise<void> {
   console.log('🟢 Postgres running on localhost:5432 (user/pass: postgres/postgres)');
 
   try {
-    await pg.createDatabase('alphabot');
+    await pg.createDatabase('autotrade');
     // eslint-disable-next-line no-console
-    console.log("✅ Created database 'alphabot'");
+    console.log("✅ Created database 'autotrade'");
   } catch {
     // eslint-disable-next-line no-console
-    console.log("ℹ️  Database 'alphabot' already exists");
+    console.log("ℹ️  Database 'autotrade' already exists");
   }
 
   // eslint-disable-next-line no-console

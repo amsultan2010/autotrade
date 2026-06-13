@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { PerformanceSummary } from '@alphabot/shared';
+import type { PerformanceSummary } from '@autotrade/shared';
 import { api } from '../api/client';
+import { CountUp } from '../components/CountUp';
+import { DataTicker } from '../components/DataTicker';
 
 interface BotStatus {
   mode: string;
@@ -36,22 +38,15 @@ export function Dashboard() {
   async function toggle() {
     setBusy(true);
     try {
-      if (status?.running) await api.botStop();
-      else await api.botStart();
+      if (status?.running) await api.botStop(); else await api.botStart();
       await load();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   async function runNow() {
     setBusy(true);
-    try {
-      await api.botRunNow();
-      await load();
-    } finally {
-      setBusy(false);
-    }
+    try { await api.botRunNow(); await load(); }
+    finally { setBusy(false); }
   }
 
   const pnlClass = (n: number | null | undefined) => (n == null ? '' : n >= 0 ? 'pos' : 'neg');
@@ -60,15 +55,16 @@ export function Dashboard() {
 
   return (
     <div className="page">
+      <DataTicker />
+
       <header className="page-head">
         <h1>Dashboard</h1>
         <div className="row gap">
           <span className={`badge ${status?.running ? 'badge-on' : 'badge-off'}`}>
+            {status?.running && <span className="live-dot" />}
             {status ? (status.running ? 'BOT RUNNING · PAPER' : status.mode) : '…'}
           </span>
-          <button className="btn-ghost" disabled={busy} onClick={() => void runNow()}>
-            Scan now
-          </button>
+          <button className="btn-ghost" disabled={busy} onClick={() => void runNow()}>Scan now</button>
           <button className={status?.running ? 'btn-danger' : 'btn-primary'} disabled={busy} onClick={() => void toggle()}>
             {status?.running ? 'Stop bot' : 'Start bot'}
           </button>
@@ -76,38 +72,29 @@ export function Dashboard() {
       </header>
 
       <div className="card-grid">
-        <Stat label="Paper balance" value={money(status?.paperAccount?.balance)} />
-        <Stat label="Equity (live)" value={money(status?.paperAccount?.equity)} />
-        <Stat
-          label="Open P/L (unrealized)"
-          value={money(openPnl)}
-          cls={pnlClass(openPnl)}
-        />
-        <Stat label="Open trades" value={String(status?.openTrades ?? '—')} />
-        <Stat label="Realized P/L (closed)" value={money(perf?.totalPnl)} cls={pnlClass(perf?.totalPnl)} />
-        <Stat label="Win rate" value={perf ? `${perf.winRate}%` : '—'} />
-        <Stat label="Wins / Losses" value={perf ? `${perf.wins} / ${perf.losses}` : '—'} />
-        <Stat label="Max drawdown" value={money(perf?.maxDrawdown)} cls="neg" />
-        <Stat label="Best / Worst" value={perf ? `${money(perf.bestTrade)} / ${money(perf.worstTrade)}` : '—'} />
+        <Stat label="Paper balance"         value={money(status?.paperAccount?.balance)} />
+        <Stat label="Equity (live)"         value={money(status?.paperAccount?.equity)} />
+        <Stat label="Open P/L (unrealized)" value={money(openPnl)}          cls={pnlClass(openPnl)} />
+        <Stat label="Open trades"           value={String(status?.openTrades ?? '—')} />
+        <Stat label="Realized P/L (closed)" value={money(perf?.totalPnl)}   cls={pnlClass(perf?.totalPnl)} />
+        <Stat label="Win rate"              value={perf ? `${perf.winRate}%` : '—'} />
+        <Stat label="Wins / Losses"         value={perf ? `${perf.wins} / ${perf.losses}` : '—'} />
+        <Stat label="Max drawdown"          value={money(perf?.maxDrawdown)} cls="neg" />
+        <Stat label="Best / Worst"          value={perf ? `${money(perf.bestTrade)} / ${money(perf.worstTrade)}` : '—'} />
       </div>
 
       <section className="panel">
         <h2>Recent decisions</h2>
         {signals.length === 0 ? (
-          <p className="muted">
-            No signals yet. Add symbols to your watchlist and start the bot — every decision (with
-            its reasoning) appears here.
+          <p className="muted typewriter">
+            No signals yet. Add symbols to your watchlist and start the bot — every decision appears here.
           </p>
         ) : (
           <table className="tbl">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Ticker</th>
-                <th>Action</th>
-                <th>Strategy</th>
-                <th>Conf.</th>
-                <th>Reason</th>
+                <th>Time</th><th>Ticker</th><th>Action</th>
+                <th>Strategy</th><th>Conf.</th><th>Reason</th>
               </tr>
             </thead>
             <tbody>
@@ -115,9 +102,7 @@ export function Dashboard() {
                 <tr key={i}>
                   <td className="muted">{new Date(String(s.createdAt)).toLocaleTimeString()}</td>
                   <td className="mono">{String(s.ticker)}</td>
-                  <td>
-                    <span className={`pill pill-${String(s.action).toLowerCase()}`}>{String(s.action)}</span>
-                  </td>
+                  <td><span className={`pill pill-${String(s.action).toLowerCase()}`}>{String(s.action)}</span></td>
                   <td className="muted">{String(s.strategy)}</td>
                   <td>{Math.round(Number(s.confidence))}%</td>
                   <td className="muted truncate">{String(s.entryReason)}</td>
@@ -134,8 +119,9 @@ export function Dashboard() {
 function Stat({ label, value, cls }: { label: string; value: string; cls?: string }) {
   return (
     <div className="stat">
+      <span className="hud-corners" aria-hidden="true" />
       <div className="stat-label">{label}</div>
-      <div className={`stat-value ${cls ?? ''}`}>{value}</div>
+      <CountUp value={value} cls={cls} />
     </div>
   );
 }

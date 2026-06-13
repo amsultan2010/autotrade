@@ -16,6 +16,8 @@ const schema = z.object({
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
+  CLERK_SECRET_KEY: z.string().optional(),
+
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be set (>=16 chars)'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be set (>=16 chars)'),
   ACCESS_TOKEN_TTL_MIN: z.coerce.number().int().positive().default(15),
@@ -26,8 +28,8 @@ const schema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_ID: z.string().optional(),
-  CHECKOUT_SUCCESS_URL: z.string().default('app://alphabot/billing/success'),
-  CHECKOUT_CANCEL_URL: z.string().default('app://alphabot/billing/cancel'),
+  CHECKOUT_SUCCESS_URL: z.string().default('app://autotrade/billing/success'),
+  CHECKOUT_CANCEL_URL: z.string().default('app://autotrade/billing/cancel'),
 
   // 'alpaca' = free real-time WebSocket + broker (recommended). 'twelvedata' =
   // free REST multi-timeframe. 'finnhub' = paid candles. 'stooq' = anti-bot limited.

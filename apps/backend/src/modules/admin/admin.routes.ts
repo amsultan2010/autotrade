@@ -5,7 +5,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { ROLES, USER_STATUSES } from '@alphabot/shared';
+import { ROLES, USER_STATUSES } from '@autotrade/shared';
 import { prisma } from '../../lib/prisma.js';
 import { parse } from '../../lib/validate.js';
 import { requireAdmin } from '../../middleware/guards.js';

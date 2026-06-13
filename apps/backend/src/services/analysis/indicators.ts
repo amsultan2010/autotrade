@@ -15,7 +15,7 @@ import {
   bearishengulfingpattern,
   bullishengulfingpattern,
 } from 'technicalindicators';
-import type { Candle, IndicatorSnapshot, Timeframe } from '@alphabot/shared';
+import type { Candle, IndicatorSnapshot, Timeframe } from '@autotrade/shared';
 
 function last<T>(arr: T[]): T | undefined {
   return arr.length ? arr[arr.length - 1] : undefined;

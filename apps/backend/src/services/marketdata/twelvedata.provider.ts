@@ -6,7 +6,7 @@
  * symbol search, and quotes. Get a free key at https://twelvedata.com (no card).
  * Put it in TWELVEDATA_API_KEY. Not TradingView.
  */
-import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@alphabot/shared';
+import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { MarketDataError, type MarketDataProvider } from './types.js';
 
 const BASE = 'https://api.twelvedata.com';

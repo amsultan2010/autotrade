@@ -3,7 +3,7 @@
  * wraps it with caching + rate limiting. The rest of the app depends only on
  * `getMarketData()` returning a MarketDataProvider — never a concrete vendor.
  */
-import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@alphabot/shared';
+import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import type { SymbolSnapshot } from './types.js';
 import { env } from '../../config/env.js';
 import { AlpacaProvider } from './alpaca.provider.js';

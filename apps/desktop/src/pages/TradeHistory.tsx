@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { TradeDTO } from '@alphabot/shared';
+import type { TradeDTO } from '@autotrade/shared';
 import { api } from '../api/client';
 
 function money(n: number | null): string {
