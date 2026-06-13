@@ -25,6 +25,7 @@ enum UserStatus {
 
 model User {
   id           String     @id @default(cuid())
+  clerkId      String?    @unique
   email        String     @unique
   passwordHash String
   role         Role       @default(USER)

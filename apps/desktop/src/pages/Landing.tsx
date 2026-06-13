@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useClerk, useUser } from '@clerk/react';
+import { SignInButton, SignUpButton, useUser } from '@clerk/react';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -297,7 +297,6 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
-  const { openSignIn, openSignUp } = useClerk();
   const { isSignedIn } = useUser();
 
   const statsRef = useRef<HTMLDivElement>(null);
@@ -378,8 +377,8 @@ export function Landing() {
             </>
           ) : (
             <>
-              <button className="lp-btn-ghost" onClick={() => openSignIn()}>Sign In</button>
-              <button className="lp-btn-primary" onClick={() => openSignUp()}>Get Started →</button>
+              <SignInButton mode="modal"><button className="lp-btn-ghost">Sign In</button></SignInButton>
+              <SignUpButton mode="modal"><button className="lp-btn-primary">Get Started →</button></SignUpButton>
             </>
           )}
         </div>
@@ -403,12 +402,8 @@ export function Landing() {
             giving individual traders the edge once reserved for hedge funds.
           </p>
           <div className="lp-hero-cta">
-            <button className="lp-btn-primary lp-btn-lg" onClick={() => openSignUp()}>
-              Start Trading Free
-            </button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => openSignIn()}>
-              Sign In
-            </button>
+            <SignUpButton mode="modal"><button className="lp-btn-primary lp-btn-lg">Start Trading Free</button></SignUpButton>
+            <SignInButton mode="modal"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
           </div>
           <div className="lp-hero-badges">
             {BADGES.map((b, i) => <TradeBadge key={i} {...b} />)}
@@ -492,12 +487,8 @@ export function Landing() {
             data-driven precision. Start with paper trading, go live when you're ready.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="lp-btn-primary lp-btn-xl" onClick={() => openSignUp()}>
-              Create Free Account
-            </button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => openSignIn()}>
-              Sign In
-            </button>
+            <SignUpButton mode="modal"><button className="lp-btn-primary lp-btn-xl">Create Free Account</button></SignUpButton>
+            <SignInButton mode="modal"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
           </div>
         </div>
       </section>
