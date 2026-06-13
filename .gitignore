@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+release/
+*.tsbuildinfo
+
+# Electron packaged artifacts
+apps/desktop/release/
+apps/desktop/dist-electron/
+
+# Environment / secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Prisma
+apps/backend/prisma/*.db
+apps/backend/prisma/migrations/dev.db*
+
+# Local embedded Postgres data dir
+apps/backend/.pgdata/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local encrypted desktop store
+*.alphabot-store

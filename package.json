@@ -1,0 +1,23 @@
+{
+  "name": "alphabot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AlphaBot.ai — personalized AI-powered trading bot (Windows desktop + backend)",
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:backend": "pnpm --filter @alphabot/backend dev",
+    "dev:desktop": "pnpm --filter @alphabot/desktop dev",
+    "build": "pnpm -r build",
+    "build:shared": "pnpm --filter @alphabot/shared build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @alphabot/backend prisma:generate",
+    "db:migrate": "pnpm --filter @alphabot/backend prisma:migrate"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

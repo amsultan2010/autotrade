@@ -1,0 +1,40 @@
+appId: ai.quantara.desktop
+productName: Quantara.ai
+copyright: Copyright © 2026 Quantara.ai
+
+directories:
+  output: release
+  buildResources: build
+
+# Ship the compiled main/preload + the built renderer.
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+
+win:
+  target:
+    # portable = a single .exe you can put on the desktop and run (no install).
+    - target: portable
+      arch:
+        - x64
+    # nsis = a proper installer that adds Start-menu + desktop shortcuts.
+    - target: nsis
+      arch:
+        - x64
+  # Place an icon at build/icon.ico to brand the installer/app.
+  # icon: build/icon.ico
+
+portable:
+  artifactName: Quantara.ai-portable-${version}.exe
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Quantara.ai
+
+# Auto-update can be wired later via the admin AppVersion endpoint + a feed.
+publish: null
