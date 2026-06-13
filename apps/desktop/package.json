@@ -1,18 +1,12 @@
 {
-  "name": "@autotrade/desktop",
+  "name": "@autotrade/web",
   "version": "0.1.0",
   "private": true,
-  "description": "Autotrade Windows desktop client",
-  "main": "dist-electron/main.js",
+  "description": "Autotrade web client",
   "scripts": {
-    "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
-    "dev:vite": "vite",
-    "dev:electron": "tsc -p electron/tsconfig.json && wait-on tcp:5173 && cross-env AUTOTRADE_DEV=1 node node_modules/electron/cli.js .",
-    "build:renderer": "vite build",
-    "build:electron": "tsc -p electron/tsconfig.json",
-    "build": "npm run build:electron && npm run build:renderer",
-    "dist": "npm run build && electron-builder --win",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p electron/tsconfig.json --noEmit"
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@autotrade/shared": "workspace:*",
@@ -20,18 +14,12 @@
     "lightweight-charts": "^4.2.3"
   },
   "devDependencies": {
-    "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
-    "concurrently": "^9.1.0",
-    "cross-env": "^7.0.3",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11",
-    "wait-on": "^8.0.1"
+    "vite": "^5.4.11"
   }
 }

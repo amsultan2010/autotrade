@@ -1,8 +1,3 @@
-/**
- * API client for the Autotrade backend. Holds the access token in memory only;
- * the refresh token lives in the OS-encrypted store via the preload bridge.
- * Transparently refreshes on 401 and retries once.
- */
 import type {
   AuthTokens,
   AuthUser,
@@ -17,14 +12,18 @@ import type {
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:4000/api/v1';
 
-// In browser dev mode the Electron preload bridge doesn't exist — use a no-op stub.
-if (!window.autotrade) {
-  (window as unknown as Record<string, unknown>).autotrade = {
-    getRefreshToken: async () => null,
-    setRefreshToken: async () => true,
-    clearRefreshToken: async () => true,
-    openExternal: async () => {},
-  };
+const REFRESH_TOKEN_KEY = 'autotrade_refresh_token';
+
+function getStoredRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+function setStoredRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+function clearStoredRefreshToken(): void {
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 let accessToken: string | null = null;
@@ -50,7 +49,7 @@ async function refreshAccess(): Promise<boolean> {
     if (token) { accessToken = token; return true; }
     return false;
   }
-  const refreshToken = await window.autotrade.getRefreshToken();
+  const refreshToken = getStoredRefreshToken();
   if (!refreshToken) return false;
   const res = await fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
@@ -58,12 +57,12 @@ async function refreshAccess(): Promise<boolean> {
     body: JSON.stringify({ refreshToken }),
   });
   if (!res.ok) {
-    await window.autotrade.clearRefreshToken();
+    clearStoredRefreshToken();
     return false;
   }
   const tokens = (await res.json()) as AuthTokens;
   accessToken = tokens.accessToken;
-  await window.autotrade.setRefreshToken(tokens.refreshToken);
+  setStoredRefreshToken(tokens.refreshToken);
   return true;
 }
 
@@ -97,7 +96,6 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return (await res.json()) as T;
 }
 
-// ── Auth ──
 export const api = {
   setTokenGetter(getter: (() => Promise<string | null>) | null): void {
     tokenGetter = getter;
@@ -110,7 +108,7 @@ export const api = {
       body: JSON.stringify({ sessionToken }),
     });
     accessToken = data.accessToken;
-    await window.autotrade.setRefreshToken(data.refreshToken);
+    setStoredRefreshToken(data.refreshToken);
   },
 
   async register(email: string, password: string) {
@@ -119,7 +117,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
     accessToken = data.accessToken;
-    await window.autotrade.setRefreshToken(data.refreshToken);
+    setStoredRefreshToken(data.refreshToken);
     return data.user;
   },
 
@@ -129,7 +127,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
     accessToken = data.accessToken;
-    await window.autotrade.setRefreshToken(data.refreshToken);
+    setStoredRefreshToken(data.refreshToken);
     return data.user;
   },
 
@@ -144,7 +142,7 @@ export const api = {
   },
 
   async logout() {
-    const refreshToken = await window.autotrade.getRefreshToken();
+    const refreshToken = getStoredRefreshToken();
     if (refreshToken) {
       try {
         await request('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) });
@@ -153,7 +151,7 @@ export const api = {
       }
     }
     accessToken = null;
-    await window.autotrade.clearRefreshToken();
+    clearStoredRefreshToken();
   },
 
   // ── Subscription ──
