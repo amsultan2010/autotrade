@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useClerk, useUser } from '@clerk/react';
+// authView state removed — openSignIn/openSignUp handle modal natively
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -297,12 +298,11 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
-  const { isSignedIn } = useUser();
-  const { openSignIn, openSignUp, loaded } = useClerk();
-  const [authView, setAuthView] = useState<'signin' | 'signup' | null>(null);
+  const { isSignedIn, isLoaded } = useUser();
+  const { openSignIn, openSignUp } = useClerk();
 
-  function handleSignIn() { if (loaded) openSignIn(); else setAuthView('signin'); }
-  function handleSignUp() { if (loaded) openSignUp(); else setAuthView('signup'); }
+  function handleSignIn() { if (isLoaded) openSignIn(); }
+  function handleSignUp() { if (isLoaded) openSignUp(); }
 
   const statsRef = useRef<HTMLDivElement>(null);
   const statsVisible = useInView(statsRef as React.RefObject<HTMLElement>, 0.2);
