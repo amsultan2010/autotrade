@@ -3,7 +3,7 @@ import { useUser, useClerk } from '@clerk/react';
 import { useAuth } from './state/auth';
 import { ConstellationBg } from './components/ConstellationBg';
 import { ScanlineOverlay } from './components/ScanlineOverlay';
-import { Login } from './pages/Login';
+import { Landing } from './pages/Landing';
 import { Paywall } from './pages/Paywall';
 import { Dashboard } from './pages/Dashboard';
 import { Watchlist } from './pages/Watchlist';
@@ -42,7 +42,7 @@ export function App() {
     );
   }
 
-  if (!clerkUser) return <><ConstellationBg /><Login /></>;
+  if (!clerkUser) return <Landing />;
 
   if (subscription && !subscription.entitled) return <><ConstellationBg /><Paywall /></>;
 
