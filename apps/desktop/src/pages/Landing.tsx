@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { SignIn, SignUp, useUser } from '@clerk/react';
+import { useClerk, useUser } from '@clerk/react';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -298,7 +298,11 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
   const { isSignedIn } = useUser();
+  const { openSignIn, openSignUp, loaded } = useClerk();
   const [authView, setAuthView] = useState<'signin' | 'signup' | null>(null);
+
+  function handleSignIn() { if (loaded) openSignIn(); else setAuthView('signin'); }
+  function handleSignUp() { if (loaded) openSignUp(); else setAuthView('signup'); }
 
   const statsRef = useRef<HTMLDivElement>(null);
   const statsVisible = useInView(statsRef as React.RefObject<HTMLElement>, 0.2);
@@ -378,8 +382,8 @@ export function Landing() {
             </>
           ) : (
             <>
-              <button className="lp-btn-ghost" onClick={() => setAuthView('signin')}>Sign In</button>
-              <button className="lp-btn-primary" onClick={() => setAuthView('signup')}>Get Started →</button>
+              <button className="lp-btn-ghost" onClick={handleSignIn}>Sign In</button>
+              <button className="lp-btn-primary" onClick={handleSignUp}>Get Started →</button>
             </>
           )}
         </div>
@@ -403,8 +407,8 @@ export function Landing() {
             giving individual traders the edge once reserved for hedge funds.
           </p>
           <div className="lp-hero-cta">
-            <button className="lp-btn-primary lp-btn-lg" onClick={() => setAuthView('signup')}>Start Trading Free</button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => setAuthView('signin')}>Sign In</button>
+            <button className="lp-btn-primary lp-btn-lg" onClick={handleSignUp}>Start Trading Free</button>
+            <button className="lp-btn-ghost lp-btn-lg" onClick={handleSignIn}>Sign In</button>
           </div>
           <div className="lp-hero-badges">
             {BADGES.map((b, i) => <TradeBadge key={i} {...b} />)}
@@ -488,8 +492,8 @@ export function Landing() {
             data-driven precision. Start with paper trading, go live when you're ready.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="lp-btn-primary lp-btn-xl" onClick={() => setAuthView('signup')}>Create Free Account</button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => setAuthView('signin')}>Sign In</button>
+            <button className="lp-btn-primary lp-btn-xl" onClick={handleSignUp}>Create Free Account</button>
+            <button className="lp-btn-ghost lp-btn-lg" onClick={handleSignIn}>Sign In</button>
           </div>
         </div>
       </section>
@@ -505,14 +509,6 @@ export function Landing() {
         </p>
       </footer>
 
-      {/* ── Auth modal overlay ── */}
-      {authView && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setAuthView(null)}>
-          <div onClick={e => e.stopPropagation()}>
-            {authView === 'signin' ? <SignIn afterSignInUrl="/" /> : <SignUp afterSignUpUrl="/" />}
-          </div>
-        </div>
-      )}
 
     </div>
   );
