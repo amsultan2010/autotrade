@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useClerk } from '@clerk/react';
+import { useClerk, useUser } from '@clerk/react';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -298,6 +298,7 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
   const { openSignIn, openSignUp } = useClerk();
+  const { isSignedIn } = useUser();
 
   const statsRef = useRef<HTMLDivElement>(null);
   const statsVisible = useInView(statsRef as React.RefObject<HTMLElement>, 0.2);
@@ -370,8 +371,17 @@ export function Landing() {
           <a href="#stats">Performance</a>
         </nav>
         <div className="lp-auth-btns">
-          <button className="lp-btn-ghost" onClick={() => openSignIn()}>Sign In</button>
-          <button className="lp-btn-primary" onClick={() => openSignUp()}>Get Started →</button>
+          {isSignedIn ? (
+            <>
+              <a className="lp-btn-ghost" href="/">Home</a>
+              <a className="lp-btn-primary" href="/">Settings</a>
+            </>
+          ) : (
+            <>
+              <button className="lp-btn-ghost" onClick={() => openSignIn()}>Sign In</button>
+              <button className="lp-btn-primary" onClick={() => openSignUp()}>Get Started →</button>
+            </>
+          )}
         </div>
       </header>
 
