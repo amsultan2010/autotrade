@@ -6,6 +6,7 @@ import { App } from './App';
 import './styles.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
+if (!publishableKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env.local');
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

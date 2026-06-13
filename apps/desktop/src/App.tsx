@@ -24,23 +24,10 @@ const NAV: Array<{ id: View; label: string; icon: string; adminOnly?: boolean }>
 ];
 
 export function App() {
-  const { user: clerkUser, isLoaded } = useUser();
+  const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
-  const { subscription, loading } = useAuth();
+  const { subscription } = useAuth();
   const [view, setView] = useState<View>('dashboard');
-
-  if (loading || !isLoaded) {
-    return (
-      <>
-        <ConstellationBg />
-        <ScanlineOverlay />
-        <div className="splash">
-          <div className="logo-lg">Autotrade</div>
-          <div className="muted">Securing session…</div>
-        </div>
-      </>
-    );
-  }
 
   if (!clerkUser) return <Landing />;
 
