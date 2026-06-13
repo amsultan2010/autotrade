@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { SignInButton, SignUpButton, useUser } from '@clerk/react';
+import { useUser } from '@clerk/react';
+
+const CLERK_BASE = 'https://curious-wallaby-24.clerk.accounts.dev';
+const REDIRECT = encodeURIComponent(window.location.origin);
+const SIGN_IN_URL = `${CLERK_BASE}/sign-in?redirect_url=${REDIRECT}`;
+const SIGN_UP_URL = `${CLERK_BASE}/sign-up?redirect_url=${REDIRECT}`;
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -377,8 +382,8 @@ export function Landing() {
             </>
           ) : (
             <>
-              <SignInButton mode="redirect"><button className="lp-btn-ghost">Sign In</button></SignInButton>
-              <SignUpButton mode="redirect"><button className="lp-btn-primary">Get Started →</button></SignUpButton>
+              <a className="lp-btn-ghost" href={SIGN_IN_URL}>Sign In</a>
+              <a className="lp-btn-primary" href={SIGN_UP_URL}>Get Started →</a>
             </>
           )}
         </div>
@@ -402,8 +407,8 @@ export function Landing() {
             giving individual traders the edge once reserved for hedge funds.
           </p>
           <div className="lp-hero-cta">
-            <SignUpButton mode="redirect"><button className="lp-btn-primary lp-btn-lg">Start Trading Free</button></SignUpButton>
-            <SignInButton mode="redirect"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
+            <a className="lp-btn-primary lp-btn-lg" href={SIGN_UP_URL}>Start Trading Free</a>
+            <a className="lp-btn-ghost lp-btn-lg" href={SIGN_IN_URL}>Sign In</a>
           </div>
           <div className="lp-hero-badges">
             {BADGES.map((b, i) => <TradeBadge key={i} {...b} />)}
@@ -487,8 +492,8 @@ export function Landing() {
             data-driven precision. Start with paper trading, go live when you're ready.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <SignUpButton mode="redirect"><button className="lp-btn-primary lp-btn-xl">Create Free Account</button></SignUpButton>
-            <SignInButton mode="redirect"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
+            <a className="lp-btn-primary lp-btn-xl" href={SIGN_UP_URL}>Create Free Account</a>
+            <a className="lp-btn-ghost lp-btn-lg" href={SIGN_IN_URL}>Sign In</a>
           </div>
         </div>
       </section>
