@@ -31,7 +31,8 @@ export function App() {
 
   if (!clerkUser) return <Landing />;
 
-  if (subscription && !subscription.entitled) return <><ConstellationBg /><Paywall /></>;
+  // PAYWALL DISABLED — re-enable when Stripe is set up
+  // if (subscription && !subscription.entitled) return <><ConstellationBg /><Paywall /></>;
 
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
   // Role stored in Clerk public metadata; falls back to USER.
