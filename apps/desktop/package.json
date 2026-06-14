@@ -1,5 +1,5 @@
 {
-  "name": "@autotrade/web",
+  "name": "@autotrade/desktop",
   "version": "0.1.0",
   "private": true,
   "description": "Autotrade web client",
