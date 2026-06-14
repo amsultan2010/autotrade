@@ -2083,6 +2083,8 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 }
 
 
+.constellation-bg { opacity: 0.45 !important; }
+
 @media (max-width: 768px) {
   .constellation-bg { opacity: 0.35 !important; }
 }
