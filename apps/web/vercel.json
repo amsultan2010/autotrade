@@ -1,6 +1,5 @@
 {
   "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm --filter @autotrade/web build",
-  "outputDirectory": ".next",
-  "framework": "nextjs"
+  "buildCommand": "cd ../.. && pnpm --filter @autotrade/engine prisma:generate && pnpm --filter @autotrade/web build",
+  "outputDirectory": ".next"
 }
