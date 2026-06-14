@@ -322,7 +322,7 @@ export function Landing() {
 
   return (
     <div className="lp-root">
-      <ConstellationBg />
+      <ConstellationBg zIndex={0} />
 
       {/* ── Ticker tape ─── */}
       <div className="lp-ticker-wrap">
