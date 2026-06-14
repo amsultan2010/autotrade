@@ -4,10 +4,10 @@ import { useEffect, useRef } from 'react';
 interface Particle { x: number; y: number; vx: number; vy: number; radius: number; opacity: number; }
 interface RainCol  { x: number; y: number; speed: number; trail: string[]; len: number; }
 
-const PARTICLE_COUNT = 110;
-const CONNECTION_DIST = 170;
-const BASE_SPEED = 0.28;
-const RAIN_COUNT = 28;
+const PARTICLE_COUNT = 130;
+const CONNECTION_DIST = 190;
+const BASE_SPEED = 0.3;
+const RAIN_COUNT = 34;
 const HEX = '0123456789ABCDEF';
 const FONT_H = 13;
 
@@ -16,7 +16,7 @@ function rHex(): string { return HEX[Math.floor(Math.random() * 16)] ?? '0'; }
 function makeParticle(w: number, h: number): Particle {
   const angle = Math.random() * Math.PI * 2;
   const spd = BASE_SPEED * (0.4 + Math.random() * 0.6);
-  return { x: Math.random() * w, y: Math.random() * h, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, radius: 1.4 + Math.random() * 1.8, opacity: 0.5 + Math.random() * 0.45 };
+  return { x: Math.random() * w, y: Math.random() * h, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, radius: 1.8 + Math.random() * 2.2, opacity: 0.7 + Math.random() * 0.3 };
 }
 
 function makeRainCol(w: number, h: number): RainCol {
@@ -24,7 +24,7 @@ function makeRainCol(w: number, h: number): RainCol {
   return { x: Math.floor(Math.random() * (w / 14)) * 14, y: -Math.random() * h, speed: 0.5 + Math.random() * 0.9, trail: Array.from({ length: len + 2 }, rHex), len };
 }
 
-export function ConstellationBg() {
+export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouse = useRef({ x: -9999, y: -9999 });
 
@@ -59,7 +59,7 @@ export function ConstellationBg() {
         for (let i = 0; i < col.len; i++) {
           const cy = col.y - i * FONT_H;
           if (cy < -FONT_H || cy > h + FONT_H) continue;
-          const alpha = i === 0 ? 0.95 : (1 - i / col.len) * 0.22;
+          const alpha = i === 0 ? 1.0 : (1 - i / col.len) * 0.35;
           c.fillStyle = i === 0 ? `rgba(190,255,230,${alpha})` : `rgba(0,200,150,${alpha})`;
           c.fillText(col.trail[i % col.trail.length] ?? '0', col.x, cy);
         }
@@ -103,7 +103,7 @@ export function ConstellationBg() {
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > CONNECTION_DIST) continue;
           c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y);
-          c.strokeStyle = `rgba(0,200,150,${(1 - dist / CONNECTION_DIST) * 0.38})`;
+          c.strokeStyle = `rgba(0,200,150,${(1 - dist / CONNECTION_DIST) * 0.6})`;
           c.lineWidth = 0.8; c.stroke();
         }
       }
@@ -135,5 +135,5 @@ export function ConstellationBg() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0, opacity: 0.92 }} />;
+  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex, opacity: 1 }} />;
 }
