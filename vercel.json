@@ -1,6 +1,6 @@
 {
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @autotrade/web build",
+  "buildCommand": "pnpm exec prisma generate --schema packages/engine/prisma/schema.prisma && pnpm --filter @autotrade/web build",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs"
 }
