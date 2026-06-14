@@ -1,6 +1,6 @@
 {
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @autotrade/engine generate && pnpm --filter @autotrade/web build",
-  "outputDirectory": ".next",
+  "buildCommand": "pnpm --filter @autotrade/shared build && pnpm --filter @autotrade/engine generate && pnpm --filter @autotrade/web build",
+  "outputDirectory": "apps/web/.next",
   "framework": "nextjs"
 }
