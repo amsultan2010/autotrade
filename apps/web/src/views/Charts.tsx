@@ -85,7 +85,7 @@ export function Charts() {
         <h1>Charts</h1>
         <div className="row gap">
           <select className="chart-select" value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            {symbols.length === 0 && <option value="">No symbols — add some on Watchlist</option>}
+            {symbols.length === 0 && <option value="">No symbols - add some on Watchlist</option>}
             {symbols.map((s) => (
               <option key={s} value={s}>
                 {s}

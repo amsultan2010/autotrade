@@ -21,7 +21,7 @@ interface Popular {
 }
 
 function money(n: number | null): string {
-  if (n == null) return '—';
+  if (n == null) return '--';
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
@@ -197,7 +197,7 @@ export function Watchlist() {
                   <td className="muted">{w.exchange}</td>
                   <td className="right mono">{money(w.price)}</td>
                   <td className={`right ${w.changePct == null ? 'muted' : w.changePct >= 0 ? 'pos' : 'neg'}`}>
-                    {w.changePct == null ? '—' : `${w.changePct >= 0 ? '+' : ''}${w.changePct}%`}
+                    {w.changePct == null ? '--' : `${w.changePct >= 0 ? '+' : ''}${w.changePct}%`}
                   </td>
                   <td className="right">
                     <button className="btn-text danger" onClick={() => void remove(w.id)}>

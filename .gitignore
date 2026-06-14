@@ -40,3 +40,4 @@ Thumbs.db
 
 # Local encrypted desktop store
 *.alphabot-store
+.vercel

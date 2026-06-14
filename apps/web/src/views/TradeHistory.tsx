@@ -4,7 +4,7 @@ import type { TradeDTO } from '@autotrade/shared';
 import { api } from '../api/client';
 
 function money(n: number | null): string {
-  if (n == null) return '—';
+  if (n == null) return '--';
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
@@ -128,14 +128,14 @@ export function TradeHistory() {
             <Detail label="Stop / Target" value={`${money(selected.stopLoss)} / ${money(selected.takeProfit)}`} />
             <Detail label="P/L" value={money(selected.pnl)} />
             <Detail label="Entry reason" value={selected.entryReason} />
-            <Detail label="Exit reason" value={selected.exitReason ?? '—'} />
+            <Detail label="Exit reason" value={selected.exitReason ?? '--'} />
             <Detail
               label="Mistake tags"
               value={selected.mistakeTags.length ? selected.mistakeTags.join(', ') : 'none'}
             />
             <Detail
               label="Reasoning correct?"
-              value={selected.reasoningCorrect == null ? '—' : selected.reasoningCorrect ? 'Yes' : 'No'}
+              value={selected.reasoningCorrect == null ? '--' : selected.reasoningCorrect ? 'Yes' : 'No'}
             />
           </aside>
         )}

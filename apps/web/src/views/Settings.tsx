@@ -110,7 +110,7 @@ export function Settings() {
         <h2>Execution mode</h2>
         <p className="muted">
           Paper trading uses real market data. Live trading is disabled until a licensed broker is
-          connected — a safety guard, not a limitation of your account.
+          connected. This is a safety guard, not a limitation of your account.
         </p>
         <div className="chips">
           <span className={`chip ${s.mode === 'PAPER' ? 'on' : ''}`}>PAPER</span>

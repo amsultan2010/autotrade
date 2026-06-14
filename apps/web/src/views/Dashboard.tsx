@@ -13,7 +13,7 @@ interface BotStatus {
 }
 
 function money(n: number | null | undefined): string {
-  if (n == null) return '—';
+  if (n == null) return '--';
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
@@ -83,19 +83,19 @@ export function Dashboard() {
         <Stat label="Paper balance"         value={money(status?.paperAccount?.balance)} />
         <Stat label="Equity (live)"         value={money(status?.paperAccount?.equity)} />
         <Stat label="Open P/L (unrealized)" value={money(openPnl)}          cls={pnlClass(openPnl)} />
-        <Stat label="Open trades"           value={String(status?.openTrades ?? '—')} />
+        <Stat label="Open trades"           value={String(status?.openTrades ?? '--')} />
         <Stat label="Realized P/L (closed)" value={money(perf?.totalPnl)}   cls={pnlClass(perf?.totalPnl)} />
-        <Stat label="Win rate"              value={perf ? `${perf.winRate}%` : '—'} />
-        <Stat label="Wins / Losses"         value={perf ? `${perf.wins} / ${perf.losses}` : '—'} />
+        <Stat label="Win rate"              value={perf ? `${perf.winRate}%` : '--'} />
+        <Stat label="Wins / Losses"         value={perf ? `${perf.wins} / ${perf.losses}` : '--'} />
         <Stat label="Max drawdown"          value={money(perf?.maxDrawdown)} cls="neg" />
-        <Stat label="Best / Worst"          value={perf ? `${money(perf.bestTrade)} / ${money(perf.worstTrade)}` : '—'} />
+        <Stat label="Best / Worst"          value={perf ? `${money(perf.bestTrade)} / ${money(perf.worstTrade)}` : '--'} />
       </div>
 
       <section className="panel">
         <h2>Recent decisions</h2>
         {signals.length === 0 ? (
           <p className="muted typewriter">
-            No signals yet. Add symbols to your watchlist and start the bot — every decision appears here.
+            No signals yet. Add symbols to your watchlist and start the bot. Every decision appears here.
           </p>
         ) : (
           <table className="tbl">

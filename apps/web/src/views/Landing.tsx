@@ -29,8 +29,8 @@ const FEATURES = [
   { icon: '◈', title: 'AI Signal Engine',    desc: 'Real-time pattern recognition across thousands of assets. Scans momentum, volume anomalies, and macro events simultaneously.',                                       accent: '#00c896' },
   { icon: '⬡', title: 'Precision Execution', desc: 'Sub-50ms order routing with smart order splitting. Minimize slippage and maximize fill rates across all major brokers.',                                         accent: '#4facfe' },
   { icon: '◉', title: 'Risk Guardrails',     desc: 'Configurable drawdown limits, position sizing rules, and sector exposure caps. Never blow up an account by accident again.',                                    accent: '#fa709a' },
-  { icon: '◫', title: 'Live Strategy Lab',   desc: 'Backtest strategies against 20 years of tick data, then paper-trade them live — all inside the same dashboard.',                                              accent: '#f6d365' },
-  { icon: '◎', title: 'Portfolio Analytics', desc: 'Sharpe, Sortino, max drawdown, sector heatmaps, and P&L attribution — everything a quant needs in one view.',                                                accent: '#a18cd1' },
+  { icon: '◫', title: 'Live Strategy Lab',   desc: 'Backtest strategies against 20 years of tick data, then paper-trade them live. All inside the same dashboard.',                                              accent: '#f6d365' },
+  { icon: '◎', title: 'Portfolio Analytics', desc: 'Sharpe, Sortino, max drawdown, sector heatmaps, and P&L attribution. Everything a quant needs in one view.',                                                accent: '#a18cd1' },
   { icon: '◬', title: 'Webhook Automation',  desc: 'Connect TradingView alerts, custom webhooks, or API triggers. Fully scriptable with our JSON strategy format.',                                               accent: '#fd7014' },
 ];
 
@@ -42,7 +42,7 @@ const BADGES = [
 ];
 
 const HOW_STEPS = [
-  { n: '01', title: 'AI Scans the Market', desc: 'Our engine ingests live price feeds, order-book depth, and news sentiment across 5,000+ tickers — 24/7.' },
+  { n: '01', title: 'AI Scans the Market', desc: 'Our engine ingests live price feeds, order-book depth, and news sentiment across 5,000+ tickers, 24/7.' },
   { n: '02', title: 'Signal Is Generated', desc: 'When patterns exceed confidence thresholds, a trade signal fires with entry, target, and stop levels.' },
   { n: '03', title: 'Order Is Executed',   desc: 'Smart order routing splits and places orders in under 50 ms via supported brokers like Alpaca and IBKR.' },
   { n: '04', title: 'Position Is Managed', desc: 'Trailing stops, take-profit ladders, and risk rules manage the trade autonomously until exit.' },
@@ -420,7 +420,7 @@ export function Landing() {
             <span className="lp-hero-line">Win Bigger.</span>
           </h1>
           <p className="lp-hero-sub">
-            Autotrade fuses institutional-grade AI signals with lightning-fast execution —
+            Autotrade fuses institutional-grade AI signals with lightning-fast execution,
             giving individual traders the edge once reserved for hedge funds.
           </p>
           <div className="lp-hero-cta">

@@ -32,10 +32,10 @@ export function Admin() {
       </header>
 
       <div className="card-grid">
-        <Stat label="Total users" value={String(metrics?.users ?? '—')} />
-        <Stat label="Active subs" value={String(metrics?.activeSubs ?? '—')} />
-        <Stat label="Open trades" value={String(metrics?.openTrades ?? '—')} />
-        <Stat label="Signals (24h)" value={String(metrics?.signals24h ?? '—')} />
+        <Stat label="Total users" value={String(metrics?.users ?? '--')} />
+        <Stat label="Active subs" value={String(metrics?.activeSubs ?? '--')} />
+        <Stat label="Open trades" value={String(metrics?.openTrades ?? '--')} />
+        <Stat label="Signals (24h)" value={String(metrics?.signals24h ?? '--')} />
       </div>
 
       <div className="search-wrap">
