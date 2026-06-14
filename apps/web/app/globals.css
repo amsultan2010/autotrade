@@ -1541,7 +1541,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 }
 
 .lp-section-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -1569,6 +1569,13 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
   opacity: 0;
   transform: translateY(30px);
   transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  background: rgba(14,19,24,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 28px 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .lp-how-step.visible {
@@ -1597,13 +1604,13 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 }
 
 .lp-how-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   margin: 0 0 10px;
 }
 
 .lp-how-desc {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink-2);
   line-height: 1.7;
   margin: 0;
@@ -1624,15 +1631,18 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 
 .lp-feature-card {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: rgba(14,19,24,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
   padding: 32px;
   overflow: hidden;
   cursor: default;
   opacity: 0;
   transform: translateY(24px);
   transition: opacity 0.5s ease-out, transform 0.5s ease-out, border-color 0.3s, box-shadow 0.3s;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .lp-feature-card.visible {
@@ -1657,13 +1667,13 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 }
 
 .lp-feature-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   margin: 0 0 10px;
 }
 
 .lp-feature-desc {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink-2);
   line-height: 1.7;
   margin: 0;
@@ -1724,7 +1734,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 
 .lp-cta-badge {
   display: inline-block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -1761,7 +1771,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 }
 
 .lp-footer-copy {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-3);
   margin: 0;
 }
