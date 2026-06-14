@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SignInButton, SignUpButton, useUser } from '@clerk/react';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -324,6 +324,25 @@ export function Landing() {
     return () => observers.forEach(o => o?.disconnect());
   }, []);
 
+  const handleCardTilt = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const rx = ((e.clientY - cy) / (rect.height / 2)) * -6;
+    const ry = ((e.clientX - cx) / (rect.width / 2)) * 6;
+    el.style.setProperty('--rx', `${rx}deg`);
+    el.style.setProperty('--ry', `${ry}deg`);
+    el.style.transform = `translateY(0) perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+  }, []);
+
+  const handleCardReset = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    el.style.setProperty('--rx', '0deg');
+    el.style.setProperty('--ry', '0deg');
+    el.style.transform = '';
+  }, []);
+
   useEffect(() => {
     const observers = howRefs.current.map((el, i) => {
       if (!el) return null;
@@ -465,6 +484,8 @@ export function Landing() {
               ref={el => { featureRefs.current[i] = el; }}
               className={`lp-feature-card ${featureVisible[i] ? 'visible' : ''}`}
               style={{ transitionDelay: `${(i % 3) * 80}ms`, '--lp-accent': f.accent } as React.CSSProperties}
+              onMouseMove={handleCardTilt}
+              onMouseLeave={handleCardReset}
             >
               <div className="lp-feature-icon" style={{ color: f.accent }}>{f.icon}</div>
               <h3 className="lp-feature-title">{f.title}</h3>

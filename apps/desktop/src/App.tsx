@@ -4,7 +4,6 @@ import { useAuth } from './state/auth';
 import { ConstellationBg } from './components/ConstellationBg';
 import { ScanlineOverlay } from './components/ScanlineOverlay';
 import { Landing } from './pages/Landing';
-import { Paywall } from './pages/Paywall';
 import { Dashboard } from './pages/Dashboard';
 import { Watchlist } from './pages/Watchlist';
 import { TradeHistory } from './pages/TradeHistory';
@@ -31,8 +30,6 @@ export function App() {
 
   if (!clerkUser) return <Landing />;
 
-  // PAYWALL DISABLED — re-enable when Stripe is set up
-  // if (subscription && !subscription.entitled) return <><ConstellationBg /><Paywall /></>;
 
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
   // Role stored in Clerk public metadata; falls back to USER.

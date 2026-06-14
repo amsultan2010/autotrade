@@ -32,12 +32,22 @@ function lastSma(values: number[], period: number): number {
   return last(out) ?? (last(values) ?? 0);
 }
 
-/** Recent swing high/low as a pragmatic support/resistance read. */
-function supportResistance(candles: Candle[], lookback = 30): { support: number | null; resistance: number | null } {
+/** Swing high/low detection — real structural levels, not the naive min/max of a window. */
+function supportResistance(candles: Candle[], lookback = 50): { support: number | null; resistance: number | null } {
   const window = candles.slice(-lookback);
   if (window.length < 5) return { support: null, resistance: null };
-  const support = Math.min(...window.map((c) => c.l));
-  const resistance = Math.max(...window.map((c) => c.h));
+  const price = window[window.length - 1]!.c;
+  const swingHighs: number[] = [];
+  const swingLows: number[] = [];
+  for (let i = 1; i < window.length - 1; i++) {
+    const prev = window[i - 1]!;
+    const cur  = window[i]!;
+    const next = window[i + 1]!;
+    if (cur.h > prev.h && cur.h > next.h) swingHighs.push(cur.h);
+    if (cur.l < prev.l && cur.l < next.l) swingLows.push(cur.l);
+  }
+  const resistance = swingHighs.filter((h) => h > price).sort((a, b) => a - b)[0] ?? null;
+  const support    = swingLows.filter((l) => l < price).sort((a, b) => b - a)[0] ?? null;
   return { support, resistance };
 }
 
@@ -76,7 +86,9 @@ export function computeSnapshot(
   const adxSeries = ADX.calculate({ period: 14, high, low, close });
 
   const { support, resistance } = supportResistance(candles);
-  const avgVolume = volume.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, volume.length);
+  // Larger window on fast timeframes to smooth noise; 20 is fine for daily/hourly
+  const volWindow = timeframe === '1m' || timeframe === '5m' ? 50 : 20;
+  const avgVolume = volume.slice(-volWindow).reduce((a, b) => a + b, 0) / Math.min(volWindow, volume.length);
 
   const snapshot: IndicatorSnapshot = {
     timeframe,

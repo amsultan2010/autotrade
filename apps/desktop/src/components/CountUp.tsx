@@ -5,7 +5,7 @@ function easeOutExpo(t: number) { return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t); 
 function parse(s: string): { prefix: string; num: number; suffix: string } | null {
   const m = s.match(/^([^0-9-]*)(-?[\d,]+\.?\d*)(.*)$/);
   if (!m) return null;
-  return { prefix: m[1], num: parseFloat(m[2].replace(/,/g, '')), suffix: m[3] };
+  return { prefix: m[1] ?? '', num: parseFloat((m[2] ?? '0').replace(/,/g, '')), suffix: m[3] ?? '' };
 }
 
 function fmt(n: number, original: string): string {
@@ -36,7 +36,7 @@ export function CountUp({ value, cls }: { value: string; cls?: string }) {
     function tick(now: number) {
       if (!start) start = now;
       const t = Math.min((now - start) / duration, 1);
-      setDisplay(fmt(p.num * easeOutExpo(t), value));
+      setDisplay(fmt(p!.num * easeOutExpo(t), value));
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
       else setDisplay(value);
     }

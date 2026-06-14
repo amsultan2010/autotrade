@@ -136,7 +136,7 @@ export function Login() {
           )}
         </div>
 
-        <p className="fine-print">A subscription is required after creating your account.</p>
+        <p className="fine-print">Paper trading with simulated funds. No real money involved.</p>
       </div>
     </div>
   );
