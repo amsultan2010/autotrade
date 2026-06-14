@@ -135,5 +135,5 @@ export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex, opacity: 1 }} />;
+  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex, opacity: 1 }} className="constellation-bg" />;
 }
