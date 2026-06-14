@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
+import { ConstellationBg } from '../components/ConstellationBg';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -364,6 +365,7 @@ export function Landing() {
 
   return (
     <div className="lp-root">
+      <ConstellationBg />
 
       {/* ── Ticker tape ─── */}
       <div className="lp-ticker-wrap">
