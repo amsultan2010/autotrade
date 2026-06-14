@@ -19,12 +19,6 @@ const TICKERS = [
   { sym: 'BRK.B', price: '465.90', chg: '+0.22', pos: true },
 ];
 
-const STATS = [
-  { value: '$2.4B+', label: 'Volume Processed' },
-  { value: '99.7%',  label: 'Uptime SLA' },
-  { value: '<50ms',  label: 'Execution Latency' },
-  { value: '40k+',   label: 'Active Traders' },
-];
 
 const FEATURES = [
   { icon: '◈', title: 'AI Signal Engine',    desc: 'Real-time pattern recognition across thousands of assets. Scans momentum, volume anomalies, and macro events simultaneously.',                                       accent: '#00c896' },
@@ -236,40 +230,6 @@ function ParticleField() {
 }
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
-function useCounter(target: string, active: boolean): string {
-  const [display, setDisplay] = useState('0');
-  useEffect(() => {
-    if (!active) return;
-    const numStr = target.replace(/[^0-9.]/g, '');
-    const num    = parseFloat(numStr);
-    if (isNaN(num)) { setDisplay(target); return; }
-    const prefix   = target.match(/^[^0-9]*/)?.[0] ?? '';
-    const suffix   = target.match(/[^0-9.]+$/)?.[0] ?? '';
-    const decimals = (target.split('.')[1]?.replace(/[^0-9]/g, '') ?? '').length;
-    let start = 0;
-    const duration = 1800;
-    function step(ts: number) {
-      if (!start) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      const eased    = 1 - Math.pow(1 - progress, 3);
-      setDisplay(prefix + (num * eased).toFixed(decimals) + suffix);
-      if (progress < 1) requestAnimationFrame(step);
-      else setDisplay(target);
-    }
-    requestAnimationFrame(step);
-  }, [active, target]);
-  return display;
-}
-
-function StatCard({ value, label, active }: { value: string; label: string; active: boolean }) {
-  const display = useCounter(value, active);
-  return (
-    <div className="lp-stat-card">
-      <div className="lp-stat-value">{display}</div>
-      <div className="lp-stat-label">{label}</div>
-    </div>
-  );
-}
 
 // ─── Trade badge ──────────────────────────────────────────────────────────────
 function TradeBadge({ sym, action, qty, pnl, delay }: typeof BADGES[0]) {
@@ -302,9 +262,6 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
   const { isSignedIn } = useUser();
-
-  const statsRef = useRef<HTMLDivElement>(null);
-  const statsVisible = useInView(statsRef as React.RefObject<HTMLElement>, 0.2);
 
   const featureRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [featureVisible, setFeatureVisible] = useState<boolean[]>(FEATURES.map(() => false));
@@ -449,13 +406,6 @@ export function Landing() {
         <div className="lp-hero-orb lp-hero-orb-1" />
         <div className="lp-hero-orb lp-hero-orb-2" />
       </section>
-
-      {/* ── Stats ─── */}
-      <div ref={statsRef} id="stats" className="lp-stats-band">
-        {STATS.map((s) => (
-          <StatCard key={s.label} value={s.value} label={s.label} active={statsVisible} />
-        ))}
-      </div>
 
       {/* ── How it works ─── */}
       <section id="how" className="lp-how">
