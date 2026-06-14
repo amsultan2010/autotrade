@@ -5,7 +5,7 @@
  */
 import Stripe from 'stripe';
 import { env } from '../config/env';
-import { AppError } from './errors.js';
+import { AppError } from './errors';
 
 let client: Stripe | null = null;
 

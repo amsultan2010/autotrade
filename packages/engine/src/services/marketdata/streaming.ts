@@ -5,9 +5,9 @@
  */
 import { env } from '../../config/env';
 import { isAlpacaConfigured } from '../../lib/alpaca';
-import { AlpacaStream } from './alpaca.stream.js';
-import { FinnhubStream } from './finnhub.stream.js';
-import type { StreamingProvider } from './streaming.types.js';
+import { AlpacaStream } from './alpaca.stream';
+import { FinnhubStream } from './finnhub.stream';
+import type { StreamingProvider } from './streaming.types';
 
 function resolve(): 'alpaca' | 'finnhub' | null {
   switch (env.STREAM_PROVIDER) {

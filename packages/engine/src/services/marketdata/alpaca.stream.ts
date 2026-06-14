@@ -12,8 +12,8 @@
 import WebSocket from 'ws';
 import type { Candle } from '@autotrade/shared';
 import { env } from '../../config/env';
-import { isCryptoSymbol } from './alpaca.provider.js';
-import type { StreamHandlers, StreamingProvider } from './streaming.types.js';
+import { isCryptoSymbol } from './alpaca.provider';
+import type { StreamHandlers, StreamingProvider } from './streaming.types';
 
 interface AlpacaMsg {
   T: string;

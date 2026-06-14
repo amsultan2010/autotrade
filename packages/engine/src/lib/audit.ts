@@ -1,5 +1,5 @@
 /** Append an audit-log entry for sensitive/admin actions (req #7, #15). */
-import { prisma } from './prisma.js';
+import { prisma } from './prisma';
 
 export async function writeAudit(params: {
   actorId?: string | null;

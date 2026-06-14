@@ -13,7 +13,7 @@ import type {
   BrokerOrderResult,
   BrokerPosition,
   BrokerProvider,
-} from './broker.types.js';
+} from './broker.types';
 
 export class AlpacaBroker implements BrokerProvider {
   readonly name = 'alpaca';

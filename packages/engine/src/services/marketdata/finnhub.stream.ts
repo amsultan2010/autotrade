@@ -13,7 +13,7 @@
  */
 import WebSocket from 'ws';
 import { env } from '../../config/env';
-import type { StreamHandlers, StreamingProvider } from './streaming.types.js';
+import type { StreamHandlers, StreamingProvider } from './streaming.types';
 
 interface FinnhubMsg {
   type: string;

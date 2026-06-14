@@ -8,7 +8,7 @@
  * engines are unaffected.
  */
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
-import { MarketDataError, type MarketDataProvider } from './types.js';
+import { MarketDataError, type MarketDataProvider } from './types';
 
 const BASE = 'https://finnhub.io/api/v1';
 

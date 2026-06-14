@@ -4,15 +4,15 @@
  * `getMarketData()` returning a MarketDataProvider — never a concrete vendor.
  */
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
-import type { SymbolSnapshot } from './types.js';
+import type { SymbolSnapshot } from './types';
 import { env } from '../../config/env';
-import { AlpacaProvider } from './alpaca.provider.js';
-import { FinnhubProvider } from './finnhub.provider.js';
-import { StooqProvider } from './stooq.provider.js';
-import { TwelveDataProvider } from './twelvedata.provider.js';
-import { RateLimiter, TtlCache } from './cache.js';
+import { AlpacaProvider } from './alpaca.provider';
+import { FinnhubProvider } from './finnhub.provider';
+import { StooqProvider } from './stooq.provider';
+import { TwelveDataProvider } from './twelvedata.provider';
+import { RateLimiter, TtlCache } from './cache';
 import { isAlpacaConfigured } from '../../lib/alpaca';
-import { MarketDataError, type MarketDataProvider } from './types.js';
+import { MarketDataError, type MarketDataProvider } from './types';
 
 /** Per-provider request budget (requests per minute). */
 const PROVIDER_RATE: Record<string, number> = {
@@ -134,5 +134,5 @@ export function isMarketDataConfigured(): boolean {
   }
 }
 
-export type { MarketDataProvider } from './types.js';
-export { MarketDataError } from './types.js';
+export type { MarketDataProvider } from './types';
+export { MarketDataError } from './types';

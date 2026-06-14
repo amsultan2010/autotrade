@@ -5,7 +5,7 @@
  */
 import type { IndicatorSnapshot, Timeframe } from '@autotrade/shared';
 import { getMarketData } from '../marketdata/index';
-import { computeSnapshot, type ExtraReads } from './indicators.js';
+import { computeSnapshot, type ExtraReads } from './indicators';
 
 const BAR_SECONDS: Record<Timeframe, number> = {
   '1m': 60,

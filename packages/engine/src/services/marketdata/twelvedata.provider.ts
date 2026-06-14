@@ -7,7 +7,7 @@
  * Put it in TWELVEDATA_API_KEY. Not TradingView.
  */
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
-import { MarketDataError, type MarketDataProvider } from './types.js';
+import { MarketDataError, type MarketDataProvider } from './types';
 
 const BASE = 'https://api.twelvedata.com';
 

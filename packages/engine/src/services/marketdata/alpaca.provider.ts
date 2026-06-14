@@ -7,7 +7,7 @@
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { env } from '../../config/env';
 import { ALPACA_DATA_BASE, alpacaHeaders, alpacaTradingBase } from '../../lib/alpaca';
-import { MarketDataError, type MarketDataProvider, type SymbolSnapshot } from './types.js';
+import { MarketDataError, type MarketDataProvider, type SymbolSnapshot } from './types';
 
 const TIMEFRAME: Record<Timeframe, string> = {
   '1m': '1Min',

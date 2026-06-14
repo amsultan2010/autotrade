@@ -11,7 +11,7 @@
  * to a licensed API (Finnhub paid / Twelve Data / Alpaca). Not TradingView.
  */
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
-import { MarketDataError, type MarketDataProvider } from './types.js';
+import { MarketDataError, type MarketDataProvider } from './types';
 
 /** Stooq uses suffixes (.us, .de, .uk…). Default unsuffixed symbols to US. */
 function toStooqSymbol(symbol: string): string {

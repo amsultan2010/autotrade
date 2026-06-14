@@ -19,7 +19,7 @@ import {
   evaluateSymbolEntry,
   loadUserBotContext,
   type UserBotContext,
-} from './scanLoop.js';
+} from './scanLoop';
 import {
   closeOpenTradesForSymbolAtPrice,
   markToMarketUser,

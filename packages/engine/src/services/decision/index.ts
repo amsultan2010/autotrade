@@ -18,7 +18,7 @@ import type {
   TradeSignal,
 } from '@autotrade/shared';
 import type { MultiTimeframeAnalysis } from '../analysis/index';
-import { STRATEGY_FNS, type StrategyResult } from './strategies.js';
+import { STRATEGY_FNS, type StrategyResult } from './strategies';
 
 export interface DecisionInput {
   symbol: string;
