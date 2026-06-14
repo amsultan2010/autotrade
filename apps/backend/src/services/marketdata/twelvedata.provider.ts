@@ -44,7 +44,7 @@ export class TwelveDataProvider implements MarketDataProvider {
     const url = new URL(BASE + path);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
     url.searchParams.set('apikey', this.apiKey);
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
     if (res.status === 429) throw new MarketDataError('Twelve Data rate limit', 'twelvedata', true);
     if (!res.ok) throw new MarketDataError(`Twelve Data ${path}: ${res.status}`, 'twelvedata', res.status >= 500);
     return (await res.json()) as T;

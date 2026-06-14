@@ -185,6 +185,11 @@ export async function evaluateSymbolEntry(
   if (decisionChanged) {
     signalRowId = await persistSignal(userId, signal);
     lastSignal.set(sigKey, { action: signal.action, ts: Date.now() });
+    // Prune stale entries to prevent unbounded memory growth.
+    const cutoff = Date.now() - SIGNAL_DEDUP_MS * 10;
+    for (const [k, v] of lastSignal) {
+      if (v.ts < cutoff) lastSignal.delete(k);
+    }
   }
 
   if (!isActionable) return;

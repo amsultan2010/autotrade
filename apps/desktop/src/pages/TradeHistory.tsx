@@ -12,11 +12,17 @@ export function TradeHistory() {
   const [selected, setSelected] = useState<TradeDTO | null>(null);
   const [filter, setFilter] = useState<'all' | 'OPEN' | 'WIN' | 'LOSS'>('all');
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   async function load() {
-    const params = filter === 'all' ? '' : `?result=${filter}`;
-    const { items } = await api.getTrades(params);
-    setTrades(items);
+    try {
+      const params = filter === 'all' ? '' : `?result=${filter}`;
+      const { items } = await api.getTrades(params);
+      setTrades(items);
+      setLoadErr(null);
+    } catch {
+      setLoadErr('Could not load trades. Check your connection.');
+    }
   }
 
   useEffect(() => {
@@ -38,6 +44,7 @@ export function TradeHistory() {
 
   return (
     <div className="page">
+      {loadErr && <div className="error-banner">{loadErr}</div>}
       <header className="page-head">
         <h1>Trade History</h1>
         <div className="seg small">

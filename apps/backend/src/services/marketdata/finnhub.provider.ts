@@ -51,7 +51,7 @@ export class FinnhubProvider implements MarketDataProvider {
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
     url.searchParams.set('token', this.apiKey);
 
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
     if (res.status === 429) throw new MarketDataError('Finnhub rate limit', 'finnhub', true);
     if (!res.ok) {
       throw new MarketDataError(`Finnhub ${path} failed: ${res.status}`, 'finnhub', res.status >= 500);

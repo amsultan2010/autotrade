@@ -228,6 +228,7 @@ function ParticleField() {
     <canvas
       ref={canvasRef}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      aria-hidden="true"
     />
   );
 }
@@ -259,9 +260,10 @@ function useCounter(target: string, active: boolean): string {
 }
 
 function StatCard({ value, label, active }: { value: string; label: string; active: boolean }) {
+  const display = useCounter(value, active);
   return (
     <div className="lp-stat-card">
-      <div className="lp-stat-value">{useCounter(value, active)}</div>
+      <div className="lp-stat-value">{display}</div>
       <div className="lp-stat-label">{label}</div>
     </div>
   );

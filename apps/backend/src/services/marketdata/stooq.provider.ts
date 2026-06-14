@@ -36,7 +36,7 @@ export class StooqProvider implements MarketDataProvider {
   async getQuote(symbol: string): Promise<Quote> {
     const s = toStooqSymbol(symbol);
     const url = `https://stooq.com/q/l/?s=${encodeURIComponent(s)}&f=sd2t2ohlcv&h&e=csv`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new MarketDataError(`Stooq quote failed: ${res.status}`, 'stooq', res.status >= 500);
     const text = await res.text();
     // header: Symbol,Date,Time,Open,High,Low,Close,Volume
@@ -55,7 +55,7 @@ export class StooqProvider implements MarketDataProvider {
 
     const s = toStooqSymbol(symbol);
     const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(s)}&i=d`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new MarketDataError(`Stooq candles failed: ${res.status}`, 'stooq', res.status >= 500);
     const text = await res.text();
     const lines = text.trim().split('\n');
