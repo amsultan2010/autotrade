@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
-import { ScanlineOverlay } from '@/src/components/ScanlineOverlay';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 
 type View = 'dashboard' | 'watchlist' | 'charts' | 'history' | 'settings' | 'admin';
@@ -29,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <ConstellationBg />
+      <ConstellationBg dim />
       <div className="app-shell">
         <aside className="sidebar">
           <div className="brand">
@@ -71,7 +70,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
       </div>
-      <ScanlineOverlay />
     </AuthProvider>
   );
 }

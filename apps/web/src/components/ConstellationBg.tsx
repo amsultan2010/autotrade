@@ -24,7 +24,7 @@ function makeRainCol(w: number, h: number): RainCol {
   return { x: Math.floor(Math.random() * (w / 14)) * 14, y: -Math.random() * h, speed: 0.5 + Math.random() * 0.9, trail: Array.from({ length: len + 2 }, rHex), len };
 }
 
-export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
+export function ConstellationBg({ zIndex = 2, dim = false }: { zIndex?: number; dim?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouse = useRef({ x: -9999, y: -9999 });
 
@@ -34,40 +34,45 @@ export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Non-null alias — ctx is confirmed non-null after the guard above
     const c = ctx;
 
     let w = window.innerWidth, h = window.innerHeight;
     canvas.width = w; canvas.height = h;
 
     const particles = Array.from({ length: PARTICLE_COUNT }, () => makeParticle(w, h));
-    const rain = Array.from({ length: RAIN_COUNT }, () => makeRainCol(w, h));
+    const rain = dim ? [] : Array.from({ length: RAIN_COUNT }, () => makeRainCol(w, h));
     let rafId: number;
+
+    // Opacity multipliers for dim mode
+    const particleAlpha  = dim ? 0.18 : 1.0;
+    const connectionAlpha = dim ? 0.15 : 0.6;
 
     function draw() {
       c.clearRect(0, 0, w, h);
 
-      // ── Data rain (drawn first, behind everything) ──
-      c.font = `${FONT_H}px "IBM Plex Mono", monospace`;
-      for (const col of rain) {
-        col.y += col.speed;
-        if (Math.random() < 0.12) col.trail[Math.floor(Math.random() * col.trail.length)] = rHex();
-        if (col.y > h + col.len * FONT_H) {
-          col.y = -col.len * FONT_H - 20;
-          col.x = Math.floor(Math.random() * (w / 14)) * 14;
-        }
-        for (let i = 0; i < col.len; i++) {
-          const cy = col.y - i * FONT_H;
-          if (cy < -FONT_H || cy > h + FONT_H) continue;
-          const alpha = i === 0 ? 1.0 : (1 - i / col.len) * 0.35;
-          c.fillStyle = i === 0 ? `rgba(190,255,230,${alpha})` : `rgba(0,200,150,${alpha})`;
-          c.fillText(col.trail[i % col.trail.length] ?? '0', col.x, cy);
+      // ── Data rain (landing page only) ──
+      if (!dim) {
+        c.font = `${FONT_H}px "IBM Plex Mono", monospace`;
+        for (const col of rain) {
+          col.y += col.speed;
+          if (Math.random() < 0.12) col.trail[Math.floor(Math.random() * col.trail.length)] = rHex();
+          if (col.y > h + col.len * FONT_H) {
+            col.y = -col.len * FONT_H - 20;
+            col.x = Math.floor(Math.random() * (w / 14)) * 14;
+          }
+          for (let i = 0; i < col.len; i++) {
+            const cy = col.y - i * FONT_H;
+            if (cy < -FONT_H || cy > h + FONT_H) continue;
+            const alpha = i === 0 ? 1.0 : (1 - i / col.len) * 0.35;
+            c.fillStyle = i === 0 ? `rgba(190,255,230,${alpha})` : `rgba(0,200,150,${alpha})`;
+            c.fillText(col.trail[i % col.trail.length] ?? '0', col.x, cy);
+          }
         }
       }
 
       // ── Mouse glow ──
       const mx = mouse.current.x, my = mouse.current.y;
-      if (mx > -100) {
+      if (!dim && mx > -100) {
         const g = c.createRadialGradient(mx, my, 0, mx, my, 120);
         g.addColorStop(0, 'rgba(0,200,150,0.09)');
         g.addColorStop(1, 'rgba(0,200,150,0)');
@@ -103,7 +108,7 @@ export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > CONNECTION_DIST) continue;
           c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y);
-          c.strokeStyle = `rgba(0,200,150,${(1 - dist / CONNECTION_DIST) * 0.6})`;
+          c.strokeStyle = `rgba(0,200,150,${(1 - dist / CONNECTION_DIST) * connectionAlpha})`;
           c.lineWidth = 0.8; c.stroke();
         }
       }
@@ -111,7 +116,7 @@ export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
       // ── Particles ──
       for (const p of particles) {
         c.beginPath(); c.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        c.fillStyle = `rgba(0,200,150,${p.opacity})`; c.fill();
+        c.fillStyle = `rgba(0,200,150,${p.opacity * particleAlpha})`; c.fill();
       }
 
       rafId = requestAnimationFrame(draw);
@@ -133,7 +138,7 @@ export function ConstellationBg({ zIndex = 2 }: { zIndex?: number }) {
       window.removeEventListener('mousemove', onMouse);
       window.removeEventListener('mouseleave', onLeave);
     };
-  }, []);
+  }, [dim]);
 
   return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex, opacity: 1 }} className="constellation-bg" />;
 }
