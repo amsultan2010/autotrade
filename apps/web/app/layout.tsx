@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/ui/themes';
+import { PostHogProvider } from '@/lib/posthog';
+import { PostHogPageView } from '@/lib/posthog-pageview';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -32,7 +34,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             },
           }}
         >
-          {children}
+          <PostHogProvider>
+            <PostHogPageView />
+            {children}
+          </PostHogProvider>
         </ClerkProvider>
       </body>
     </html>

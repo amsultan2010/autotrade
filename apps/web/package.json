@@ -14,10 +14,13 @@
     "@clerk/backend": "^1.19.0",
     "@clerk/nextjs": "^6.9.1",
     "@clerk/ui": "^1.16.1",
+    "@sentry/nextjs": "^10.57.0",
     "lightweight-charts": "^4.2.3",
     "next": "^15.1.0",
+    "posthog-js": "^1.386.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resend": "^6.12.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

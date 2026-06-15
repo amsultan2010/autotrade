@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
+import * as Sentry from '@sentry/nextjs';
 import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
@@ -25,6 +26,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
   const role = (clerkUser.publicMetadata?.role as string | undefined) ?? 'USER';
+
+  useEffect(() => {
+    Sentry.setUser({ id: clerkUser.id, email });
+    return () => Sentry.setUser(null);
+  }, [clerkUser.id, email]);
 
   return (
     <AuthProvider>
