@@ -46,24 +46,42 @@ const HOW_STEPS = [
 // ─── Candlestick Canvas ───────────────────────────────────────────────────────
 interface Candle { o: number; h: number; l: number; c: number; }
 
+// Deterministic pseudo-random seeded generator for a perfect loop
+function seededRand(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function buildLoopCandles(count: number): Candle[] {
+  const rand = seededRand(42);
+  const candles: Candle[] = [];
+  let price = 200;
+  for (let i = 0; i < count; i++) {
+    const o = price + (rand() - 0.5) * 4;
+    const c = o + (rand() - 0.48) * 6;
+    candles.push({ o, c, h: Math.max(o, c) + rand() * 3, l: Math.min(o, c) - rand() * 3 });
+    price = c;
+    // Gently drift back toward 200 so the loop stays in range
+    price += (200 - price) * 0.03;
+  }
+  return candles;
+}
+
+const LOOP_CANDLES = buildLoopCandles(80);
+const LOOP_LEN = LOOP_CANDLES.length;
+
 function CandleChart() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef  = useRef<number>(0);
-  const dataRef   = useRef<Candle[]>([]);
   const offsetRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-
-    let price = 180;
-    for (let i = 0; i < 80; i++) {
-      const o = price + (Math.random() - 0.5) * 4;
-      const c = o + (Math.random() - 0.48) * 6;
-      dataRef.current.push({ o, c, h: Math.max(o, c) + Math.random() * 3, l: Math.min(o, c) - Math.random() * 3 });
-      price = c;
-    }
 
     function resize() {
       canvas!.width  = canvas!.offsetWidth  * devicePixelRatio;
@@ -78,17 +96,26 @@ function CandleChart() {
       const dt = now - last;
       last = now;
       offsetRef.current += dt * 0.03;
-      if (offsetRef.current > 14) {
-        offsetRef.current -= 14;
-        const prev = dataRef.current[dataRef.current.length - 1]?.c ?? 180;
-        const o = prev;
-        const c = o + (Math.random() - 0.48) * 6;
-        dataRef.current.push({ o, c, h: Math.max(o, c) + Math.random() * 3, l: Math.min(o, c) - Math.random() * 3 });
-        if (dataRef.current.length > 120) dataRef.current.shift();
-      }
 
       const W = canvas!.width;
       const H = canvas!.height;
+      const cw   = 10 * devicePixelRatio;
+      const step = cw + 4 * devicePixelRatio;
+
+      // How many candles fit on screen
+      const visibleCount = Math.ceil(W / step) + 2;
+      // Pixel offset within one candle width (loops every `step` pixels)
+      const pixelOffset = offsetRef.current % step;
+      // Which candle index is at the right edge
+      const headIdx = Math.floor(offsetRef.current / step);
+
+      // Collect the visible slice by wrapping into the loop array
+      const visible: Candle[] = [];
+      for (let i = visibleCount - 1; i >= 0; i--) {
+        const idx = ((headIdx - i) % LOOP_LEN + LOOP_LEN) % LOOP_LEN;
+        visible.push(LOOP_CANDLES[idx]!);
+      }
+
       ctx.clearRect(0, 0, W, H);
 
       // Grid
@@ -99,18 +126,14 @@ function CandleChart() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
       }
 
-      const visible = dataRef.current.slice(-60);
       const maxP = Math.max(...visible.map(c => c.h));
       const minP = Math.min(...visible.map(c => c.l));
       const range = maxP - minP || 1;
       const toY = (p: number) => H * 0.9 - ((p - minP) / range) * (H * 0.8);
 
-      const cw   = 10 * devicePixelRatio;
-      const step = cw + 4 * devicePixelRatio;
-
       visible.forEach((cd, i) => {
-        const x     = W - (visible.length - i) * step + offsetRef.current * devicePixelRatio;
-        const bull  = cd.c >= cd.o;
+        const x    = W - (visible.length - i) * step + pixelOffset * devicePixelRatio;
+        const bull = cd.c >= cd.o;
         const color = bull ? '#00c896' : '#ff3b52';
 
         ctx.strokeStyle = color;
@@ -393,9 +416,9 @@ export function Landing() {
 
         <div className="lp-hero-chart">
           <div className="lp-chart-header">
-            <span className="lp-chart-sym">AAPL</span>
-            <span className="lp-chart-price lp-accent">$227.82</span>
-            <span className="lp-chart-chg pos">▲ +1.24 (+0.55%)</span>
+            <span className="lp-chart-sym">DEMO</span>
+            <span className="lp-chart-price lp-accent">$200.14</span>
+            <span className="lp-chart-chg pos">▲ +3.82 (+1.94%)</span>
           </div>
           <div className="lp-chart-canvas">
             <CandleChart />
