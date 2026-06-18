@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendDailyDigest } from '@/lib/email';
+import { sendWeeklyDigest } from '@/lib/email';
 import { prisma } from '@autotrade/engine';
 import { requireUser } from '@/lib/auth';
 
@@ -7,16 +7,17 @@ export async function POST() {
   try {
     const user = await requireUser();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    weekAgo.setHours(0, 0, 0, 0);
 
     const trades = await prisma.trade.findMany({
-      where: { userId: user.id, closedAt: { gte: today }, result: { not: undefined } },
+      where: { userId: user.id, closedAt: { gte: weekAgo }, result: { not: undefined } },
       select: { symbol: true, pnl: true, result: true },
     });
 
     if (trades.length === 0) {
-      return NextResponse.json({ sent: false, reason: 'no_trades_today' });
+      return NextResponse.json({ sent: false, reason: 'no_trades_this_week' });
     }
 
     const wins = trades.filter((t) => t.result === 'WIN').length;
@@ -29,7 +30,7 @@ export async function POST() {
     }
     const topSymbol = Object.entries(symbolCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-    await sendDailyDigest(user.email, { totalTrades: trades.length, wins, losses, pnl, topSymbol });
+    await sendWeeklyDigest(user.email, { totalTrades: trades.length, wins, losses, pnl, topSymbol });
     return NextResponse.json({ sent: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

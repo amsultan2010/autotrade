@@ -72,7 +72,7 @@ export async function sendTradeAlert(to: string, trade: {
   });
 }
 
-export async function sendDailyDigest(to: string, stats: {
+export async function sendWeeklyDigest(to: string, stats: {
   totalTrades: number;
   wins: number;
   losses: number;
@@ -88,11 +88,11 @@ export async function sendDailyDigest(to: string, stats: {
   return getResend().emails.send({
     from: FROM,
     to,
-    subject: `Daily Digest — ${pnlSign}$${stats.pnl.toFixed(2)} today`,
+    subject: `Weekly Digest — ${pnlSign}$${stats.pnl.toFixed(2)} this week`,
     html: `
       <div style="background:#090c10;color:#f4f8fd;font-family:Inter,sans-serif;padding:40px;max-width:600px;margin:0 auto;border-radius:12px;">
         <div style="color:#00c896;font-size:24px;font-weight:700;margin-bottom:8px;">Autotrade</div>
-        <p style="color:#a8bece;margin-bottom:24px;font-size:14px;">Daily Performance Summary</p>
+        <p style="color:#a8bece;margin-bottom:24px;font-size:14px;">Weekly Performance Summary</p>
         <div style="background:#0e1318;border-radius:8px;padding:24px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px;">
           <div style="font-size:32px;font-weight:700;color:${pnlColor};margin-bottom:4px;">${pnlSign}$${stats.pnl.toFixed(2)}</div>
           <div style="color:#a8bece;font-size:14px;">Total P&L today</div>
