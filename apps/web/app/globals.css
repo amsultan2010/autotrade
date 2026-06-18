@@ -1599,7 +1599,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -1630,7 +1630,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 .lp-hero-line {
   font-size: clamp(42px, 5vw, 68px);
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 0.95;
   letter-spacing: -2px;
   display: block;
   opacity: 0;
@@ -1821,20 +1821,21 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 }
 
 .lp-section-label {
-  font-size: 26px;
+  font-size: 34px;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--teal);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .lp-section-title {
-  font-size: clamp(28px, 3.5vw, 42px);
-  font-weight: 800;
-  letter-spacing: -1px;
+  font-size: clamp(18px, 2vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.3px;
   margin: 0 0 60px;
   max-width: 520px;
+  color: var(--ink-2);
 }
 
 .lp-how-steps {
