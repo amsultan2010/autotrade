@@ -1,11 +1,15 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM = 'Autotrade <noreply@autotrade.app>';
 
+function getResend(): Resend {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error('RESEND_API_KEY is not configured');
+  return new Resend(key);
+}
+
 export async function sendWelcomeEmail(to: string, name: string) {
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Welcome to Autotrade',
@@ -36,7 +40,7 @@ export async function sendTradeAlert(to: string, trade: {
     ? `<p style="color:#a8bece;margin-top:16px;">P&L: <span style="color:${trade.pnl >= 0 ? '#00c896' : '#ff3b52'}">${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}</span></p>`
     : '';
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: `${trade.action} ${trade.symbol} — Trade Executed`,
@@ -69,7 +73,7 @@ export async function sendTradeAlert(to: string, trade: {
 }
 
 export async function sendSubscriptionConfirmed(to: string, name: string, plan: string) {
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Subscription Confirmed — Autotrade',
