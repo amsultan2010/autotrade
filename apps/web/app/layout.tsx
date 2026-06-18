@@ -3,6 +3,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/ui/themes';
 import { PostHogProvider } from '@/lib/posthog';
 import { PostHogPageView } from '@/lib/posthog-pageview';
+import { ConvexClerkProvider } from '@/components/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -44,10 +45,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             },
           }}
         >
-          <PostHogProvider>
-            <PostHogPageView />
-            {children}
-          </PostHogProvider>
+          <ConvexClerkProvider>
+            <PostHogProvider>
+              <PostHogPageView />
+              {children}
+            </PostHogProvider>
+          </ConvexClerkProvider>
         </ClerkProvider>
       </body>
     </html>

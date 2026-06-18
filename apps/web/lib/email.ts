@@ -1,8 +1,8 @@
 import { Resend } from 'resend';
 
 const FROM = 'Autotrade <noreply@autotrade.app>';
-const LOGO_URL = 'https://autotrade-pi.vercel.app/icon.svg';
-const DASHBOARD_URL = 'https://autotrade-pi.vercel.app/dashboard';
+const LOGO_URL = 'https://tryautotrade.com/icon.svg';
+const DASHBOARD_URL = 'https://tryautotrade.com/dashboard';
 
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY;

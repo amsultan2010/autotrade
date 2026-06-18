@@ -3,6 +3,10 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { sendWelcomeEmail } from '@/lib/email';
 import { syncResendContact, removeResendContact } from '@/lib/resend-audience';
+// TODO (after `npx convex dev`): import { convexServer } from '@/lib/convex-server';
+// TODO (after `npx convex dev`): import { internal } from '@/convex/_generated/api';
+// Then add to user.created: convexServer.mutation(internal.users.syncFromClerk, { clerkId: data.id, email: primaryEmail })
+// Then add to user.deleted: convexServer.mutation(internal.users.disableFromClerk, { clerkId: event.data.id })
 
 type EmailAddress = { id: string; email_address: string };
 
