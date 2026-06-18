@@ -16,10 +16,13 @@ import { evaluateRisk } from '../services/risk/index';
 import { getStrategyWeights } from '../services/learning/index';
 import {
   monitorUserOpenTrades,
+  monitorUserLiveTrades,
   openPaperTrade,
+  openLiveTrade,
   type EntrySnapshot,
 } from '../services/execution/paper.engine';
-import { isEntitled } from '../middleware/subscription';
+import { loadUserBroker } from '../lib/broker-credentials';
+import { isEntitled, isProEntitled } from '../middleware/subscription';
 import { isStockMarketOpen, isAlpacaConfigured } from '../lib/alpaca';
 import { isCryptoSymbol } from '../services/marketdata/alpaca.provider';
 
@@ -113,7 +116,10 @@ export async function loadUserBotContext(userId: string): Promise<UserBotContext
   });
   if (!user || user.status === 'DISABLED' || !user.botSettings) return null;
   if (user.botSettings.mode === 'DISABLED') return null;
-  if (!isEntitled(user.role, user.subscription)) return null;
+  // Paper trading is free; live trading requires a Pro subscription.
+  const isLiveMode = user.botSettings.mode === 'LIVE';
+  if (isLiveMode && !isProEntitled(user.role, user.subscription)) return null;
+  if (!isLiveMode && !isEntitled(user.role, user.subscription, 'free')) return null;
 
   return {
     userId,
@@ -140,13 +146,15 @@ export async function evaluateSymbolEntry(
   exchange: string,
 ): Promise<void> {
   const { userId, settings } = ctx;
+  const isLive = settings.mode === 'LIVE';
 
   // Don't open new STOCK positions when the US market is closed (prices are
   // stale). Crypto trades 24/7 and is never gated here.
   if (isAlpacaConfigured() && !isCryptoSymbol(symbol) && !(await isStockMarketOpen())) return;
 
+  const tradeMode = isLive ? 'LIVE' : 'PAPER';
   const openCount = await prisma.trade.count({
-    where: { userId, mode: 'PAPER', result: 'OPEN' },
+    where: { userId, mode: tradeMode, result: 'OPEN' },
   });
 
   const analysis = await analyzeSymbol(symbol, ctx.timeframes);
@@ -196,7 +204,7 @@ export async function evaluateSymbolEntry(
 
   // Avoid stacking multiple open trades on the same symbol.
   const alreadyOpen = await prisma.trade.findFirst({
-    where: { userId, symbol, mode: 'PAPER', result: 'OPEN' },
+    where: { userId, symbol, mode: tradeMode, result: 'OPEN' },
     select: { id: true },
   });
   if (alreadyOpen) return;
@@ -230,15 +238,28 @@ export async function evaluateSymbolEntry(
     rrRatio: signal.rrRatio,
   };
 
-  await openPaperTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot });
+  if (isLive) {
+    const broker = await loadUserBroker(userId);
+    if (!broker) {
+      console.warn(`LIVE mode for user ${userId} but no broker credentials — skipping`);
+      return;
+    }
+    await openLiveTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot, broker });
+  } else {
+    await openPaperTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot });
+  }
 }
 
 export async function runCycleForUser(userId: string): Promise<void> {
-  // Monitor open trades even if the bot won't open new ones this cycle.
-  await monitorUserOpenTrades(userId);
-
   const ctx = await loadUserBotContext(userId);
-  if (!ctx || ctx.settings.mode !== 'PAPER') return;
+  if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) return;
+
+  if (ctx.settings.mode === 'LIVE') {
+    const broker = await loadUserBroker(userId);
+    if (broker) await monitorUserLiveTrades(userId, broker);
+  } else {
+    await monitorUserOpenTrades(userId);
+  }
 
   for (const watched of ctx.watchlist) {
     await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange);

@@ -8,6 +8,7 @@ export * from './lib/audit';
 export * from './lib/jwt';
 export * from './lib/crypto';
 export * from './lib/alpaca';
+export * from './lib/broker-credentials';
 export * from './lib/stripe';
 export * from './middleware/subscription';
 export * from './services/analysis/index';

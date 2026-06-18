@@ -17,14 +17,36 @@ import type {
 
 export class AlpacaBroker implements BrokerProvider {
   readonly name = 'alpaca';
+  private readonly _keyId: string;
+  private readonly _secret: string;
+  private readonly _paper: boolean;
+
+  constructor(credentials?: { keyId: string; secret: string; paper: boolean }) {
+    this._keyId = credentials?.keyId ?? env.ALPACA_API_KEY ?? '';
+    this._secret = credentials?.secret ?? env.ALPACA_API_SECRET ?? '';
+    this._paper = credentials?.paper ?? env.ALPACA_PAPER;
+  }
+
   get mode(): 'paper' | 'live' {
-    return env.ALPACA_PAPER ? 'paper' : 'live';
+    return this._paper ? 'paper' : 'live';
+  }
+
+  private tradingBase(): string {
+    return this._paper ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
+  }
+
+  private headers(): Record<string, string> {
+    return {
+      'APCA-API-KEY-ID': this._keyId,
+      'APCA-API-SECRET-KEY': this._secret,
+      Accept: 'application/json',
+    };
   }
 
   private async req<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`${alpacaTradingBase()}${path}`, {
+    const res = await fetch(`${this.tradingBase()}${path}`, {
       ...init,
-      headers: { ...alpacaHeaders(), 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+      headers: { ...this.headers(), 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');

@@ -99,6 +99,16 @@ export const api = {
   botStop: () => request('/bot/stop', { method: 'POST' }),
   botRunNow: () => request('/bot/run-now', { method: 'POST' }),
 
+  // ── Broker ──
+  getBrokerStatus: () =>
+    request<{ connected: boolean; provider?: string; paper?: boolean }>('/broker'),
+  connectBroker: (keyId: string, secret: string, paper: boolean) =>
+    request<{ connected: boolean; provider: string; paper: boolean }>('/broker', {
+      method: 'POST',
+      body: JSON.stringify({ keyId, secret, paper }),
+    }),
+  disconnectBroker: () => request<{ connected: false }>('/broker', { method: 'DELETE' }),
+
   // ── Admin ──
   adminMetrics: () => request<{ users: number; activeSubs: number; openTrades: number; signals24h: number }>('/admin/metrics'),
   adminUsers: (q = '') =>

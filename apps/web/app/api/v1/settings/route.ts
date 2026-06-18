@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { EXECUTION_MODES, RISK_LEVELS, STRATEGIES, TIMEFRAMES } from '@autotrade/shared';
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { prisma, parse } from '@autotrade/engine';
+import { prisma, parse, isProEntitled } from '@autotrade/engine';
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM');
 const updateSchema = z.object({
@@ -36,7 +36,26 @@ export async function PUT(req: NextRequest) {
     const user = await requireUser();
     const body = await req.json() as unknown;
     const data = parse(updateSchema, body);
-    if (data.mode === 'LIVE') data.mode = 'PAPER';
+
+    if (data.mode === 'LIVE') {
+      const [cred, sub] = await Promise.all([
+        prisma.brokerCredential.findUnique({ where: { userId: user.id } }),
+        prisma.subscription.findUnique({ where: { userId: user.id } }),
+      ]);
+      if (!cred) {
+        return new Response(
+          JSON.stringify({ error: { code: 'NO_BROKER', message: 'Connect an Alpaca account before enabling live trading.' } }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      if (!isProEntitled(user.role, sub)) {
+        return new Response(
+          JSON.stringify({ error: { code: 'UPGRADE_REQUIRED', message: 'Live trading requires a Pro subscription.' } }),
+          { status: 402, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
     return ok(await prisma.botSettings.update({ where: { userId: user.id }, data }));
   } catch (err) {
     return handleError(err);

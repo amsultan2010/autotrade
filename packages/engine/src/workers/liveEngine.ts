@@ -120,7 +120,7 @@ class LiveEngine {
     if (!users || users.size === 0) return;
     for (const userId of users) {
       const ctx = await this.getCtx(userId);
-      if (!ctx || ctx.settings.mode !== 'PAPER') continue;
+      if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) continue;
       const w = ctx.watchlist.find((x) => x.symbol.toUpperCase() === symbol.toUpperCase());
       try {
         await evaluateSymbolEntry(ctx, symbol, w?.exchange ?? 'US');

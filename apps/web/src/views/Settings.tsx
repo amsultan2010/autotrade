@@ -1,17 +1,29 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, type BotSettingsDTO } from '@autotrade/shared';
+import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, type BotSettingsDTO, type SubscriptionInfo } from '@autotrade/shared';
 import { api, ApiError } from '../api/client';
+
+type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
 
 export function Settings() {
   const [s, setS] = useState<BotSettingsDTO | null>(null);
+  const [broker, setBroker] = useState<BrokerStatus | null>(null);
+  const [sub, setSub] = useState<SubscriptionInfo | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try { setS(await api.getSettings()); }
-      catch { setError('Could not load settings. Check your connection and try again.'); }
+    void (async () => {
+      try {
+        const [settings, brokerStatus, subStatus] = await Promise.all([
+          api.getSettings(), api.getBrokerStatus(), api.subscriptionStatus(),
+        ]);
+        setS(settings);
+        setBroker(brokerStatus);
+        setSub(subStatus);
+      } catch {
+        setError('Could not load settings.');
+      }
     })();
   }, []);
 
@@ -39,26 +51,76 @@ export function Settings() {
     }
   }
 
+  async function setMode(mode: BotSettingsDTO['mode']) {
+    if (!s) return;
+    if (mode === 'LIVE' && !broker?.connected) {
+      setError('Connect an Alpaca account first before enabling live trading.');
+      return;
+    }
+    setError(null);
+    try {
+      const updated = await api.updateSettings({ ...s, mode });
+      setS(updated);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not update mode');
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-head">
         <h1>Settings</h1>
         <div className="row gap">
           {saved && <span className="muted">Saved ✓</span>}
-          <button className="btn-primary" onClick={() => void save()}>
-            Save changes
-          </button>
+          <button className="btn-primary" onClick={() => void save()}>Save changes</button>
         </div>
       </header>
 
       {error && <div className="error-banner">{error}</div>}
 
+      <AlpacaCard broker={broker} onUpdate={setBroker} onError={setError} />
+
+      <section className="panel">
+        <h2>Execution mode</h2>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <span className={`chip ${sub?.entitled ? 'on' : ''}`} style={{ marginRight: '0.5rem' }}>
+            {sub?.entitled ? `Pro${sub.tier ? ` · ${sub.tier}` : ''}` : 'Free'}
+          </span>
+          <span className="muted" style={{ fontSize: '0.85em' }}>
+            {sub?.entitled
+              ? 'Live trading enabled'
+              : 'Paper trading is free · upgrade to Pro for live trading'}
+          </span>
+        </div>
+        <div className="chips">
+          {(['PAPER', 'LIVE', 'DISABLED'] as const).map((m) => {
+            const needsPro = m === 'LIVE';
+            const locked = needsPro && (!broker?.connected || !sub?.entitled);
+            return (
+              <button
+                key={m}
+                className={`chip ${s.mode === m ? 'on' : ''} ${locked ? 'disabled' : ''}`}
+                onClick={() => void setMode(m)}
+                title={
+                  m === 'LIVE' && !broker?.connected
+                    ? 'Connect Alpaca first'
+                    : m === 'LIVE' && !sub?.entitled
+                    ? 'Requires Pro subscription'
+                    : undefined
+                }
+              >
+                {m}{needsPro && !sub?.entitled ? ' 🔒' : ''}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="panel form-grid">
         <Field label="Risk level">
           <select value={s.riskLevel} onChange={(e) => set('riskLevel', e.target.value as BotSettingsDTO['riskLevel'])}>
-            {RISK_LEVELS.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
+            {RISK_LEVELS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
         <Num label="Max active trades" v={s.maxActiveTrades} on={(n) => set('maxActiveTrades', n)} />
@@ -80,13 +142,8 @@ export function Settings() {
         <h2>Timeframes analyzed</h2>
         <div className="chips">
           {TIMEFRAMES.map((tf) => (
-            <button
-              key={tf}
-              className={`chip ${s.timeframes.includes(tf) ? 'on' : ''}`}
-              onClick={() => set('timeframes', toggleArr(s.timeframes, tf))}
-            >
-              {tf}
-            </button>
+            <button key={tf} className={`chip ${s.timeframes.includes(tf) ? 'on' : ''}`}
+              onClick={() => set('timeframes', toggleArr(s.timeframes, tf))}>{tf}</button>
           ))}
         </div>
       </section>
@@ -95,30 +152,118 @@ export function Settings() {
         <h2>Strategies</h2>
         <div className="chips">
           {STRATEGIES.map((st) => (
-            <button
-              key={st}
-              className={`chip ${s.strategies.includes(st) ? 'on' : ''}`}
-              onClick={() => set('strategies', toggleArr(s.strategies, st))}
-            >
-              {st}
-            </button>
+            <button key={st} className={`chip ${s.strategies.includes(st) ? 'on' : ''}`}
+              onClick={() => set('strategies', toggleArr(s.strategies, st))}>{st}</button>
           ))}
         </div>
       </section>
-
-      <section className="panel">
-        <h2>Execution mode</h2>
-        <p className="muted">
-          Paper trading uses real market data. Live trading is disabled until a licensed broker is
-          connected. This is a safety guard, not a limitation of your account.
-        </p>
-        <div className="chips">
-          <span className={`chip ${s.mode === 'PAPER' ? 'on' : ''}`}>PAPER</span>
-          <span className="chip disabled">LIVE (broker required)</span>
-          <span className={`chip ${s.mode === 'DISABLED' ? 'on' : ''}`}>DISABLED</span>
-        </div>
-      </section>
     </div>
+  );
+}
+
+function AlpacaCard({
+  broker,
+  onUpdate,
+  onError,
+}: {
+  broker: BrokerStatus | null;
+  onUpdate: (s: BrokerStatus) => void;
+  onError: (msg: string) => void;
+}) {
+  const [keyId, setKeyId] = useState('');
+  const [secret, setSecret] = useState('');
+  const [paper, setPaper] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  async function connect() {
+    if (!keyId || !secret) { onError('Enter both Key ID and Secret Key.'); return; }
+    setLoading(true);
+    onError('');
+    try {
+      const result = await api.connectBroker(keyId, secret, paper);
+      onUpdate(result);
+      setKeyId('');
+      setSecret('');
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Could not connect — check your keys and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function disconnect() {
+    setConfirming(false);
+    setLoading(true);
+    try {
+      const result = await api.disconnectBroker();
+      onUpdate(result);
+    } catch {
+      onError('Could not disconnect. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (broker?.connected) {
+    return (
+      <section className="panel">
+        <h2>Alpaca account</h2>
+        <p className="muted" style={{ marginBottom: '1rem' }}>
+          Connected · {broker.paper ? 'Paper trading' : 'Live trading'}
+        </p>
+        {confirming ? (
+          <div className="row gap">
+            <span className="muted">Remove your Alpaca connection?</span>
+            <button className="btn-danger" onClick={() => void disconnect()} disabled={loading}>Yes, disconnect</button>
+            <button className="btn-ghost" onClick={() => setConfirming(false)}>Cancel</button>
+          </div>
+        ) : (
+          <button className="btn-ghost" onClick={() => setConfirming(true)}>Disconnect</button>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="panel">
+      <h2>Connect Alpaca</h2>
+      <p className="muted" style={{ marginBottom: '1rem' }}>
+        Alpaca is a free brokerage that lets the AI execute trades for you.{' '}
+        <a href="https://alpaca.markets" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+          Create a free account →
+        </a>
+      </p>
+      <div className="form-grid" style={{ marginBottom: '1rem' }}>
+        <Field label="API Key ID">
+          <input
+            type="text"
+            placeholder="PKxxxxxxxxxxxxxxxx"
+            value={keyId}
+            onChange={(e) => setKeyId(e.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+        <Field label="Secret Key">
+          <input
+            type="password"
+            placeholder="••••••••••••••••••••••••••••••••••••••••"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+      </div>
+      <div className="row gap" style={{ marginBottom: '1rem' }}>
+        <label className="row gap" style={{ cursor: 'pointer', gap: '0.5rem' }}>
+          <input type="checkbox" checked={paper} onChange={(e) => setPaper(e.target.checked)} />
+          <span>Paper trading (safe — no real money)</span>
+        </label>
+      </div>
+      <button className="btn-primary" onClick={() => void connect()} disabled={loading || !keyId || !secret}>
+        {loading ? 'Connecting…' : 'Connect Alpaca'}
+      </button>
+    </section>
   );
 }
 
