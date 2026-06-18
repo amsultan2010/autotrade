@@ -116,3 +116,4 @@ pnpm --filter @autotrade/desktop dist     # → apps/desktop/release/Autotrade S
 bounded confidence multiplier toward setups that actually work on **that user's**
 symbols. It is statistical personalization, not market prediction — no trading
 system reliably forecasts markets, and nothing here implies guaranteed profit.
+# Autotrade
