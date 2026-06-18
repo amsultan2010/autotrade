@@ -19,11 +19,13 @@ function getClient(): PostHog | null {
 export type AnalyticsEvent =
   | { event: 'bot_started'; properties: { userId: string; mode: string } }
   | { event: 'bot_stopped'; properties: { userId: string } }
+  | { event: 'trade_opened'; properties: { userId: string; symbol: string; side: string; mode: string } }
   | { event: 'trade_closed'; properties: { userId: string; symbol: string; pnl: number; mode: string } }
   | { event: 'broker_connected'; properties: { userId: string; broker: string; paper: boolean } }
   | { event: 'settings_updated'; properties: { userId: string; field: string } }
   | { event: 'watchlist_updated'; properties: { userId: string; action: 'add' | 'remove'; symbol: string } }
   | { event: 'signal_generated'; properties: { userId: string; symbol: string; direction: string; confidence: number } }
+  | { event: 'subscription_checkout_started'; properties: { userId: string } }
   | { event: 'subscription_upgraded'; properties: { userId: string; plan: string } };
 
 export function capture(userId: string, payload: AnalyticsEvent) {

@@ -1,12 +1,12 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { sendWelcomeEmail } from '@/lib/email';
 import { syncResendContact, removeResendContact } from '@/lib/resend-audience';
-// TODO (after `npx convex dev`): import { convexServer } from '@/lib/convex-server';
-// TODO (after `npx convex dev`): import { internal } from '@/convex/_generated/api';
-// Then add to user.created: convexServer.mutation(internal.users.syncFromClerk, { clerkId: data.id, email: primaryEmail })
-// Then add to user.deleted: convexServer.mutation(internal.users.disableFromClerk, { clerkId: event.data.id })
+import { identifyUser } from '@/lib/analytics';
+import { convexServer } from '@/lib/convex-server';
+import { internal } from '@/convex/_generated/api';
 
 type EmailAddress = { id: string; email_address: string };
 
@@ -53,7 +53,8 @@ export async function POST(req: Request) {
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
     }) as ClerkEvent;
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { extra: { context: 'clerk_webhook_signature_verify' } });
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -68,16 +69,18 @@ export async function POST(req: Request) {
       const lastName = data.last_name ?? '';
       const name = [firstName, lastName].filter(Boolean).join(' ') || 'Trader';
 
+      identifyUser(data.id, { email: primaryEmail, name });
       await Promise.allSettled([
         sendWelcomeEmail(primaryEmail, name),
         syncResendContact({ email: primaryEmail, firstName, lastName }),
+        convexServer.mutation(internal.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
       ]);
     }
   }
 
   if (event.type === 'user.deleted') {
-    // no email to remove from — handled via Resend unsubscribe only
     void removeResendContact(event.data.id);
+    void convexServer.mutation(internal.users.disableFromClerk, { clerkId: event.data.id });
   }
 
   return NextResponse.json({ received: true });

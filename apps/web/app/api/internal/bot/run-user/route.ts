@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@autotrade/engine';
-import { runCycleForUser } from '@autotrade/engine';
+import * as Sentry from '@sentry/nextjs';
+import { prisma, runCycleForUser } from '@autotrade/engine';
+import { capture } from '@/lib/analytics';
 
 // Internal endpoint called by the Convex bot cron.
 // Protected by BOT_INTERNAL_SECRET — never expose this to clients.
@@ -41,7 +42,16 @@ export async function POST(req: NextRequest) {
     where: { userId: user.id, result: 'OPEN' },
   });
 
-  await runCycleForUser(user.id);
+  try {
+    await Sentry.withScope(async (scope) => {
+      scope.setUser({ id: clerkId });
+      scope.setTag('bot_cycle', 'true');
+      await runCycleForUser(user.id);
+    });
+  } catch (err) {
+    Sentry.captureException(err, { extra: { clerkId, userId: user.id } });
+    throw err;
+  }
 
   const tradesAfter = await prisma.trade.count({
     where: { userId: user.id, result: 'OPEN' },
@@ -54,6 +64,20 @@ export async function POST(req: NextRequest) {
       createdAt: { gte: new Date(Date.now() - 6 * 60 * 1000) },
     },
   });
+
+  if (signalsGenerated > 0) {
+    capture(clerkId, {
+      event: 'signal_generated',
+      properties: { userId: clerkId, symbol: 'batch', direction: 'mixed', confidence: 0 },
+    });
+  }
+
+  if (tradesOpened > 0) {
+    capture(clerkId, {
+      event: 'trade_opened',
+      properties: { userId: clerkId, symbol: 'batch', side: 'mixed', mode: 'PAPER' },
+    });
+  }
 
   return NextResponse.json({ ok: true, signalsGenerated, tradesOpened });
 }

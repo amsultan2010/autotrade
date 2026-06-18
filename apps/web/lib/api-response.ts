@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { AppError } from '@autotrade/engine';
 
 export function ok<T>(data: T, status = 200): NextResponse {
@@ -12,6 +13,7 @@ export function handleError(err: unknown): NextResponse {
       { status: err.statusCode },
     );
   }
+  Sentry.captureException(err);
   console.error('[API Error]', err);
   return NextResponse.json(
     { error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } },

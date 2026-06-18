@@ -16,8 +16,6 @@ export default defineSchema({
   // ── Subscriptions ─────────────────────────────────────────────────────────
   subscriptions: defineTable({
     clerkId: v.string(),
-    stripeCustomerId: v.optional(v.string()),
-    stripeSubscriptionId: v.optional(v.string()),
     tier: v.optional(v.string()),
     status: v.union(
       v.literal('NONE'),
@@ -27,9 +25,7 @@ export default defineSchema({
       v.literal('TRIALING'),
     ),
     currentPeriodEnd: v.optional(v.number()), // epoch ms
-  })
-    .index('by_clerk_id', ['clerkId'])
-    .index('by_stripe_customer', ['stripeCustomerId']),
+  }).index('by_clerk_id', ['clerkId']),
 
   // ── Watchlist ─────────────────────────────────────────────────────────────
   watchedSymbols: defineTable({

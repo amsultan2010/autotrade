@@ -1,4 +1,5 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 interface Props { children: ReactNode }
 interface State { error: Error | null }
@@ -12,6 +13,10 @@ export class ErrorBoundary extends Component<Props, State> {
   // Static lifecycle — not inherited from Component, so no `override` needed.
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  override componentDidCatch(error: Error, info: ErrorInfo) {
+    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
   }
 
   override render() {
