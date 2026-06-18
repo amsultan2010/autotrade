@@ -1726,56 +1726,27 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
 .lp-hero-chart {
   position: relative;
   z-index: 2;
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 14px;
-  background: rgba(14,19,24,0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  background: rgba(10,14,20,0.55);
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
   overflow: hidden;
-  height: 360px;
+  height: 480px;
   display: flex;
   flex-direction: column;
   opacity: 0;
   animation: lp-fade-up 1s 0.3s ease-out forwards;
   box-shadow:
-    0 0 0 1px rgba(0,200,150,0.07),
-    0 20px 60px rgba(0,0,0,0.5),
-    0 0 80px rgba(0,200,150,0.05);
+    0 0 0 1px rgba(0,200,150,0.10),
+    0 32px 80px rgba(0,0,0,0.6),
+    0 0 120px rgba(0,200,150,0.07),
+    inset 0 1px 0 rgba(255,255,255,0.06);
 }
-
-.lp-chart-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
-}
-
-.lp-chart-sym {
-  font-weight: 700;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 14px;
-}
-
-.lp-chart-price {
-  font-size: 20px;
-  font-weight: 800;
-  font-family: 'IBM Plex Mono', monospace;
-}
-
-.lp-chart-chg.pos { color: var(--teal); font-size: 13px; }
 
 .lp-chart-canvas {
   flex: 1;
   position: relative;
-}
-
-.lp-chart-glow {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 80px;
-  background: linear-gradient(to top, rgba(0,200,150,0.06), transparent);
-  pointer-events: none;
 }
 
 /* ── Stats band ── */
@@ -2086,7 +2057,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
     gap: 32px;
   }
 
-  .lp-hero-chart { height: 240px; }
+  .lp-hero-chart { height: 320px; }
 
   .lp-stats-band { grid-template-columns: repeat(2, 1fr); }
 
@@ -2133,7 +2104,7 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
   .lp-auth-btns .lp-btn-ghost { display: none; }
   .lp-auth-btns .lp-btn-primary { padding: 8px 16px; font-size: 13px; }
 
-  .lp-hero-chart { height: 200px; }
+  .lp-hero-chart { height: 260px; }
   .lp-hero-badges { gap: 8px; }
 }
 

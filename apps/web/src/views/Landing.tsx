@@ -95,21 +95,17 @@ function CandleChart() {
     function draw(now: number) {
       const dt = now - last;
       last = now;
-      offsetRef.current += dt * 0.03;
+      offsetRef.current += dt * 0.016;
 
       const W = canvas!.width;
       const H = canvas!.height;
-      const cw   = 10 * devicePixelRatio;
-      const step = cw + 4 * devicePixelRatio;
+      const cw   = 14 * devicePixelRatio;
+      const step = cw + 5 * devicePixelRatio;
 
-      // How many candles fit on screen
       const visibleCount = Math.ceil(W / step) + 2;
-      // Pixel offset within one candle width (loops every `step` pixels)
       const pixelOffset = offsetRef.current % step;
-      // Which candle index is at the right edge
       const headIdx = Math.floor(offsetRef.current / step);
 
-      // Collect the visible slice by wrapping into the loop array
       const visible: Candle[] = [];
       for (let i = visibleCount - 1; i >= 0; i--) {
         const idx = ((headIdx - i) % LOOP_LEN + LOOP_LEN) % LOOP_LEN;
@@ -118,46 +114,48 @@ function CandleChart() {
 
       ctx.clearRect(0, 0, W, H);
 
-      // Grid
-      ctx.strokeStyle = 'rgba(0,200,150,0.05)';
+      // Subtle horizontal grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
       ctx.lineWidth = 1;
-      for (let g = 0; g < 6; g++) {
-        const y = (H / 6) * g;
+      for (let g = 1; g < 5; g++) {
+        const y = (H / 5) * g;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
       }
 
       const maxP = Math.max(...visible.map(c => c.h));
       const minP = Math.min(...visible.map(c => c.l));
       const range = maxP - minP || 1;
-      const toY = (p: number) => H * 0.9 - ((p - minP) / range) * (H * 0.8);
+      const pad = H * 0.1;
+      const toY = (p: number) => H - pad - ((p - minP) / range) * (H - pad * 2);
 
       visible.forEach((cd, i) => {
         const x    = W - (visible.length - i) * step + pixelOffset * devicePixelRatio;
         const bull = cd.c >= cd.o;
         const color = bull ? '#00c896' : '#ff3b52';
 
-        ctx.strokeStyle = color;
+        // Wick
+        ctx.strokeStyle = bull ? 'rgba(0,200,150,0.6)' : 'rgba(255,59,82,0.6)';
         ctx.lineWidth   = 1.5 * devicePixelRatio;
         ctx.beginPath();
         ctx.moveTo(x + cw / 2, toY(cd.h));
         ctx.lineTo(x + cw / 2, toY(cd.l));
         ctx.stroke();
 
+        // Body
         ctx.fillStyle = color;
         const top = toY(Math.max(cd.o, cd.c));
         const bot = toY(Math.min(cd.o, cd.c));
-        ctx.fillRect(x, top, cw, Math.max(bot - top, 1.5 * devicePixelRatio));
+        const bodyH = Math.max(bot - top, 2 * devicePixelRatio);
+        ctx.fillRect(x, top, cw, bodyH);
       });
 
+      // Simple flat price line — no gradient
       const lastC = visible[visible.length - 1];
       if (lastC) {
         const lineY = toY(lastC.c);
-        const grad  = ctx.createLinearGradient(0, 0, W, 0);
-        grad.addColorStop(0, 'rgba(0,200,150,0)');
-        grad.addColorStop(1, 'rgba(0,200,150,0.5)');
-        ctx.strokeStyle = grad;
-        ctx.lineWidth   = 1.5 * devicePixelRatio;
-        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = 'rgba(0,200,150,0.35)';
+        ctx.lineWidth   = 1 * devicePixelRatio;
+        ctx.setLineDash([5, 5]);
         ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W, lineY); ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -415,15 +413,9 @@ export function Landing() {
         </div>
 
         <div className="lp-hero-chart">
-          <div className="lp-chart-header">
-            <span className="lp-chart-sym">DEMO</span>
-            <span className="lp-chart-price lp-accent">$200.14</span>
-            <span className="lp-chart-chg pos">▲ +3.82 (+1.94%)</span>
-          </div>
           <div className="lp-chart-canvas">
             <CandleChart />
           </div>
-          <div className="lp-chart-glow" />
         </div>
 
         <div className="lp-hero-orb lp-hero-orb-1" />
