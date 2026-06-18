@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { parse } from '../../lib/validate.js';
 import { authGuard } from '../../middleware/auth.js';
 import { loginSchema, refreshSchema, registerSchema } from './auth.schemas.js';
@@ -26,7 +27,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(tokens);
   });
 
-  app.post('/auth/logout', async (req, reply) => {
+  app.post('/auth/logout', authLimit, async (req, reply) => {
     const { refreshToken } = parse(refreshSchema, req.body);
     await authService.logout(refreshToken);
     return reply.code(204).send();
@@ -38,12 +39,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Clerk session token → backend JWT (used after Clerk signs the user in).
+  const clerkSyncSchema = z.object({ sessionToken: z.string().min(1).max(2048) });
   app.post('/auth/clerk-sync', authLimit, async (req, reply) => {
-    const body = req.body as { sessionToken?: string };
-    if (!body?.sessionToken) {
-      return reply.code(400).send({ error: { code: 'MISSING_TOKEN', message: 'sessionToken is required' } });
-    }
-    const { user, tokens } = await authService.clerkSync(body.sessionToken);
+    const { sessionToken } = parse(clerkSyncSchema, req.body);
+    const { user, tokens } = await authService.clerkSync(sessionToken);
     return reply.send({ user, ...tokens });
   });
 }

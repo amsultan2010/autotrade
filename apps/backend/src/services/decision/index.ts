@@ -82,9 +82,9 @@ export function decide(input: DecisionInput): TradeSignal {
 
   const isCrypto = input.symbol.includes('/');
 
-  // Evaluate enabled strategies, apply learning weights, keep the best.
+  // Evaluate all enabled strategies, collect passing ones, apply learning weights.
   // Crypto is long-only (no shorting spot), so only LONG setups compete.
-  let best: { result: StrategyResult; weighted: number } | null = null;
+  const passing: Array<{ result: StrategyResult; weighted: number }> = [];
   let sawCryptoShort = false;
   for (const id of input.enabledStrategies) {
     const fn = STRATEGY_FNS[id];
@@ -95,10 +95,15 @@ export function decide(input: DecisionInput): TradeSignal {
       sawCryptoShort = true;
       continue;
     }
-    const weight = input.learningWeights[id] ?? 1.0;
+    // Floor at 0.3 so a badly-performing strategy can't be permanently suppressed
+    const weight = Math.max(0.3, input.learningWeights[id] ?? 1.0);
     const weighted = Math.max(0, Math.min(100, res.rawScore * weight));
-    if (!best || weighted > best.weighted) best = { result: res, weighted };
+    passing.push({ result: res, weighted });
   }
+  passing.sort((a, b) => b.weighted - a.weighted);
+  const best = passing[0] ?? null;
+  // Confluence bonus: each extra agreeing strategy adds +5 confidence, max +15
+  const confluenceBonus = Math.min(15, (passing.length - 1) * 5);
 
   if (!best) {
     const avoidCrypto = isCrypto && sawCryptoShort;
@@ -121,7 +126,7 @@ export function decide(input: DecisionInput): TradeSignal {
   }
 
   const { result, weighted } = best;
-  const confidence = Math.round(weighted);
+  const confidence = Math.min(100, Math.round(weighted + confluenceBonus));
 
   // ATR-based stop, with a percent floor from user settings.
   const stopDistance = Math.max(atr * 1.5, price * (input.defaultStopPct / 100));
@@ -137,10 +142,13 @@ export function decide(input: DecisionInput): TradeSignal {
   const action: TradeAction = meetsThreshold ? (result.side === 'LONG' ? 'BUY' : 'SELL') : 'AVOID';
 
   const directionWord = result.side === 'LONG' ? 'long' : 'short';
+  const confluenceNote = confluenceBonus > 0
+    ? ` ${passing.length} strategies aligned (+${confluenceBonus}% confluence).`
+    : '';
   const explanation = meetsThreshold
     ? `${result.strategy} setup to go ${directionWord} ${input.symbol} at ~${price.toFixed(2)}. ` +
       `${result.reasons.join('; ')}. Stop ${stopLoss.toFixed(2)}, target ${takeProfit.toFixed(2)} ` +
-      `(R:R ${rrRatio}). Confidence ${confidence}% after personalization.`
+      `(R:R ${rrRatio}). Confidence ${confidence}%.${confluenceNote}`
     : `${result.strategy} setup detected but confidence ${confidence}% is below your ` +
       `${input.minConfidence}% threshold — avoiding. ${result.reasons.join('; ')}.`;
 

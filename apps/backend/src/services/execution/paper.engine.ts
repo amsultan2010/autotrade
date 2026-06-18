@@ -149,14 +149,10 @@ export async function monitorUserOpenTrades(userId: string): Promise<number> {
   }
 
   if (realized !== 0 || unreal !== 0) {
-    const account = await prisma.paperAccount.findUnique({ where: { userId } });
-    if (account) {
-      const balance = account.balance + realized;
-      await prisma.paperAccount.update({
-        where: { userId },
-        data: { balance, equity: balance + unreal },
-      });
-    }
+    await prisma.paperAccount.updateMany({
+      where: { userId },
+      data: { balance: { increment: realized }, equity: { increment: realized + unreal } },
+    });
   }
   return realized;
 }
@@ -181,11 +177,10 @@ export async function closeOpenTradesForSymbolAtPrice(symbol: string, price: num
   let total = 0;
   for (const [userId, realized] of realizedByUser) {
     total += realized;
-    const account = await prisma.paperAccount.findUnique({ where: { userId } });
-    if (account) {
-      const balance = account.balance + realized;
-      await prisma.paperAccount.update({ where: { userId }, data: { balance, equity: balance } });
-    }
+    await prisma.paperAccount.updateMany({
+      where: { userId },
+      data: { balance: { increment: realized }, equity: { increment: realized } },
+    });
   }
   return total;
 }
@@ -224,11 +219,10 @@ export async function closeTradeAtMarket(
     },
   });
 
-  const account = await prisma.paperAccount.findUnique({ where: { userId } });
-  if (account) {
-    const balance = account.balance + pnl;
-    await prisma.paperAccount.update({ where: { userId }, data: { balance, equity: balance } });
-  }
+  await prisma.paperAccount.updateMany({
+    where: { userId },
+    data: { balance: { increment: pnl }, equity: { increment: pnl } },
+  });
   await recordOutcome({ userId, strategy: trade.strategy, symbol: trade.symbol, pnl, win: result === 'WIN' });
   return { closed: true, pnl };
 }

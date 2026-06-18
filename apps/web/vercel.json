@@ -1,0 +1,5 @@
+{
+  "installCommand": "cd ../.. && pnpm install",
+  "buildCommand": "cd ../.. && pnpm --filter @autotrade/shared build && pnpm --filter @autotrade/engine generate && pnpm --filter @autotrade/web build",
+  "outputDirectory": ".next"
+}

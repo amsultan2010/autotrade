@@ -33,7 +33,7 @@ const schema = z.object({
 
   // 'alpaca' = free real-time WebSocket + broker (recommended). 'twelvedata' =
   // free REST multi-timeframe. 'finnhub' = paid candles. 'stooq' = anti-bot limited.
-  MARKET_DATA_PROVIDER: z.enum(['alpaca', 'twelvedata', 'finnhub', 'stooq']).default('alpaca'),
+  MARKET_DATA_PROVIDER: z.enum(['alpaca', 'twelvedata', 'finnhub', 'stooq']).default('stooq'),
   FINNHUB_API_KEY: z.string().optional(),
   TWELVEDATA_API_KEY: z.string().optional(),
 

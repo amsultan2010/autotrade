@@ -2,20 +2,21 @@
   "name": "autotrade",
   "version": "0.1.0",
   "private": true,
-  "description": "Autotrade — personalized AI-powered trading bot (Windows desktop + backend)",
+  "description": "Autotrade — personalized AI-powered trading bot",
   "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev:backend": "pnpm --filter @autotrade/backend dev",
-    "dev:desktop": "pnpm --filter @autotrade/desktop dev",
+    "dev": "pnpm --filter @autotrade/web dev",
+    "dev:web": "pnpm --filter @autotrade/web dev",
+    "dev:worker": "pnpm --filter @autotrade/worker dev",
     "build": "pnpm -r build",
-    "build:shared": "pnpm --filter @autotrade/shared build",
-    "lint": "pnpm -r lint",
+    "build:web": "pnpm --filter @autotrade/web build",
+    "build:worker": "pnpm --filter @autotrade/worker build",
     "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @autotrade/backend prisma:generate",
-    "db:migrate": "pnpm --filter @autotrade/backend prisma:migrate"
+    "db:generate": "pnpm --filter @autotrade/engine prisma:generate",
+    "db:migrate": "pnpm --filter @autotrade/engine prisma:migrate"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

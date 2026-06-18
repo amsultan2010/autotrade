@@ -1748,3 +1748,268 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
   .lp-footer { flex-direction: column; gap: 12px; text-align: center; }
 }
 
+/* ═══════════════════════════════════
+   AURORA BACKGROUND — drifting orbs behind the whole landing page
+══════════════════════════════════ */
+.lp-root {
+  position: relative;
+}
+
+.lp-root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 900px 600px at 15% 20%, rgba(0,200,150,0.055) 0%, transparent 70%),
+    radial-gradient(ellipse 700px 500px at 85% 70%, rgba(79,172,254,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 400px at 50% 50%, rgba(161,140,209,0.03) 0%, transparent 70%);
+  animation: aurora-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(30px, -20px) scale(1.03); }
+  66%  { transform: translate(-20px, 15px) scale(0.98); }
+  100% { transform: translate(15px, -10px) scale(1.02); }
+}
+
+/* ── Grain noise overlay ── */
+.lp-root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* ═══════════════════════════════════
+   GRADIENT TEXT — hero accent line
+══════════════════════════════════ */
+.lp-accent {
+  background: linear-gradient(135deg, #00c896 0%, #4facfe 40%, #00c896 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ═══════════════════════════════════
+   HERO CHART — animated spinning border
+══════════════════════════════════ */
+@property --chart-border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.lp-hero-chart {
+  --chart-border-angle: 0deg;
+  animation: lp-fade-up 1s 0.3s ease-out forwards, chart-border-spin 6s linear infinite;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  background-image: linear-gradient(var(--surface), var(--surface));
+  background-origin: padding-box;
+}
+
+.lp-hero-chart::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 15px;
+  background: conic-gradient(
+    from var(--chart-border-angle),
+    transparent 0deg,
+    rgba(0,200,150,0.7) 60deg,
+    rgba(79,172,254,0.5) 120deg,
+    transparent 180deg
+  );
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes chart-border-spin {
+  to { --chart-border-angle: 360deg; }
+}
+
+/* ═══════════════════════════════════
+   BUTTON PRIMARY — shimmer sweep
+══════════════════════════════════ */
+.lp-btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%);
+  pointer-events: none;
+  transition: none;
+}
+
+.lp-btn-primary:hover::after {
+  left: 160%;
+  transition: left 0.5s ease-out;
+}
+
+/* ═══════════════════════════════════
+   FEATURE CARDS — enhanced hover glow
+══════════════════════════════════ */
+.lp-feature-card:hover {
+  border-color: var(--lp-accent, var(--teal));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--lp-accent, var(--teal)) 30%, transparent),
+    0 8px 40px color-mix(in srgb, var(--lp-accent, var(--teal)) 12%, transparent),
+    0 2px 8px rgba(0,0,0,0.4);
+  transform: translateY(-4px) perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+
+.lp-feature-card.visible:hover .lp-feature-glow {
+  opacity: 0.14;
+}
+
+/* ═══════════════════════════════════
+   STATS BAND — scan line top + value glow
+══════════════════════════════════ */
+.lp-stats-band {
+  position: relative;
+}
+
+.lp-stats-band::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,200,150,0.5) 30%, rgba(79,172,254,0.4) 70%, transparent);
+  animation: stats-scan 3s ease-in-out infinite;
+}
+
+@keyframes stats-scan {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.7); }
+  50%       { opacity: 1; transform: scaleX(1); }
+}
+
+.lp-stat-value {
+  text-shadow: 0 0 20px rgba(0,200,150,0.35);
+  animation: stat-glow 3s ease-in-out infinite;
+}
+
+@keyframes stat-glow {
+  0%, 100% { text-shadow: 0 0 20px rgba(0,200,150,0.35); }
+  50%       { text-shadow: 0 0 35px rgba(0,200,150,0.6), 0 0 60px rgba(0,200,150,0.2); }
+}
+
+/* ═══════════════════════════════════
+   HOW STEPS — num gradient + connector pulse
+══════════════════════════════════ */
+.lp-how-num {
+  background: linear-gradient(135deg, rgba(0,200,150,0.7) 0%, rgba(79,172,254,0.5) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 1;
+}
+
+.lp-how-step.visible .lp-how-connector {
+  animation: connector-pulse 2s ease-in-out infinite;
+}
+
+@keyframes connector-pulse {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 0.6; }
+}
+
+/* ═══════════════════════════════════
+   SECTION TITLE — teal underline accent
+══════════════════════════════════ */
+.lp-section-title {
+  display: block;
+}
+
+.lp-section-title::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--teal), transparent);
+  border-radius: 1px;
+  margin-top: 14px;
+  margin-bottom: -14px;
+}
+
+/* ═══════════════════════════════════
+   HEADER — animated bottom glow
+══════════════════════════════════ */
+.lp-header {
+  position: relative;
+}
+
+.lp-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,200,150,0.4) 50%, transparent);
+  animation: header-glow 4s ease-in-out infinite;
+}
+
+@keyframes header-glow {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.6); }
+  50%       { opacity: 1; transform: scaleX(1); }
+}
+
+/* ═══════════════════════════════════
+   EYEBROW DOT — pulsing ring
+══════════════════════════════════ */
+.lp-eyebrow-dot {
+  position: relative;
+}
+
+.lp-eyebrow-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,200,150,0.4);
+  animation: ring-expand 2s ease-out infinite;
+}
+
+@keyframes ring-expand {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ═══════════════════════════════════
+   CUSTOM SCROLLBAR
+══════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: rgba(0,200,150,0.22);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0,200,150,0.5); }
+
+/* ═══════════════════════════════════
+   BADGE — contextual border tint
+══════════════════════════════════ */
+.lp-badge {
+  box-shadow: 0 0 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+

@@ -134,7 +134,26 @@ export async function clerkSync(sessionToken: string): Promise<{ user: AuthUser;
   if (!env.CLERK_SECRET_KEY) throw new UnauthorizedError('Clerk not configured');
 
   const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
-  const session = await clerk.sessions.verifySession(sessionToken, sessionToken).catch(() => {
+
+  // Extract the session ID from the JWT payload (the `sid` claim) without
+  // verifying the signature — Clerk's verifySession does the real verification.
+  // We need the session ID as the first argument; passing the raw token twice
+  // would cause the lookup to fail.
+  let sessionId: string;
+  try {
+    const payloadB64 = sessionToken.split('.')[1];
+    if (!payloadB64) throw new Error('malformed');
+    const payload = JSON.parse(
+      Buffer.from(payloadB64, 'base64url').toString('utf8'),
+    ) as Record<string, unknown>;
+    const sid = payload['sid'] ?? payload['sub'];
+    if (typeof sid !== 'string' || !sid) throw new Error('no sid');
+    sessionId = sid;
+  } catch {
+    throw new UnauthorizedError('Invalid Clerk session token');
+  }
+
+  const session = await clerk.sessions.verifySession(sessionId, sessionToken).catch(() => {
     throw new UnauthorizedError('Invalid Clerk session token');
   });
 

@@ -4,7 +4,6 @@ import { useAuth } from './state/auth';
 import { ConstellationBg } from './components/ConstellationBg';
 import { ScanlineOverlay } from './components/ScanlineOverlay';
 import { Landing } from './pages/Landing';
-import { Paywall } from './pages/Paywall';
 import { Dashboard } from './pages/Dashboard';
 import { Watchlist } from './pages/Watchlist';
 import { TradeHistory } from './pages/TradeHistory';
@@ -26,25 +25,12 @@ const NAV: Array<{ id: View; label: string; icon: string; adminOnly?: boolean }>
 export function App() {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
-  const { subscription, loading } = useAuth();
+  const { subscription } = useAuth();
   const [view, setView] = useState<View>('dashboard');
 
-  if (loading || !isLoaded) {
-    return (
-      <>
-        <ConstellationBg />
-        <ScanlineOverlay />
-        <div className="splash">
-          <div className="logo-lg">Autotrade</div>
-          <div className="muted">Securing session…</div>
-        </div>
-      </>
-    );
-  }
-
+  if (!isLoaded) return null;
   if (!clerkUser) return <Landing />;
 
-  if (subscription && !subscription.entitled) return <><ConstellationBg /><Paywall /></>;
 
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
   // Role stored in Clerk public metadata; falls back to USER.
@@ -64,6 +50,7 @@ export function App() {
             <button
               key={n.id}
               className={`nav-item ${view === n.id ? 'active' : ''}`}
+              aria-current={view === n.id ? 'page' : undefined}
               onClick={() => setView(n.id)}
             >
               <span className="nav-icon">{n.icon}</span>
@@ -91,7 +78,7 @@ export function App() {
         {view === 'charts' && <Charts />}
         {view === 'history' && <TradeHistory />}
         {view === 'settings' && <Settings />}
-        {view === 'admin' && <Admin />}
+        {view === 'admin' && (role === 'ADMIN' || role === 'DEVELOPER') && <Admin />}
       </main>
 
       <nav className="mobile-nav">

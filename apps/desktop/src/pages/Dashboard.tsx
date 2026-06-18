@@ -21,12 +21,18 @@ export function Dashboard() {
   const [perf, setPerf] = useState<PerformanceSummary | null>(null);
   const [signals, setSignals] = useState<Array<Record<string, unknown>>>([]);
   const [busy, setBusy] = useState(false);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [s, p, sig] = await Promise.all([api.botStatus(), api.getPerformance(), api.getSignals()]);
-    setStatus(s);
-    setPerf(p);
-    setSignals(sig);
+    try {
+      const [s, p, sig] = await Promise.all([api.botStatus(), api.getPerformance(), api.getSignals()]);
+      setStatus(s);
+      setPerf(p);
+      setSignals(sig);
+      setLoadErr(null);
+    } catch {
+      setLoadErr('Could not reach the server. Retrying…');
+    }
   }, []);
 
   useEffect(() => {
@@ -56,6 +62,7 @@ export function Dashboard() {
   return (
     <div className="page">
       <DataTicker />
+      {loadErr && <div className="error-banner">{loadErr}</div>}
 
       <header className="page-head">
         <h1>Dashboard</h1>
@@ -99,7 +106,7 @@ export function Dashboard() {
             </thead>
             <tbody>
               {signals.slice(0, 20).map((s, i) => (
-                <tr key={i}>
+                <tr key={`${String(s.createdAt)}-${String(s.ticker)}-${i}`}>
                   <td className="muted">{new Date(String(s.createdAt)).toLocaleTimeString()}</td>
                   <td className="mono">{String(s.ticker)}</td>
                   <td><span className={`pill pill-${String(s.action).toLowerCase()}`}>{String(s.action)}</span></td>

@@ -8,10 +8,14 @@ export function Settings() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => setS(await api.getSettings()))();
+    (async () => {
+      try { setS(await api.getSettings()); }
+      catch { setError('Could not load settings. Check your connection and try again.'); }
+    })();
   }, []);
 
-  if (!s) return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
+  if (!s && !error) return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
+  if (!s) return <div className="page"><h1>Settings</h1><div className="error-banner">{error}</div></div>;
 
   function set<K extends keyof BotSettingsDTO>(key: K, value: BotSettingsDTO[K]) {
     setS((prev) => (prev ? { ...prev, [key]: value } : prev));

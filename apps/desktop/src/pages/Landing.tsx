@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useClerk } from '@clerk/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { SignInButton, SignUpButton, useUser } from '@clerk/react';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -228,6 +228,7 @@ function ParticleField() {
     <canvas
       ref={canvasRef}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      aria-hidden="true"
     />
   );
 }
@@ -259,9 +260,10 @@ function useCounter(target: string, active: boolean): string {
 }
 
 function StatCard({ value, label, active }: { value: string; label: string; active: boolean }) {
+  const display = useCounter(value, active);
   return (
     <div className="lp-stat-card">
-      <div className="lp-stat-value">{useCounter(value, active)}</div>
+      <div className="lp-stat-value">{display}</div>
       <div className="lp-stat-label">{label}</div>
     </div>
   );
@@ -297,7 +299,7 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
-  const { openSignIn, openSignUp } = useClerk();
+  const { isSignedIn } = useUser();
 
   const statsRef = useRef<HTMLDivElement>(null);
   const statsVisible = useInView(statsRef as React.RefObject<HTMLElement>, 0.2);
@@ -322,6 +324,25 @@ export function Landing() {
       return obs;
     });
     return () => observers.forEach(o => o?.disconnect());
+  }, []);
+
+  const handleCardTilt = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const rx = ((e.clientY - cy) / (rect.height / 2)) * -6;
+    const ry = ((e.clientX - cx) / (rect.width / 2)) * 6;
+    el.style.setProperty('--rx', `${rx}deg`);
+    el.style.setProperty('--ry', `${ry}deg`);
+    el.style.transform = `translateY(0) perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+  }, []);
+
+  const handleCardReset = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    el.style.setProperty('--rx', '0deg');
+    el.style.setProperty('--ry', '0deg');
+    el.style.transform = '';
   }, []);
 
   useEffect(() => {
@@ -370,8 +391,17 @@ export function Landing() {
           <a href="#stats">Performance</a>
         </nav>
         <div className="lp-auth-btns">
-          <button className="lp-btn-ghost" onClick={() => openSignIn()}>Sign In</button>
-          <button className="lp-btn-primary" onClick={() => openSignUp()}>Get Started →</button>
+          {isSignedIn ? (
+            <>
+              <a className="lp-btn-ghost" href="/">Home</a>
+              <a className="lp-btn-primary" href="/">Settings</a>
+            </>
+          ) : (
+            <>
+              <SignInButton mode="modal"><button className="lp-btn-ghost">Sign In</button></SignInButton>
+              <SignUpButton mode="modal"><button className="lp-btn-primary">Get Started →</button></SignUpButton>
+            </>
+          )}
         </div>
       </header>
 
@@ -393,12 +423,8 @@ export function Landing() {
             giving individual traders the edge once reserved for hedge funds.
           </p>
           <div className="lp-hero-cta">
-            <button className="lp-btn-primary lp-btn-lg" onClick={() => openSignUp()}>
-              Start Trading Free
-            </button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => openSignIn()}>
-              Sign In
-            </button>
+            <SignUpButton mode="modal"><button className="lp-btn-primary lp-btn-lg">Start Trading Free</button></SignUpButton>
+            <SignInButton mode="modal"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
           </div>
           <div className="lp-hero-badges">
             {BADGES.map((b, i) => <TradeBadge key={i} {...b} />)}
@@ -460,6 +486,8 @@ export function Landing() {
               ref={el => { featureRefs.current[i] = el; }}
               className={`lp-feature-card ${featureVisible[i] ? 'visible' : ''}`}
               style={{ transitionDelay: `${(i % 3) * 80}ms`, '--lp-accent': f.accent } as React.CSSProperties}
+              onMouseMove={handleCardTilt}
+              onMouseLeave={handleCardReset}
             >
               <div className="lp-feature-icon" style={{ color: f.accent }}>{f.icon}</div>
               <h3 className="lp-feature-title">{f.title}</h3>
@@ -482,12 +510,8 @@ export function Landing() {
             data-driven precision. Start with paper trading, go live when you're ready.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="lp-btn-primary lp-btn-xl" onClick={() => openSignUp()}>
-              Create Free Account
-            </button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => openSignIn()}>
-              Sign In
-            </button>
+            <SignUpButton mode="modal"><button className="lp-btn-primary lp-btn-xl">Create Free Account</button></SignUpButton>
+            <SignInButton mode="modal"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
           </div>
         </div>
       </section>
@@ -502,6 +526,7 @@ export function Landing() {
           © 2026 Autotrade. All rights reserved. Trading involves risk of loss.
         </p>
       </footer>
+
 
     </div>
   );

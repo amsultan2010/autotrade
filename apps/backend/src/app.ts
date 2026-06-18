@@ -24,7 +24,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     bodyLimit: 1_048_576,
   });
 
-  await app.register(helmet, { contentSecurityPolicy: false });
+  await app.register(helmet, { contentSecurityPolicy: isDev ? false : undefined });
   await app.register(cors, {
     origin: env.CORS_ORIGINS,
     credentials: true,

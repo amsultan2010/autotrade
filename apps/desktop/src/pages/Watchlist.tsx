@@ -48,6 +48,7 @@ export function Watchlist() {
     timer.current = window.setInterval(() => void load(), 4000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
+      if (blurTimer.current) window.clearTimeout(blurTimer.current);
     };
   }, []);
 

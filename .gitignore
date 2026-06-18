@@ -40,3 +40,5 @@ Thumbs.db
 
 # Local encrypted desktop store
 *.alphabot-store
+.vercel
+apps/web/.next/

@@ -53,7 +53,7 @@ export class AlpacaProvider implements MarketDataProvider {
   }
 
   private async getJson<T>(url: string): Promise<T> {
-    const res = await fetch(url, { headers: alpacaHeaders() });
+    const res = await fetch(url, { headers: alpacaHeaders(), signal: AbortSignal.timeout(10_000) });
     if (res.status === 429) throw new MarketDataError('Alpaca rate limit', 'alpaca', true);
     if (!res.ok) {
       const body = await res.text().catch(() => '');

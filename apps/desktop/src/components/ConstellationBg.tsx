@@ -10,7 +10,7 @@ const RAIN_COUNT = 22;
 const HEX = '0123456789ABCDEF';
 const FONT_H = 13;
 
-function rHex() { return HEX[Math.floor(Math.random() * 16)]; }
+function rHex(): string { return HEX[Math.floor(Math.random() * 16)] ?? '0'; }
 
 function makeParticle(w: number, h: number): Particle {
   const angle = Math.random() * Math.PI * 2;
@@ -33,6 +33,9 @@ export function ConstellationBg() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Non-null alias — ctx is confirmed non-null after the guard above
+    const c = ctx;
+
     let w = window.innerWidth, h = window.innerHeight;
     canvas.width = w; canvas.height = h;
 
@@ -41,10 +44,10 @@ export function ConstellationBg() {
     let rafId: number;
 
     function draw() {
-      ctx.clearRect(0, 0, w, h);
+      c.clearRect(0, 0, w, h);
 
       // ── Data rain (drawn first, behind everything) ──
-      ctx.font = `${FONT_H}px "IBM Plex Mono", monospace`;
+      c.font = `${FONT_H}px "IBM Plex Mono", monospace`;
       for (const col of rain) {
         col.y += col.speed;
         if (Math.random() < 0.12) col.trail[Math.floor(Math.random() * col.trail.length)] = rHex();
@@ -56,19 +59,19 @@ export function ConstellationBg() {
           const cy = col.y - i * FONT_H;
           if (cy < -FONT_H || cy > h + FONT_H) continue;
           const alpha = i === 0 ? 0.85 : (1 - i / col.len) * 0.14;
-          ctx.fillStyle = i === 0 ? `rgba(190,255,230,${alpha})` : `rgba(0,200,150,${alpha})`;
-          ctx.fillText(col.trail[i % col.trail.length], col.x, cy);
+          c.fillStyle = i === 0 ? `rgba(190,255,230,${alpha})` : `rgba(0,200,150,${alpha})`;
+          c.fillText(col.trail[i % col.trail.length] ?? '0', col.x, cy);
         }
       }
 
       // ── Mouse glow ──
       const mx = mouse.current.x, my = mouse.current.y;
       if (mx > -100) {
-        const g = ctx.createRadialGradient(mx, my, 0, mx, my, 120);
+        const g = c.createRadialGradient(mx, my, 0, mx, my, 120);
         g.addColorStop(0, 'rgba(0,200,150,0.09)');
         g.addColorStop(1, 'rgba(0,200,150,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(mx, my, 120, 0, Math.PI * 2); ctx.fill();
+        c.fillStyle = g;
+        c.beginPath(); c.arc(mx, my, 120, 0, Math.PI * 2); c.fill();
       }
 
       // ── Move & repel particles ──
@@ -93,20 +96,21 @@ export function ConstellationBg() {
       // ── Connections ──
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
-          const a = particles[i], b = particles[j];
+          const a = particles[i]!;
+          const b = particles[j]!;
           const dx = a.x - b.x, dy = a.y - b.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > CONNECTION_DIST) continue;
-          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-          ctx.strokeStyle = `rgba(0,200,150,${(1 - dist / CONNECTION_DIST) * 0.22})`;
-          ctx.lineWidth = 0.8; ctx.stroke();
+          c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y);
+          c.strokeStyle = `rgba(0,200,150,${(1 - dist / CONNECTION_DIST) * 0.22})`;
+          c.lineWidth = 0.8; c.stroke();
         }
       }
 
       // ── Particles ──
       for (const p of particles) {
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0,200,150,${p.opacity})`; ctx.fill();
+        c.beginPath(); c.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        c.fillStyle = `rgba(0,200,150,${p.opacity})`; c.fill();
       }
 
       rafId = requestAnimationFrame(draw);

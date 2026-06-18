@@ -25,6 +25,7 @@ enum UserStatus {
 
 model User {
   id           String     @id @default(cuid())
+  clerkId      String?    @unique
   email        String     @unique
   passwordHash String
   role         Role       @default(USER)
@@ -32,15 +33,16 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  subscription  Subscription?
-  refreshTokens RefreshToken[]
-  watchlist     WatchedSymbol[]
-  botSettings   BotSettings?
-  paperAccount  PaperAccount?
-  trades        Trade[]
-  signals       Signal[]
-  strategyStats StrategyStat[]
-  auditLogs     AuditLog[]      @relation("ActorAudit")
+  subscription      Subscription?
+  refreshTokens     RefreshToken[]
+  watchlist         WatchedSymbol[]
+  botSettings       BotSettings?
+  paperAccount      PaperAccount?
+  brokerCredential  BrokerCredential?
+  trades            Trade[]
+  signals           Signal[]
+  strategyStats     StrategyStat[]
+  auditLogs         AuditLog[]        @relation("ActorAudit")
 
   @@index([role])
   @@index([status])
@@ -204,6 +206,7 @@ model Trade {
   confidence       Float
   entryReason      String
   exitReason       String?
+  brokerOrderId    String?
   mistakeTags      String[]      @default([])
   // JSON snapshots of indicators/chart conditions at entry and exit (req #11)
   entrySnapshot    Json?
@@ -215,6 +218,20 @@ model Trade {
   @@index([userId, openedAt])
   @@index([userId, result])
   @@index([symbol])
+}
+
+// Encrypted per-user broker credentials. keyId and secret are AES-256-GCM
+// ciphertexts (hex). The encryption key lives only in BROKER_ENCRYPTION_KEY env.
+model BrokerCredential {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  String   @default("alpaca")
+  keyId     String
+  secret    String
+  paper     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Paper account is clearly separate and labeled (req #6).
