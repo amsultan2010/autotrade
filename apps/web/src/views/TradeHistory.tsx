@@ -1,51 +1,62 @@
 'use client';
-import { useEffect, useState } from 'react';
-import type { TradeDTO } from '@autotrade/shared';
-import { api } from '../api/client';
+import { useState } from 'react';
+import { useQuery, useAction } from 'convex/react';
+import { api as convexApi } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 
-function money(n: number | null): string {
+type TradeResult = 'OPEN' | 'WIN' | 'LOSS' | 'BREAKEVEN';
+
+interface ConvexTrade {
+  _id: Id<'trades'>;
+  symbol: string;
+  side: string;
+  mode: string;
+  qty: number;
+  entryPrice: number;
+  exitPrice?: number;
+  pnl?: number;
+  result: TradeResult;
+  stopLoss?: number;
+  takeProfit?: number;
+  strategy: string;
+  confidence: number;
+  entryReason: string;
+  exitReason?: string;
+  mistakeTags: string[];
+  reasoningCorrect?: boolean;
+  openedAt: number;
+  closedAt?: number;
+}
+
+function money(n: number | null | undefined): string {
   if (n == null) return '--';
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
 export function TradeHistory() {
-  const [trades, setTrades] = useState<TradeDTO[]>([]);
-  const [selected, setSelected] = useState<TradeDTO | null>(null);
-  const [filter, setFilter] = useState<'all' | 'OPEN' | 'WIN' | 'LOSS'>('all');
+  const [filter, setFilter] = useState<'all' | TradeResult>('all');
   const [closingId, setClosingId] = useState<string | null>(null);
-  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  async function load() {
-    try {
-      const params = filter === 'all' ? '' : `?result=${filter}`;
-      const { items } = await api.getTrades(params);
-      setTrades(items);
-      setLoadErr(null);
-    } catch {
-      setLoadErr('Could not load trades. Check your connection.');
-    }
-  }
+  const tradeData = useQuery(convexApi.trades.list, {
+    result: filter === 'all' ? undefined : filter,
+  }) as { items: ConvexTrade[]; nextCursor: string | null } | undefined;
+  const closeAtMarket = useAction(convexApi.tradeActions.closeAtMarket);
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  const trades: ConvexTrade[] = tradeData?.items ?? [];
+  const selected = trades.find((t) => t._id === selectedId) ?? null;
 
-  async function closeNow(id: string) {
+  async function closeNow(id: Id<'trades'>) {
     setClosingId(id);
     try {
-      await api.closeTrade(id);
-      await load();
-    } catch {
-      /* ignore */
-    } finally {
+      await closeAtMarket({ id });
+    } catch { /* ignore */ } finally {
       setClosingId(null);
     }
   }
 
   return (
     <div className="page">
-      {loadErr && <div className="error-banner">{loadErr}</div>}
       <header className="page-head">
         <h1>Trade History</h1>
         <div className="seg small">
@@ -59,7 +70,9 @@ export function TradeHistory() {
 
       <div className="split">
         <section className="panel grow">
-          {trades.length === 0 ? (
+          {tradeData === undefined ? (
+            <p className="muted">Loading…</p>
+          ) : trades.length === 0 ? (
             <p className="muted">No trades match this filter yet.</p>
           ) : (
             <table className="tbl">
@@ -78,30 +91,30 @@ export function TradeHistory() {
               </thead>
               <tbody>
                 {trades.map((t) => (
-                  <tr key={t.id} className={selected?.id === t.id ? 'row-sel' : ''} onClick={() => setSelected(t)}>
+                  <tr
+                    key={t._id}
+                    className={selectedId === t._id ? 'row-sel' : ''}
+                    onClick={() => setSelectedId(t._id === selectedId ? null : t._id)}
+                  >
                     <td className="muted">{new Date(t.openedAt).toLocaleString()}</td>
                     <td className="mono">{t.symbol}</td>
                     <td>{t.side}</td>
-                    <td>
-                      <span className="tag">{t.mode}</span>
-                    </td>
+                    <td><span className="tag">{t.mode}</span></td>
                     <td>{money(t.entryPrice)}</td>
-                    <td>{money(t.exitPrice)}</td>
-                    <td className={t.pnl == null ? '' : t.pnl >= 0 ? 'pos' : 'neg'}>{money(t.pnl)}</td>
-                    <td>
-                      <span className={`pill pill-${t.result.toLowerCase()}`}>{t.result}</span>
-                    </td>
+                    <td>{money(t.exitPrice ?? null)}</td>
+                    <td className={t.pnl == null ? '' : t.pnl >= 0 ? 'pos' : 'neg'}>{money(t.pnl ?? null)}</td>
+                    <td><span className={`pill pill-${t.result.toLowerCase()}`}>{t.result}</span></td>
                     <td className="right">
                       {t.result === 'OPEN' && (
                         <button
                           className="btn-text danger"
-                          disabled={closingId === t.id}
+                          disabled={closingId === t._id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            void closeNow(t.id);
+                            void closeNow(t._id);
                           }}
                         >
-                          {closingId === t.id ? 'Closing…' : 'Close'}
+                          {closingId === t._id ? 'Closing…' : 'Close'}
                         </button>
                       )}
                     </td>
@@ -116,17 +129,15 @@ export function TradeHistory() {
           <aside className="panel detail">
             <div className="detail-head">
               <h2 className="mono">{selected.symbol}</h2>
-              <button className="btn-text" onClick={() => setSelected(null)}>
-                Close
-              </button>
+              <button className="btn-text" onClick={() => setSelectedId(null)}>Close</button>
             </div>
             <Detail label="Strategy" value={selected.strategy} />
             <Detail label="Confidence" value={`${Math.round(selected.confidence)}%`} />
             <Detail label="Side / Mode" value={`${selected.side} · ${selected.mode}`} />
             <Detail label="Qty" value={String(selected.qty)} />
-            <Detail label="Entry / Exit" value={`${money(selected.entryPrice)} → ${money(selected.exitPrice)}`} />
-            <Detail label="Stop / Target" value={`${money(selected.stopLoss)} / ${money(selected.takeProfit)}`} />
-            <Detail label="P/L" value={money(selected.pnl)} />
+            <Detail label="Entry / Exit" value={`${money(selected.entryPrice)} → ${money(selected.exitPrice ?? null)}`} />
+            <Detail label="Stop / Target" value={`${money(selected.stopLoss ?? null)} / ${money(selected.takeProfit ?? null)}`} />
+            <Detail label="P/L" value={money(selected.pnl ?? null)} />
             <Detail label="Entry reason" value={selected.entryReason} />
             <Detail label="Exit reason" value={selected.exitReason ?? '--'} />
             <Detail

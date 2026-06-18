@@ -1,15 +1,23 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { TIMEFRAMES, type Candle, type Timeframe, type TradeDTO } from '@autotrade/shared';
+import { useQuery } from 'convex/react';
+import { api as convexApi } from '@/convex/_generated/api';
+import { TIMEFRAMES, type Candle, type Timeframe } from '@autotrade/shared';
 import { api } from '../api/client';
 import { PriceChart, type ChartMarker } from '../components/PriceChart';
 
-function tradesToMarkers(trades: TradeDTO[]): ChartMarker[] {
+function buildMarkers(trades: Array<{
+  openedAt: number;
+  closedAt?: number;
+  side: string;
+  entryPrice: number;
+  exitPrice?: number;
+}>): ChartMarker[] {
   const m: ChartMarker[] = [];
   for (const t of trades) {
     const long = t.side === 'LONG';
     m.push({
-      time: Date.parse(t.openedAt),
+      time: t.openedAt,
       position: long ? 'belowBar' : 'aboveBar',
       color: long ? '#34d399' : '#f87171',
       shape: long ? 'arrowUp' : 'arrowDown',
@@ -17,7 +25,7 @@ function tradesToMarkers(trades: TradeDTO[]): ChartMarker[] {
     });
     if (t.closedAt && t.exitPrice != null) {
       m.push({
-        time: Date.parse(t.closedAt),
+        time: t.closedAt,
         position: long ? 'aboveBar' : 'belowBar',
         color: '#8595b3',
         shape: 'circle',
@@ -29,54 +37,40 @@ function tradesToMarkers(trades: TradeDTO[]): ChartMarker[] {
 }
 
 export function Charts() {
-  const [symbols, setSymbols] = useState<string[]>([]);
+  const watchlist = useQuery(convexApi.watchlist.list);
   const [symbol, setSymbol] = useState('');
   const [tf, setTf] = useState<Timeframe>('1h');
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [markers, setMarkers] = useState<ChartMarker[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const wl = await api.getWatchlist();
-        const syms = wl.map((w) => w.symbol);
-        setSymbols(syms);
-        setSymbol((cur) => cur || syms[0] || '');
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, []);
+  const symbols = (watchlist as Array<{ symbol: string }> | undefined)?.map((w) => w.symbol) ?? [];
 
+  // Set the default symbol once the watchlist loads.
+  useEffect(() => {
+    if (symbols.length > 0 && !symbol) {
+      setSymbol(symbols[0]!);
+    }
+  }, [symbols, symbol]);
+
+  // Query trades for the selected symbol.
+  const tradeData = useQuery(
+    convexApi.trades.list,
+    symbol ? { symbol, limit: 200 } : 'skip',
+  );
+  const markers = tradeData ? buildMarkers(tradeData.items) : [];
+
+  // Fetch candles from the market API whenever symbol/timeframe changes.
   useEffect(() => {
     if (!symbol) return;
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [c, t] = await Promise.all([
-          api.getCandles(symbol, tf),
-          api.getTrades(`?symbol=${encodeURIComponent(symbol)}&limit=200`),
-        ]);
-        if (cancelled) return;
-        setCandles(c.candles);
-        setMarkers(tradesToMarkers(t.items));
-      } catch {
-        if (!cancelled) {
-          setError('Could not load chart data for this symbol/timeframe.');
-          setCandles([]);
-          setMarkers([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    setLoading(true);
+    setError(null);
+    api.getCandles(symbol, tf)
+      .then((c) => { if (!cancelled) setCandles(c.candles); })
+      .catch(() => { if (!cancelled) { setError('Could not load chart data for this symbol/timeframe.'); setCandles([]); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [symbol, tf]);
 
   return (
@@ -87,16 +81,12 @@ export function Charts() {
           <select className="chart-select" value={symbol} onChange={(e) => setSymbol(e.target.value)}>
             {symbols.length === 0 && <option value="">No symbols - add some on Watchlist</option>}
             {symbols.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
           <div className="seg small">
             {TIMEFRAMES.map((t) => (
-              <button key={t} className={tf === t ? 'active' : ''} onClick={() => setTf(t)}>
-                {t}
-              </button>
+              <button key={t} className={tf === t ? 'active' : ''} onClick={() => setTf(t)}>{t}</button>
             ))}
           </div>
         </div>

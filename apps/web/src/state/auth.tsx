@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAuth as useClerkAuth, useUser } from '@clerk/nextjs';
+import { useQuery } from 'convex/react';
+import { api as convexApi } from '@/convex/_generated/api';
 import type { SubscriptionInfo } from '@autotrade/shared';
-import { api } from '../api/client';
 
 interface AuthState {
   subscription: SubscriptionInfo | null;
@@ -12,42 +13,34 @@ interface AuthState {
 const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { isLoaded, isSignedIn, getToken } = useClerkAuth();
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [synced, setSynced] = useState(false);
+  const { isLoaded, isSignedIn } = useClerkAuth();
 
-  const refreshSubscription = useCallback(async () => {
-    try {
-      setSubscription(await api.subscriptionStatus());
-    } catch {
-      setSubscription(null);
-    }
-  }, []);
+  const subData  = useQuery(convexApi.subscription.get);
+  const entitled = useQuery(convexApi.subscription.isEntitled);
 
-  useEffect(() => {
-    if (!isLoaded) return;
+  const subscription: SubscriptionInfo | null =
+    subData !== undefined || entitled !== undefined
+      ? {
+          status: (subData?.status ?? 'NONE') as SubscriptionInfo['status'],
+          tier: subData?.tier ?? null,
+          currentPeriodEnd: subData?.currentPeriodEnd
+            ? new Date(subData.currentPeriodEnd).toISOString()
+            : null,
+          entitled: entitled ?? false,
+        }
+      : null;
 
-    if (!isSignedIn) {
-      api.setTokenGetter(null);
-      setSynced(true);
-      setSubscription(null);
-      return;
-    }
+  const loading = !isLoaded || (isSignedIn && subData === undefined);
 
-    (async () => {
-      api.setTokenGetter(() => getToken());
-      try {
-        await refreshSubscription();
-      } catch {
-        // Backend may be warming up; proceed anyway
-      } finally {
-        setSynced(true);
-      }
-    })();
-  }, [isLoaded, isSignedIn, getToken, refreshSubscription]);
+  async function refreshSubscription(): Promise<void> {
+    // Convex queries refresh automatically; this is a no-op kept for API compat.
+  }
 
-  const loading = !isLoaded || !synced;
-  const value = useMemo(() => ({ subscription, loading, refreshSubscription }), [subscription, loading, refreshSubscription]);
+  const value = useMemo(
+    () => ({ subscription, loading, refreshSubscription }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [subscription, loading],
+  );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

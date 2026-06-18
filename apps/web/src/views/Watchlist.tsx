@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api as convexApi } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import type { SymbolSearchResult } from '@autotrade/shared';
 import { api } from '../api/client';
 
-interface Row {
-  id: string;
+interface PriceData {
   symbol: string;
-  exchange: string;
   price: number | null;
   changePct: number | null;
   live: boolean;
@@ -26,50 +27,62 @@ function money(n: number | null): string {
 }
 
 export function Watchlist() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SymbolSearchResult[]>([]);
+  interface WatchlistItem { _id: Id<'watchedSymbols'>; symbol: string; exchange: string }
+  const watchlistItems = useQuery(convexApi.watchlist.list) as WatchlistItem[] | undefined;
+  const addSymbol      = useMutation(convexApi.watchlist.add);
+  const removeSymbol   = useMutation(convexApi.watchlist.remove);
+
+  const [prices, setPrices]     = useState<Record<string, PriceData>>({});
+  const [query, setQuery]       = useState('');
+  const [results, setResults]   = useState<SymbolSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [popular, setPopular] = useState<Popular[]>([]);
+  const [focused, setFocused]   = useState(false);
+  const [popular, setPopular]   = useState<Popular[]>([]);
   const [marketOpen, setMarketOpen] = useState<boolean | null>(null);
-  const timer = useRef<number | null>(null);
-  const blurTimer = useRef<number | null>(null);
 
-  async function load() {
-    try {
-      setRows(await api.getWatchlistQuotes());
-    } catch {
-      /* keep previous */
-    }
-  }
+  const timer      = useRef<number | null>(null);
+  const blurTimer  = useRef<number | null>(null);
 
+  // Fetch prices whenever the watchlist symbols change.
+  const symbolsKey = watchlistItems?.map((w) => w.symbol).join(',') ?? '';
   useEffect(() => {
-    void load();
-    timer.current = window.setInterval(() => void load(), 4000);
+    if (!symbolsKey) { setPrices({}); return; }
+
+    const fetchPrices = () => {
+      fetch(`/api/v1/watchlist/quotes?symbols=${encodeURIComponent(symbolsKey)}`)
+        .then((r) => r.json())
+        .then((data: PriceData[]) => {
+          const map: Record<string, PriceData> = {};
+          for (const item of data) map[item.symbol] = item;
+          setPrices(map);
+        })
+        .catch(() => {});
+    };
+
+    fetchPrices();
+    timer.current = window.setInterval(fetchPrices, 4000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
+    };
+  }, [symbolsKey]);
+
+  useEffect(() => {
+    return () => {
       if (blurTimer.current) window.clearTimeout(blurTimer.current);
     };
   }, []);
 
-  // Load the popular browse list once, the first time the search is focused.
   async function loadPopular() {
     if (popular.length > 0) return;
     try {
       const p = await api.getPopular();
       setPopular(p.items);
       setMarketOpen(p.marketOpen);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
 
   useEffect(() => {
-    if (query.trim().length < 1) {
-      setResults([]);
-      return;
-    }
+    if (query.trim().length < 1) { setResults([]); return; }
     const t = setTimeout(async () => {
       setSearching(true);
       try {
@@ -83,22 +96,25 @@ export function Watchlist() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const owned = new Set(rows.map((r) => r.symbol.toUpperCase()));
+  const ownedSymbols = new Set((watchlistItems ?? []).map((r) => r.symbol.toUpperCase()));
 
   async function add(symbol: string, exchange: string) {
-    await api.addSymbol(symbol, exchange);
+    await addSymbol({ symbol, exchange });
     setQuery('');
     setResults([]);
-    await load();
   }
 
-  async function remove(id: string) {
-    await api.removeSymbol(id);
-    await load();
+  async function remove(id: Id<'watchedSymbols'>) {
+    await removeSymbol({ id });
   }
+
+  const rows = (watchlistItems ?? []).map((w) => {
+    const p = prices[w.symbol] ?? { price: null, changePct: null, live: false };
+    return { _id: w._id, symbol: w.symbol, exchange: w.exchange, price: p.price, changePct: p.changePct, live: p.live };
+  });
 
   const showPopular = focused && query.trim().length === 0 && popular.length > 0;
-  const showSearch = query.trim().length > 0 && (results.length > 0 || searching);
+  const showSearch  = query.trim().length > 0 && (results.length > 0 || searching);
 
   return (
     <div className="page">
@@ -113,10 +129,7 @@ export function Watchlist() {
           placeholder="Click to browse, or search any symbol (AAPL, SPY, BTC/USD)…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => {
-            setFocused(true);
-            void loadPopular();
-          }}
+          onFocus={() => { setFocused(true); void loadPopular(); }}
           onBlur={() => {
             blurTimer.current = window.setTimeout(() => setFocused(false), 150);
           }}
@@ -149,7 +162,7 @@ export function Watchlist() {
               </span>
             </div>
             {popular.map((p) => {
-              const already = owned.has(p.symbol.toUpperCase());
+              const already = ownedSymbols.has(p.symbol.toUpperCase());
               return (
                 <button
                   key={p.symbol}
@@ -174,7 +187,9 @@ export function Watchlist() {
       </div>
 
       <section className="panel">
-        {rows.length === 0 ? (
+        {watchlistItems === undefined ? (
+          <p className="muted">Loading…</p>
+        ) : rows.length === 0 ? (
           <p className="muted">Your watchlist is empty. Click the search bar to browse popular tickers.</p>
         ) : (
           <table className="tbl">
@@ -189,7 +204,7 @@ export function Watchlist() {
             </thead>
             <tbody>
               {rows.map((w) => (
-                <tr key={w.id}>
+                <tr key={w._id}>
                   <td className="mono">
                     {w.live && <span className="live-dot" title="Live" />}
                     {w.symbol}
@@ -200,7 +215,7 @@ export function Watchlist() {
                     {w.changePct == null ? '--' : `${w.changePct >= 0 ? '+' : ''}${w.changePct}%`}
                   </td>
                   <td className="right">
-                    <button className="btn-text danger" onClick={() => void remove(w.id)}>
+                    <button className="btn-text danger" onClick={() => void remove(w._id)}>
                       Remove
                     </button>
                   </td>

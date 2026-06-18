@@ -1,37 +1,78 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, type BotSettingsDTO, type SubscriptionInfo } from '@autotrade/shared';
-import { api, ApiError } from '../api/client';
+import { useQuery, useMutation, useAction } from 'convex/react';
+import { api as convexApi } from '@/convex/_generated/api';
+import { RISK_LEVELS, STRATEGIES, TIMEFRAMES } from '@autotrade/shared';
+
+type Mode = 'DISABLED' | 'PAPER' | 'LIVE';
+type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+interface LocalSettings {
+  mode: Mode;
+  riskLevel: RiskLevel;
+  maxActiveTrades: number;
+  maxTradeSize: number;
+  riskPerTradePct: number;
+  defaultStopPct: number;
+  defaultTakeProfitPct: number;
+  maxDailyLoss: number;
+  tradingHoursStart: string;
+  tradingHoursEnd: string;
+  minConfidence: number;
+  timeframes: string[];
+  strategies: string[];
+}
 
 type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
 
 export function Settings() {
-  const [s, setS] = useState<BotSettingsDTO | null>(null);
-  const [broker, setBroker] = useState<BrokerStatus | null>(null);
-  const [sub, setSub] = useState<SubscriptionInfo | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const settingsData = useQuery(convexApi.botSettings.get);
+  const brokerData   = useQuery(convexApi.brokerCredential.status);
+  const subData      = useQuery(convexApi.subscription.get);
+  const entitled     = useQuery(convexApi.subscription.isEntitled);
 
+  const updateSettings = useMutation(convexApi.botSettings.update);
+  const setModeMut     = useMutation(convexApi.botSettings.setMode);
+
+  const [local, setLocal] = useState<LocalSettings | null>(null);
+  const [saved, setSaved]   = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+
+  // Populate local state from Convex once loaded.
   useEffect(() => {
-    void (async () => {
-      try {
-        const [settings, brokerStatus, subStatus] = await Promise.all([
-          api.getSettings(), api.getBrokerStatus(), api.subscriptionStatus(),
-        ]);
-        setS(settings);
-        setBroker(brokerStatus);
-        setSub(subStatus);
-      } catch {
-        setError('Could not load settings.');
-      }
-    })();
-  }, []);
+    if (!settingsData || local) return;
+    setLocal({
+      mode: settingsData.mode,
+      riskLevel: settingsData.riskLevel,
+      maxActiveTrades: settingsData.maxActiveTrades,
+      maxTradeSize: settingsData.maxTradeSize,
+      riskPerTradePct: settingsData.riskPerTradePct,
+      defaultStopPct: settingsData.defaultStopPct,
+      defaultTakeProfitPct: settingsData.defaultTakeProfitPct,
+      maxDailyLoss: settingsData.maxDailyLoss,
+      tradingHoursStart: settingsData.tradingHoursStart,
+      tradingHoursEnd: settingsData.tradingHoursEnd,
+      minConfidence: settingsData.minConfidence,
+      timeframes: settingsData.timeframes,
+      strategies: settingsData.strategies,
+    });
+  }, [settingsData, local]);
 
-  if (!s && !error) return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
-  if (!s) return <div className="page"><h1>Settings</h1><div className="error-banner">{error}</div></div>;
+  const broker: BrokerStatus | null = brokerData ?? null;
+  const sub = {
+    entitled: entitled ?? false,
+    tier: subData?.tier ?? null,
+  };
 
-  function set<K extends keyof BotSettingsDTO>(key: K, value: BotSettingsDTO[K]) {
-    setS((prev) => (prev ? { ...prev, [key]: value } : prev));
+  if (settingsData === undefined) {
+    return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
+  }
+  if (!local) {
+    return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
+  }
+
+  function set<K extends keyof LocalSettings>(key: K, value: LocalSettings[K]) {
+    setLocal((prev) => (prev ? { ...prev, [key]: value } : prev));
     setSaved(false);
   }
 
@@ -40,30 +81,41 @@ export function Settings() {
   }
 
   async function save() {
-    if (!s) return;
+    if (!local) return;
     setError(null);
     try {
-      const updated = await api.updateSettings(s);
-      setS(updated);
+      await updateSettings({
+        riskLevel: local.riskLevel,
+        maxActiveTrades: local.maxActiveTrades,
+        maxTradeSize: local.maxTradeSize,
+        riskPerTradePct: local.riskPerTradePct,
+        defaultStopPct: local.defaultStopPct,
+        defaultTakeProfitPct: local.defaultTakeProfitPct,
+        maxDailyLoss: local.maxDailyLoss,
+        tradingHoursStart: local.tradingHoursStart,
+        tradingHoursEnd: local.tradingHoursEnd,
+        minConfidence: local.minConfidence,
+        timeframes: local.timeframes,
+        strategies: local.strategies,
+      });
       setSaved(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not save');
+      setError(err instanceof Error ? err.message : 'Could not save');
     }
   }
 
-  async function setMode(mode: BotSettingsDTO['mode']) {
-    if (!s) return;
+  async function setMode(mode: Mode) {
     if (mode === 'LIVE' && !broker?.connected) {
       setError('Connect an Alpaca account first before enabling live trading.');
       return;
     }
     setError(null);
     try {
-      const updated = await api.updateSettings({ ...s, mode });
-      setS(updated);
+      await setModeMut({ mode });
+      setLocal((prev) => (prev ? { ...prev, mode } : prev));
       setSaved(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not update mode');
+      setError(err instanceof Error ? err.message : 'Could not update mode');
     }
   }
 
@@ -79,16 +131,16 @@ export function Settings() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <AlpacaCard broker={broker} onUpdate={setBroker} onError={setError} />
+      <AlpacaCard broker={broker} onError={setError} />
 
       <section className="panel">
         <h2>Execution mode</h2>
         <div style={{ marginBottom: '0.75rem' }}>
-          <span className={`chip ${sub?.entitled ? 'on' : ''}`} style={{ marginRight: '0.5rem' }}>
-            {sub?.entitled ? `Pro${sub.tier ? ` · ${sub.tier}` : ''}` : 'Free'}
+          <span className={`chip ${sub.entitled ? 'on' : ''}`} style={{ marginRight: '0.5rem' }}>
+            {sub.entitled ? `Pro${sub.tier ? ` · ${sub.tier}` : ''}` : 'Free'}
           </span>
           <span className="muted" style={{ fontSize: '0.85em' }}>
-            {sub?.entitled
+            {sub.entitled
               ? 'Live trading enabled'
               : 'Paper trading is free · upgrade to Pro for live trading'}
           </span>
@@ -96,21 +148,21 @@ export function Settings() {
         <div className="chips">
           {(['PAPER', 'LIVE', 'DISABLED'] as const).map((m) => {
             const needsPro = m === 'LIVE';
-            const locked = needsPro && (!broker?.connected || !sub?.entitled);
+            const locked = needsPro && (!broker?.connected || !sub.entitled);
             return (
               <button
                 key={m}
-                className={`chip ${s.mode === m ? 'on' : ''} ${locked ? 'disabled' : ''}`}
+                className={`chip ${local.mode === m ? 'on' : ''} ${locked ? 'disabled' : ''}`}
                 onClick={() => void setMode(m)}
                 title={
                   m === 'LIVE' && !broker?.connected
                     ? 'Connect Alpaca first'
-                    : m === 'LIVE' && !sub?.entitled
+                    : m === 'LIVE' && !sub.entitled
                     ? 'Requires Pro subscription'
                     : undefined
                 }
               >
-                {m}{needsPro && !sub?.entitled ? ' 🔒' : ''}
+                {m}{needsPro && !sub.entitled ? ' 🔒' : ''}
               </button>
             );
           })}
@@ -119,22 +171,22 @@ export function Settings() {
 
       <section className="panel form-grid">
         <Field label="Risk level">
-          <select value={s.riskLevel} onChange={(e) => set('riskLevel', e.target.value as BotSettingsDTO['riskLevel'])}>
+          <select value={local.riskLevel} onChange={(e) => set('riskLevel', e.target.value as RiskLevel)}>
             {RISK_LEVELS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
-        <Num label="Max active trades" v={s.maxActiveTrades} on={(n) => set('maxActiveTrades', n)} />
-        <Num label="Max trade size ($)" v={s.maxTradeSize} on={(n) => set('maxTradeSize', n)} />
-        <Num label="Risk per trade (%)" v={s.riskPerTradePct} step={0.1} on={(n) => set('riskPerTradePct', n)} />
-        <Num label="Default stop (%)" v={s.defaultStopPct} step={0.1} on={(n) => set('defaultStopPct', n)} />
-        <Num label="Default take-profit (%)" v={s.defaultTakeProfitPct} step={0.1} on={(n) => set('defaultTakeProfitPct', n)} />
-        <Num label="Max daily loss ($)" v={s.maxDailyLoss} on={(n) => set('maxDailyLoss', n)} />
-        <Num label="Min confidence (%)" v={s.minConfidence} on={(n) => set('minConfidence', n)} />
+        <Num label="Max active trades" v={local.maxActiveTrades} on={(n) => set('maxActiveTrades', n)} />
+        <Num label="Max trade size ($)" v={local.maxTradeSize} on={(n) => set('maxTradeSize', n)} />
+        <Num label="Risk per trade (%)" v={local.riskPerTradePct} step={0.1} on={(n) => set('riskPerTradePct', n)} />
+        <Num label="Default stop (%)" v={local.defaultStopPct} step={0.1} on={(n) => set('defaultStopPct', n)} />
+        <Num label="Default take-profit (%)" v={local.defaultTakeProfitPct} step={0.1} on={(n) => set('defaultTakeProfitPct', n)} />
+        <Num label="Max daily loss ($)" v={local.maxDailyLoss} on={(n) => set('maxDailyLoss', n)} />
+        <Num label="Min confidence (%)" v={local.minConfidence} on={(n) => set('minConfidence', n)} />
         <Field label="Trading hours start">
-          <input type="time" value={s.tradingHoursStart} onChange={(e) => set('tradingHoursStart', e.target.value)} />
+          <input type="time" value={local.tradingHoursStart} onChange={(e) => set('tradingHoursStart', e.target.value)} />
         </Field>
         <Field label="Trading hours end">
-          <input type="time" value={s.tradingHoursEnd} onChange={(e) => set('tradingHoursEnd', e.target.value)} />
+          <input type="time" value={local.tradingHoursEnd} onChange={(e) => set('tradingHoursEnd', e.target.value)} />
         </Field>
       </section>
 
@@ -142,8 +194,8 @@ export function Settings() {
         <h2>Timeframes analyzed</h2>
         <div className="chips">
           {TIMEFRAMES.map((tf) => (
-            <button key={tf} className={`chip ${s.timeframes.includes(tf) ? 'on' : ''}`}
-              onClick={() => set('timeframes', toggleArr(s.timeframes, tf))}>{tf}</button>
+            <button key={tf} className={`chip ${local.timeframes.includes(tf) ? 'on' : ''}`}
+              onClick={() => set('timeframes', toggleArr(local.timeframes, tf))}>{tf}</button>
           ))}
         </div>
       </section>
@@ -152,8 +204,8 @@ export function Settings() {
         <h2>Strategies</h2>
         <div className="chips">
           {STRATEGIES.map((st) => (
-            <button key={st} className={`chip ${s.strategies.includes(st) ? 'on' : ''}`}
-              onClick={() => set('strategies', toggleArr(s.strategies, st))}>{st}</button>
+            <button key={st} className={`chip ${local.strategies.includes(st) ? 'on' : ''}`}
+              onClick={() => set('strategies', toggleArr(local.strategies, st))}>{st}</button>
           ))}
         </div>
       </section>
@@ -163,17 +215,18 @@ export function Settings() {
 
 function AlpacaCard({
   broker,
-  onUpdate,
   onError,
 }: {
   broker: BrokerStatus | null;
-  onUpdate: (s: BrokerStatus) => void;
   onError: (msg: string) => void;
 }) {
-  const [keyId, setKeyId] = useState('');
-  const [secret, setSecret] = useState('');
-  const [paper, setPaper] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const connectBroker    = useAction(convexApi.brokerCredentialActions.connect);
+  const disconnectBroker = useAction(convexApi.brokerCredentialActions.disconnect);
+
+  const [keyId, setKeyId]         = useState('');
+  const [secret, setSecret]       = useState('');
+  const [paper, setPaper]         = useState(true);
+  const [loading, setLoading]     = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   async function connect() {
@@ -181,12 +234,11 @@ function AlpacaCard({
     setLoading(true);
     onError('');
     try {
-      const result = await api.connectBroker(keyId, secret, paper);
-      onUpdate(result);
+      await connectBroker({ keyId, secret, paper });
       setKeyId('');
       setSecret('');
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : 'Could not connect — check your keys and try again.');
+      onError(err instanceof Error ? err.message : 'Could not connect — check your keys and try again.');
     } finally {
       setLoading(false);
     }
@@ -196,8 +248,7 @@ function AlpacaCard({
     setConfirming(false);
     setLoading(true);
     try {
-      const result = await api.disconnectBroker();
-      onUpdate(result);
+      await disconnectBroker({});
     } catch {
       onError('Could not disconnect. Try again.');
     } finally {

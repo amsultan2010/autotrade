@@ -61,6 +61,40 @@ export const update = mutation({
   },
 });
 
+/** Combined status query — bot settings + open trade count + paper account. */
+export const getStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = requireAuth(identity);
+
+    const [settings, paperAccount, openTrades] = await Promise.all([
+      ctx.db
+        .query('botSettings')
+        .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+        .unique(),
+      ctx.db
+        .query('paperAccounts')
+        .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+        .unique(),
+      ctx.db
+        .query('trades')
+        .withIndex('by_clerk_result', (q) => q.eq('clerkId', clerkId).eq('result', 'OPEN'))
+        .collect(),
+    ]);
+
+    const mode = settings?.mode ?? 'DISABLED';
+    return {
+      mode,
+      running: mode === 'PAPER' || mode === 'LIVE',
+      openTrades: openTrades.length,
+      paperAccount: paperAccount
+        ? { balance: paperAccount.balance, equity: paperAccount.equity }
+        : null,
+    };
+  },
+});
+
 /** Force-set bot mode (used by bot start/stop controls). */
 export const setMode = mutation({
   args: { mode: modeValidator },

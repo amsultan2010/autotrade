@@ -1,23 +1,40 @@
-import { requireUser } from '@/lib/auth';
+import { type NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { getMarketData, liveEngine } from '@autotrade/engine';
 import { ok, handleError } from '@/lib/api-response';
-import { prisma, getMarketData, liveEngine } from '@autotrade/engine';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const user = await requireUser();
-    const watched = await prisma.watchedSymbol.findMany({ where: { userId: user.id }, orderBy: { addedAt: 'asc' } });
-    const symbols = [...new Set(watched.map((w) => w.symbol.toUpperCase()))];
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const url = new URL(req.url);
+    const symbolsParam = url.searchParams.get('symbols') ?? '';
+    const symbols = symbolsParam
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (symbols.length === 0) return ok([]);
+
     let snapshots: Record<string, { price: number; changePct: number | null }> = {};
     try {
       const md = getMarketData();
       if (md.getSnapshots) snapshots = await md.getSnapshots(symbols);
     } catch { /* degrade gracefully */ }
-    return ok(watched.map((w) => {
-      const sym = w.symbol.toUpperCase();
-      const live = liveEngine.priceOf(sym);
-      const snap = snapshots[sym];
-      return { id: w.id, symbol: w.symbol, exchange: w.exchange, price: live ?? snap?.price ?? null, changePct: snap?.changePct ?? null, live: live != null };
-    }));
+
+    return ok(
+      symbols.map((sym) => {
+        const live = liveEngine.priceOf(sym);
+        const snap = snapshots[sym];
+        return {
+          symbol: sym,
+          price: live ?? snap?.price ?? null,
+          changePct: snap?.changePct ?? null,
+          live: live != null,
+        };
+      }),
+    );
   } catch (err) {
     return handleError(err);
   }
