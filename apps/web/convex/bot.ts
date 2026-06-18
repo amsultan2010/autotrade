@@ -83,7 +83,7 @@ export const runAllUsers = internalAction({
     const baseUrl = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
 
     await Promise.allSettled(
-      clerkIds.map(async (clerkId) => {
+      clerkIds.map(async (clerkId: string) => {
         try {
           const res = await fetch(`${baseUrl}/api/internal/bot/run-user`, {
             method: 'POST',
