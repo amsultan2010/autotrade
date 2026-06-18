@@ -7,7 +7,17 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Autotrade',
-  description: 'AI-powered paper trading bot',
+  description: 'AI-powered automated trading bot',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
+  openGraph: {
+    title: 'Autotrade',
+    description: 'AI-powered automated trading bot',
+    siteName: 'Autotrade',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

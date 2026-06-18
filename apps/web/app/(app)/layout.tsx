@@ -1,52 +1,56 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import * as Sentry from '@sentry/nextjs';
 import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 
-type View = 'dashboard' | 'watchlist' | 'charts' | 'history' | 'settings' | 'admin';
+const NAV = [
+  { href: '/dashboard',  label: 'Dashboard',    icon: '▦' },
+  { href: '/watchlist',  label: 'Watchlist',     icon: '★' },
+  { href: '/charts',     label: 'Charts',        icon: '◰' },
+  { href: '/history',    label: 'Trade History', icon: '≡' },
+  { href: '/settings',   label: 'Settings',      icon: '⚙' },
+] as const;
 
-const NAV: Array<{ id: View; label: string; icon: string; adminOnly?: boolean }> = [
-  { id: 'dashboard', label: 'Dashboard', icon: '▦' },
-  { id: 'watchlist', label: 'Watchlist', icon: '★' },
-  { id: 'charts', label: 'Charts', icon: '◰' },
-  { id: 'history', label: 'Trade History', icon: '≡' },
-  { id: 'settings', label: 'Settings', icon: '⚙' },
-  { id: 'admin', label: 'Admin', icon: '⛨', adminOnly: true },
-];
+const ADMIN_NAV = { href: '/admin', label: 'Admin', icon: '⛨' } as const;
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user: clerkUser, isLoaded } = useUser();
+// Inner layout — only rendered when Clerk is loaded and user exists.
+// Keeps all hooks at the top level unconditionally.
+function AppShell({ children }: { children: React.ReactNode }) {
+  const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
+  const pathname = usePathname();
 
-  if (!isLoaded) return null;
-  if (!clerkUser) return null;
-
-  const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
-  const role = (clerkUser.publicMetadata?.role as string | undefined) ?? 'USER';
+  const email = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
+  const role = (clerkUser?.publicMetadata?.role as string | undefined) ?? 'USER';
+  const isAdmin = role === 'ADMIN' || role === 'DEVELOPER';
 
   useEffect(() => {
+    if (!clerkUser) return;
     Sentry.setUser({ id: clerkUser.id, email });
     return () => Sentry.setUser(null);
-  }, [clerkUser.id, email]);
+  }, [clerkUser?.id, email]);
+
+  const allNav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   return (
     <AuthProvider>
       <ConstellationBg dim />
       <div className="app-shell">
         <aside className="sidebar">
-          <div className="brand">
-            <div className="brand-mark">AT</div>
-            <span className="brand-name">Autotrade</span>
+          <div className="nav-logo">
+            <img src="/icon.svg" alt="Autotrade" width={30} height={30} style={{ borderRadius: 6, flexShrink: 0 }} />
+            <span className="nav-logo-text">Autotrade</span>
           </div>
           <nav>
-            {NAV.filter((n) => !n.adminOnly || role === 'ADMIN' || role === 'DEVELOPER').map((n) => (
+            {allNav.map((n) => (
               <a
-                key={n.id}
-                href={`/${n.id}`}
-                className={`nav-item`}
+                key={n.href}
+                href={n.href}
+                className={`nav-item${pathname === n.href ? ' active' : ''}`}
               >
                 <span className="nav-icon">{n.icon}</span>
                 {n.label}
@@ -68,8 +72,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
         <nav className="mobile-nav">
-          {NAV.filter((n) => !n.adminOnly || role === 'ADMIN' || role === 'DEVELOPER').map((n) => (
-            <a key={n.id} href={`/${n.id}`} className="mob-nav-item">
+          {allNav.map((n) => (
+            <a key={n.href} href={n.href} className={`mob-nav-item${pathname === n.href ? ' active' : ''}`}>
               <span className="mob-nav-icon">{n.icon}</span>
               {n.label}
             </a>
@@ -78,4 +82,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     </AuthProvider>
   );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (!isLoaded || !isSignedIn) return null;
+
+  return <AppShell>{children}</AppShell>;
 }
