@@ -72,6 +72,54 @@ export async function sendTradeAlert(to: string, trade: {
   });
 }
 
+export async function sendDailyDigest(to: string, stats: {
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+  topSymbol?: string;
+}) {
+  const pnlColor = stats.pnl >= 0 ? '#00c896' : '#ff3b52';
+  const pnlSign = stats.pnl >= 0 ? '+' : '';
+  const winRate = stats.totalTrades > 0
+    ? Math.round((stats.wins / stats.totalTrades) * 100)
+    : 0;
+
+  return getResend().emails.send({
+    from: FROM,
+    to,
+    subject: `Daily Digest — ${pnlSign}$${stats.pnl.toFixed(2)} today`,
+    html: `
+      <div style="background:#090c10;color:#f4f8fd;font-family:Inter,sans-serif;padding:40px;max-width:600px;margin:0 auto;border-radius:12px;">
+        <div style="color:#00c896;font-size:24px;font-weight:700;margin-bottom:8px;">Autotrade</div>
+        <p style="color:#a8bece;margin-bottom:24px;font-size:14px;">Daily Performance Summary</p>
+        <div style="background:#0e1318;border-radius:8px;padding:24px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px;">
+          <div style="font-size:32px;font-weight:700;color:${pnlColor};margin-bottom:4px;">${pnlSign}$${stats.pnl.toFixed(2)}</div>
+          <div style="color:#a8bece;font-size:14px;">Total P&L today</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px;">
+          <div style="background:#0e1318;border-radius:8px;padding:16px;border:1px solid rgba(255,255,255,0.06);text-align:center;">
+            <div style="font-size:24px;font-weight:700;">${stats.totalTrades}</div>
+            <div style="color:#a8bece;font-size:13px;">Trades</div>
+          </div>
+          <div style="background:#0e1318;border-radius:8px;padding:16px;border:1px solid rgba(255,255,255,0.06);text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#00c896;">${winRate}%</div>
+            <div style="color:#a8bece;font-size:13px;">Win Rate</div>
+          </div>
+          <div style="background:#0e1318;border-radius:8px;padding:16px;border:1px solid rgba(255,255,255,0.06);text-align:center;">
+            <div style="font-size:24px;font-weight:700;">${stats.wins}W / ${stats.losses}L</div>
+            <div style="color:#a8bece;font-size:13px;">W/L</div>
+          </div>
+        </div>
+        ${stats.topSymbol ? `<p style="color:#a8bece;margin-bottom:24px;">Top symbol: <strong style="color:#f4f8fd;">${stats.topSymbol}</strong></p>` : ''}
+        <a href="https://autotrade.app/dashboard" style="display:inline-block;background:#00c896;color:#090c10;padding:12px 28px;border-radius:8px;font-weight:600;text-decoration:none;">
+          View Full Report
+        </a>
+      </div>
+    `,
+  });
+}
+
 export async function sendSubscriptionConfirmed(to: string, name: string, plan: string) {
   return getResend().emails.send({
     from: FROM,

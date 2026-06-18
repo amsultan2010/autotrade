@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
 import { prisma, env, encryptSecret, decryptSecret } from '@autotrade/engine';
 import { alpacaTradingBase } from '@autotrade/engine';
+import { capture } from '@/lib/analytics';
 
 const connectSchema = z.object({
   keyId: z.string().min(1),
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    capture(user.id, { event: 'broker_connected', properties: { userId: user.id, broker: 'alpaca', paper } });
     return ok({ connected: true, provider: 'alpaca', paper });
   } catch (err) {
     return handleError(err);
