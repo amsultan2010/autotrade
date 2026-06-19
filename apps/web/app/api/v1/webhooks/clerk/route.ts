@@ -6,7 +6,7 @@ import { sendWelcomeEmail } from '@/lib/email';
 import { syncResendContact, removeResendContact } from '@/lib/resend-audience';
 import { identifyUser } from '@/lib/analytics';
 import { convexServer } from '@/lib/convex-server';
-import { internal } from '@/convex/_generated/api';
+import { api as convexApi } from '@/convex/_generated/api';
 
 type EmailAddress = { id: string; email_address: string };
 
@@ -73,14 +73,14 @@ export async function POST(req: Request) {
       await Promise.allSettled([
         sendWelcomeEmail(primaryEmail, name),
         syncResendContact({ email: primaryEmail, firstName, lastName }),
-        convexServer.mutation(internal.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
+        convexServer.mutation(convexApi.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
       ]);
     }
   }
 
   if (event.type === 'user.deleted') {
     void removeResendContact(event.data.id);
-    void convexServer.mutation(internal.users.disableFromClerk, { clerkId: event.data.id });
+    void convexServer.mutation(convexApi.users.disableFromClerk, { clerkId: event.data.id });
   }
 
   return NextResponse.json({ received: true });

@@ -1,8 +1,8 @@
-import { mutation, query, internalMutation } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
 /** Called from the Clerk webhook (user.created) to sync a new user into Convex. */
-export const syncFromClerk = internalMutation({
+export const syncFromClerk = mutation({
   args: {
     clerkId: v.string(),
     email: v.string(),
@@ -60,7 +60,7 @@ export const syncFromClerk = internalMutation({
 });
 
 /** Called from the Clerk webhook (user.deleted) to mark a user disabled. */
-export const disableFromClerk = internalMutation({
+export const disableFromClerk = mutation({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
     const user = await ctx.db
