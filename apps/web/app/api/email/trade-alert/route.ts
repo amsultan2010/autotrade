@@ -6,7 +6,7 @@ import { z } from 'zod';
 const schema = z.object({
   email: z.string().email(),
   trade: z.object({
-    symbol: z.string(),
+    symbol: z.string().min(1).max(20).regex(/^[A-Z0-9./-]+$/i),
     action: z.enum(['BUY', 'SELL']),
     quantity: z.number().positive(),
     price: z.number().positive(),

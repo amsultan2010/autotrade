@@ -14,7 +14,6 @@ export function handleError(err: unknown): NextResponse {
     );
   }
   Sentry.captureException(err);
-  console.error('[API Error]', err);
   return NextResponse.json(
     { error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } },
     { status: 500 },
