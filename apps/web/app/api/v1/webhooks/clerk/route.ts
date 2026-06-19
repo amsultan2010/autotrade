@@ -10,8 +10,8 @@ import { api as convexApi } from '@/convex/_generated/api';
 
 type EmailAddress = { id: string; email_address: string };
 
-type ClerkUserCreatedEvent = {
-  type: 'user.created';
+type ClerkUserEvent = {
+  type: 'user.created' | 'user.updated';
   data: {
     id: string;
     first_name: string | null;
@@ -26,7 +26,7 @@ type ClerkUserDeletedEvent = {
   data: { id: string; deleted: boolean };
 };
 
-type ClerkEvent = ClerkUserCreatedEvent | ClerkUserDeletedEvent;
+type ClerkEvent = ClerkUserEvent | ClerkUserDeletedEvent;
 
 export async function POST(req: Request) {
   const secret = process.env.CLERK_WEBHOOK_SECRET;
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  if (event.type === 'user.created') {
+  if (event.type === 'user.created' || event.type === 'user.updated') {
     const { data } = event;
     const primaryEmail = data.email_addresses.find(
       (e) => e.id === data.primary_email_address_id,
@@ -70,11 +70,19 @@ export async function POST(req: Request) {
       const name = [firstName, lastName].filter(Boolean).join(' ') || 'Trader';
 
       identifyUser(data.id, { email: primaryEmail, name });
-      await Promise.allSettled([
-        sendWelcomeEmail(primaryEmail, name),
-        syncResendContact({ email: primaryEmail, firstName, lastName }),
-        convexServer.mutation(convexApi.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
-      ]);
+
+      if (event.type === 'user.created') {
+        await Promise.allSettled([
+          sendWelcomeEmail(primaryEmail, name),
+          syncResendContact({ email: primaryEmail, firstName, lastName }),
+          convexServer.mutation(convexApi.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
+        ]);
+      } else {
+        await Promise.allSettled([
+          syncResendContact({ email: primaryEmail, firstName, lastName }),
+          convexServer.mutation(convexApi.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
+        ]);
+      }
     }
   }
 
