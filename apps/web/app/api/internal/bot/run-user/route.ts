@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { prisma, runCycleForUser } from '@autotrade/engine';
 import { capture } from '@/lib/analytics';
+import { convexServer } from '@/lib/convex-server';
+import { makeFunctionReference } from 'convex/server';
 
 // Internal endpoint called by the Convex bot cron.
 // Protected by BOT_INTERNAL_SECRET — never expose this to clients.
@@ -25,7 +27,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  // Look up the Prisma userId from the Clerk ID.
   const user = await prisma.user.findUnique({
     where: { clerkId },
     select: { id: true },
@@ -35,12 +36,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  let signalsGenerated = 0;
-  let tradesOpened = 0;
-
-  const tradesBefore = await prisma.trade.count({
-    where: { userId: user.id, result: 'OPEN' },
+  const settings = await prisma.botSettings.findUnique({
+    where: { userId: user.id },
+    select: { mode: true },
   });
+  const botMode = settings?.mode ?? 'PAPER';
+
+  // Snapshot open trade IDs before the cycle so we can diff what changed.
+  const cycleStartedAt = new Date();
+  const openBefore = await prisma.trade.findMany({
+    where: { userId: user.id, result: 'OPEN' },
+    select: { id: true },
+  });
+  const openBeforeIds = new Set(openBefore.map((t) => t.id));
 
   try {
     await Sentry.withScope(async (scope) => {
@@ -53,12 +61,77 @@ export async function POST(req: NextRequest) {
     throw err;
   }
 
-  const tradesAfter = await prisma.trade.count({
-    where: { userId: user.id, result: 'OPEN' },
+  // Find trades newly opened or closed during this cycle.
+  const newlyOpened = await prisma.trade.findMany({
+    where: { userId: user.id, openedAt: { gte: cycleStartedAt } },
+    select: {
+      symbol: true,
+      exchange: true,
+      side: true,
+      mode: true,
+      qty: true,
+      entryPrice: true,
+      stopLoss: true,
+      takeProfit: true,
+      strategy: true,
+      confidence: true,
+      entryReason: true,
+      brokerOrderId: true,
+      openedAt: true,
+    },
   });
-  tradesOpened = Math.max(0, tradesAfter - tradesBefore);
 
-  signalsGenerated = await prisma.signal.count({
+  const newlyClosed = await prisma.trade.findMany({
+    where: {
+      userId: user.id,
+      id: { in: [...openBeforeIds] },
+      result: { not: 'OPEN' },
+    },
+    select: { symbol: true, mode: true, exitPrice: true, exitReason: true },
+  });
+
+  // Sync newly opened trades to Convex so they appear in the UI (best-effort).
+  for (const trade of newlyOpened) {
+    try {
+      await convexServer.mutation(makeFunctionReference<'mutation'>('trades:syncFromBot'), {
+        clerkId,
+        symbol: trade.symbol,
+        exchange: trade.exchange,
+        side: trade.side as 'LONG' | 'SHORT',
+        mode: trade.mode as 'PAPER' | 'LIVE',
+        qty: trade.qty,
+        entryPrice: trade.entryPrice,
+        stopLoss: trade.stopLoss ?? undefined,
+        takeProfit: trade.takeProfit ?? undefined,
+        strategy: trade.strategy,
+        confidence: trade.confidence,
+        entryReason: trade.entryReason,
+        brokerOrderId: trade.brokerOrderId ?? undefined,
+        openedAt: trade.openedAt.getTime(),
+      });
+    } catch {
+      // Non-fatal: Postgres is source of truth; Convex sync is best-effort.
+    }
+  }
+
+  // Sync closed trades to Convex (best-effort).
+  for (const trade of newlyClosed) {
+    if (!trade.exitPrice) continue;
+    try {
+      await convexServer.mutation(makeFunctionReference<'mutation'>('trades:closeFromBotBySymbol'), {
+        clerkId,
+        symbol: trade.symbol,
+        mode: trade.mode as 'PAPER' | 'LIVE',
+        exitPrice: trade.exitPrice,
+        exitReason: trade.exitReason ?? 'Closed by bot',
+      });
+    } catch {
+      // Non-fatal.
+    }
+  }
+
+  const tradesOpened = newlyOpened.length;
+  const signalsGenerated = await prisma.signal.count({
     where: {
       userId: user.id,
       createdAt: { gte: new Date(Date.now() - 6 * 60 * 1000) },
@@ -75,7 +148,7 @@ export async function POST(req: NextRequest) {
   if (tradesOpened > 0) {
     capture(clerkId, {
       event: 'trade_opened',
-      properties: { userId: clerkId, symbol: 'batch', side: 'mixed', mode: 'PAPER' },
+      properties: { userId: clerkId, symbol: 'batch', side: 'mixed', mode: botMode },
     });
   }
 

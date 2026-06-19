@@ -89,6 +89,18 @@ export class AlpacaBroker implements BrokerProvider {
     await this.req<void>(`/v2/orders/${brokerOrderId}`, { method: 'DELETE' });
   }
 
+  async closePosition(symbol: string): Promise<number | null> {
+    try {
+      const r = await this.req<{ filled_avg_price?: string }>(
+        `/v2/positions/${encodeURIComponent(symbol)}`,
+        { method: 'DELETE' },
+      );
+      return r?.filled_avg_price ? Number(r.filled_avg_price) : null;
+    } catch {
+      return null;
+    }
+  }
+
   async getPositions(): Promise<BrokerPosition[]> {
     const rows = await this.req<
       Array<{ symbol: string; qty: string; avg_entry_price: string; side: string }>

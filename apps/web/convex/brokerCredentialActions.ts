@@ -58,6 +58,35 @@ async function verifyAlpacaKeys(
   }
 }
 
+async function syncCredentialToPostgres(
+  clerkId: string,
+  keyId: string,
+  secret: string,
+  paper: boolean,
+): Promise<void> {
+  const botSecret = process.env.BOT_INTERNAL_SECRET;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
+  if (!botSecret || !appUrl) return;
+  const base = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
+  await fetch(`${base}/api/internal/broker/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': botSecret },
+    body: JSON.stringify({ clerkId, keyId, secret, paper }),
+  });
+}
+
+async function removeCredentialFromPostgres(clerkId: string): Promise<void> {
+  const botSecret = process.env.BOT_INTERNAL_SECRET;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
+  if (!botSecret || !appUrl) return;
+  const base = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
+  await fetch(`${base}/api/internal/broker/sync`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': botSecret },
+    body: JSON.stringify({ clerkId }),
+  });
+}
+
 /** Validate Alpaca keys with the live API, then store AES-256-GCM encrypted. */
 export const connect = action({
   args: {
@@ -79,6 +108,9 @@ export const connect = action({
       paper,
     });
 
+    // Sync plaintext keys (over HTTPS) to Postgres so the bot engine can use them.
+    await syncCredentialToPostgres(identity.subject, keyId, secret, paper);
+
     return { connected: true, provider: 'alpaca', paper };
   },
 });
@@ -92,6 +124,7 @@ export const disconnect = action({
     await ctx.runMutation(internal.brokerCredential._deleteCredential, {
       clerkId: identity.subject,
     });
+    await removeCredentialFromPostgres(identity.subject);
     return { connected: false };
   },
 });
