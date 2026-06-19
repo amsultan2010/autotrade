@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const FROM = 'Autotrade <noreply@autotrade.app>';
+const FROM = 'Autotrade <noreply@tryautotrade.com>';
 const LOGO_URL = 'https://tryautotrade.com/icon.svg';
 const DASHBOARD_URL = 'https://tryautotrade.com/dashboard';
 
