@@ -11,11 +11,10 @@ export const list = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 50 }) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
-
+    if (!identity) return [];
     return ctx.db
       .query('signals')
-      .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
       .order('desc')
       .take(limit);
   },

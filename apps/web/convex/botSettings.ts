@@ -15,10 +15,10 @@ export const get = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return null;
     return ctx.db
       .query('botSettings')
-      .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
       .unique();
   },
 });
@@ -66,7 +66,8 @@ export const getStatus = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return null;
+    const clerkId = identity.subject;
 
     const [settings, paperAccount, openTrades] = await Promise.all([
       ctx.db

@@ -10,7 +10,8 @@ export const summary = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return null;
+    const clerkId = identity.subject;
 
     const trades = await ctx.db
       .query('trades')
@@ -78,7 +79,8 @@ export const breakdowns = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return null;
+    const clerkId = identity.subject;
 
     const trades = await ctx.db
       .query('trades')

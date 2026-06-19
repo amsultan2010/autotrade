@@ -11,10 +11,10 @@ export const get = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return null;
     return ctx.db
       .query('paperAccounts')
-      .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
       .unique();
   },
 });

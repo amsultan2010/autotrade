@@ -21,7 +21,8 @@ export const list = query({
   },
   handler: async (ctx, { result, mode, symbol, limit = 100, cursor }) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return { items: [], nextCursor: null };
+    const clerkId = identity.subject;
 
     let q = ctx.db
       .query('trades')
@@ -55,9 +56,9 @@ export const get = query({
   args: { id: v.id('trades') },
   handler: async (ctx, { id }) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return null;
     const trade = await ctx.db.get(id);
-    if (!trade || trade.clerkId !== clerkId) return null;
+    if (!trade || trade.clerkId !== identity.subject) return null;
     return trade;
   },
 });
