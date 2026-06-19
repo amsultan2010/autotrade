@@ -106,9 +106,9 @@ export const getDecryptedKeys = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Unauthenticated');
 
-    const cred = await ctx.runQuery(internal.brokerCredential._getRaw, {
+    const cred = (await ctx.runQuery(internal.brokerCredential._getRaw, {
       clerkId: identity.subject,
-    });
+    })) as { encryptedKeyId: string; encryptedSecret: string; paper: boolean; provider: string } | null;
     if (!cred) return null;
 
     return {
@@ -124,7 +124,7 @@ export const getDecryptedKeys = action({
 export const getDecryptedKeysForUser = action({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
-    const cred = await ctx.runQuery(internal.brokerCredential._getRaw, { clerkId });
+    const cred = (await ctx.runQuery(internal.brokerCredential._getRaw, { clerkId })) as { encryptedKeyId: string; encryptedSecret: string; paper: boolean; provider: string } | null;
     if (!cred) return null;
     return {
       keyId: decrypt(cred.encryptedKeyId),

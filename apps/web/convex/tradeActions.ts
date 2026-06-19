@@ -6,14 +6,14 @@ import { v } from 'convex/values';
 /** Close an open trade at the current market price (fetched from the Next.js API). */
 export const closeAtMarket = action({
   args: { id: v.id('trades') },
-  handler: async (ctx, { id }) => {
+  handler: async (ctx, { id }): Promise<unknown> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Unauthenticated');
 
-    const trade = await ctx.runQuery(api.trades.get, { id });
+    const trade = (await ctx.runQuery(api.trades.get, { id })) as { entryPrice: number; symbol: string } | null;
     if (!trade) throw new Error('Trade not found');
 
-    let exitPrice = trade.entryPrice;
+    let exitPrice: number = trade.entryPrice;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
     if (appUrl) {
       const base = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;

@@ -8,8 +8,72 @@
  * @module
  */
 
-import type { AnyApi, AnyComponents } from "convex/server";
+import type * as bot from "../bot.js";
+import type * as botInternal from "../botInternal.js";
+import type * as botSettings from "../botSettings.js";
+import type * as brokerCredential from "../brokerCredential.js";
+import type * as brokerCredentialActions from "../brokerCredentialActions.js";
+import type * as crons from "../crons.js";
+import type * as http from "../http.js";
+import type * as paperAccount from "../paperAccount.js";
+import type * as performance from "../performance.js";
+import type * as signals from "../signals.js";
+import type * as strategyStats from "../strategyStats.js";
+import type * as subscription from "../subscription.js";
+import type * as tradeActions from "../tradeActions.js";
+import type * as trades from "../trades.js";
+import type * as users from "../users.js";
+import type * as watchlist from "../watchlist.js";
 
-export declare const api: AnyApi;
-export declare const internal: AnyApi;
-export declare const components: AnyComponents;
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
+declare const fullApi: ApiFromModules<{
+  bot: typeof bot;
+  botInternal: typeof botInternal;
+  botSettings: typeof botSettings;
+  brokerCredential: typeof brokerCredential;
+  brokerCredentialActions: typeof brokerCredentialActions;
+  crons: typeof crons;
+  http: typeof http;
+  paperAccount: typeof paperAccount;
+  performance: typeof performance;
+  signals: typeof signals;
+  strategyStats: typeof strategyStats;
+  subscription: typeof subscription;
+  tradeActions: typeof tradeActions;
+  trades: typeof trades;
+  users: typeof users;
+  watchlist: typeof watchlist;
+}>;
+
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;
+
+export declare const components: {};
