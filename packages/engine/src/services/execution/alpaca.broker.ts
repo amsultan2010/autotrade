@@ -103,13 +103,26 @@ export class AlpacaBroker implements BrokerProvider {
 
   async getPositions(): Promise<BrokerPosition[]> {
     const rows = await this.req<
-      Array<{ symbol: string; qty: string; avg_entry_price: string; side: string }>
+      Array<{
+        symbol: string;
+        qty: string;
+        avg_entry_price: string;
+        side: string;
+        current_price?: string;
+        market_value?: string;
+        unrealized_pl?: string;
+        unrealized_plpc?: string;
+      }>
     >('/v2/positions');
     return rows.map((p) => ({
       symbol: p.symbol,
       qty: Number(p.qty),
       avgEntryPrice: Number(p.avg_entry_price),
       side: p.side === 'short' ? 'SHORT' : 'LONG',
+      currentPrice: p.current_price != null ? Number(p.current_price) : undefined,
+      marketValue: p.market_value != null ? Number(p.market_value) : undefined,
+      unrealizedPnl: p.unrealized_pl != null ? Number(p.unrealized_pl) : undefined,
+      unrealizedPnlPct: p.unrealized_plpc != null ? Number(p.unrealized_plpc) * 100 : undefined,
     }));
   }
 

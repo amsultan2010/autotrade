@@ -23,16 +23,28 @@ interface ConvexPerf {
   totalPnl: number;
   weeklyPnl: number;
   monthlyPnl: number;
+  dailyPnl: number;
+  totalTrades: number;
+  openTrades: number;
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Signal {
-  createdAt: number | string;
-  ticker: string;
-  action: string;
-  strategy: string;
-  confidence: number;
-  entryReason: string;
+// ─── API data shapes ──────────────────────────────────────────────────────────
+interface BrokerAccount {
+  equity: number;
+  cash: number;
+  buyingPower: number;
+  mode: 'paper' | 'live';
+}
+
+interface BrokerPosition {
+  symbol: string;
+  qty: number;
+  avgEntryPrice: number;
+  side: 'LONG' | 'SHORT';
+  currentPrice?: number;
+  marketValue?: number;
+  unrealizedPnl?: number;
+  unrealizedPnlPct?: number;
 }
 
 interface Quote {
@@ -58,7 +70,35 @@ function minsAgo(ts: number | string): string {
   return `${diff}m ago`;
 }
 
-// Seeded PRNG for deterministic demo curves
+// ─── Equity curve from real trade history ────────────────────────────────────
+function buildRealCurve(startBalance: number, trades: Array<{ closedAt?: number; pnl?: number }>, points = 60): number[] {
+  const closed = trades
+    .filter((t) => t.closedAt != null && t.pnl != null)
+    .sort((a, b) => (a.closedAt ?? 0) - (b.closedAt ?? 0));
+
+  if (closed.length === 0) {
+    // Flat line at current equity
+    return Array(points).fill(startBalance) as number[];
+  }
+
+  // Build cumulative PnL series
+  let running = startBalance;
+  const points_data: number[] = [startBalance];
+  for (const t of closed) {
+    running += t.pnl ?? 0;
+    points_data.push(running);
+  }
+
+  // Resample to exactly `points` data points
+  const result: number[] = [];
+  for (let i = 0; i < points; i++) {
+    const idx = Math.round((i / (points - 1)) * (points_data.length - 1));
+    result.push(points_data[Math.min(idx, points_data.length - 1)] ?? startBalance);
+  }
+  return result;
+}
+
+// Seeded PRNG for demo sparklines
 function seededRand(seed: number) {
   let s = seed;
   return () => {
@@ -67,27 +107,13 @@ function seededRand(seed: number) {
   };
 }
 
-function buildPortfolioCurve(equity: number, points = 60): number[] {
-  const rand = seededRand(77);
-  const start = equity * 0.965;
-  const curve: number[] = [start];
-  for (let i = 1; i < points; i++) {
-    const drift = (equity - curve[i - 1]!) / (points - i) + (rand() - 0.42) * equity * 0.003;
-    curve.push(curve[i - 1]! + drift);
-  }
-  curve[curve.length - 1] = equity;
-  return curve;
-}
-
 // ─── Portfolio area chart (canvas) ───────────────────────────────────────────
-function PortfolioChart({ equity }: { equity: number }) {
+function PortfolioChart({ data }: { data: number[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const data = buildPortfolioCurve(equity);
 
     function draw() {
       const W = canvas!.offsetWidth * devicePixelRatio;
@@ -123,9 +149,11 @@ function PortfolioChart({ equity }: { equity: number }) {
         ctx.fillText(lbl, x, H - 6);
       });
 
+      const isUp = data[data.length - 1]! >= data[0]!;
+      const lineColor = isUp ? '#00c896' : '#ff3b52';
       const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
-      grad.addColorStop(0, 'rgba(0,200,150,0.22)');
-      grad.addColorStop(1, 'rgba(0,200,150,0)');
+      grad.addColorStop(0, isUp ? 'rgba(0,200,150,0.22)' : 'rgba(255,59,82,0.22)');
+      grad.addColorStop(1, isUp ? 'rgba(0,200,150,0)' : 'rgba(255,59,82,0)');
 
       ctx.beginPath();
       ctx.moveTo(toX(0), toY(data[0]!));
@@ -149,7 +177,7 @@ function PortfolioChart({ equity }: { equity: number }) {
         const cx = (x0 + x1) / 2;
         ctx.bezierCurveTo(cx, y0, cx, y1, x1, y1);
       }
-      ctx.strokeStyle = '#00c896';
+      ctx.strokeStyle = lineColor;
       ctx.lineWidth = 2 * devicePixelRatio;
       ctx.stroke();
 
@@ -157,9 +185,9 @@ function PortfolioChart({ equity }: { equity: number }) {
       const lastY = toY(data[data.length - 1]!);
       ctx.beginPath();
       ctx.arc(lastX, lastY, 4 * devicePixelRatio, 0, Math.PI * 2);
-      ctx.fillStyle = '#00c896';
+      ctx.fillStyle = lineColor;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,200,150,0.4)';
+      ctx.strokeStyle = isUp ? 'rgba(0,200,150,0.4)' : 'rgba(255,59,82,0.4)';
       ctx.lineWidth = 6 * devicePixelRatio;
       ctx.stroke();
     }
@@ -168,7 +196,7 @@ function PortfolioChart({ equity }: { equity: number }) {
     const ro = new ResizeObserver(draw);
     ro.observe(canvas);
     return () => ro.disconnect();
-  }, [equity]);
+  }, [data]);
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
 }
@@ -227,9 +255,10 @@ function ConfidenceGauge({ value }: { value: number }) {
       ctx.textBaseline = 'middle';
       ctx.fillText(`${value}%`, cx, cy - size * 0.04);
 
+      const label = value >= 70 ? 'Very High' : value >= 50 ? 'High' : value >= 30 ? 'Medium' : 'Low';
       ctx.fillStyle = '#6a8fa8';
       ctx.font = `${size * 0.09}px Inter, sans-serif`;
-      ctx.fillText('Very High', cx, cy + size * 0.14);
+      ctx.fillText(label, cx, cy + size * 0.14);
     }
 
     draw();
@@ -297,48 +326,37 @@ function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: bo
   );
 }
 
-// ─── Static demo data ──────────────────────────────────────────────────────────
-const HEATMAP_DEMO = [
-  { sym: 'AAPL', pct: 1.24, large: true },
-  { sym: 'MSFT', pct: 0.89, large: true },
-  { sym: 'NVDA', pct: 1.94, large: true },
-  { sym: 'AMZN', pct: 1.94, large: true },
-  { sym: 'GOOG', pct: 2.11, large: true },
-  { sym: 'META', pct: -0.52, large: true },
-  { sym: 'TSLA', pct: -2.18, large: true },
-  { sym: 'JPM',  pct: 0.73 },
-  { sym: 'SPY',  pct: 0.44 },
-  { sym: 'QQQ',  pct: 1.07 },
+// ─── Fallback heatmap when no watchlist quotes ─────────────────────────────────
+const HEATMAP_FALLBACK = [
+  { sym: 'AAPL', pct: 0, large: true },
+  { sym: 'MSFT', pct: 0, large: true },
+  { sym: 'NVDA', pct: 0, large: true },
+  { sym: 'AMZN', pct: 0, large: true },
+  { sym: 'GOOG', pct: 0, large: true },
+  { sym: 'META', pct: 0, large: true },
+  { sym: 'TSLA', pct: 0, large: true },
+  { sym: 'JPM',  pct: 0 },
+  { sym: 'SPY',  pct: 0 },
+  { sym: 'QQQ',  pct: 0 },
 ];
 
-const DEMO_SIGNALS: Signal[] = [
-  { createdAt: Date.now() - 2 * 60000, ticker: 'AAPL', action: 'BUY',  strategy: 'Momentum', confidence: 87, entryReason: 'RSI breakout + volume surge' },
-  { createdAt: Date.now() - 4 * 60000, ticker: 'NVDA', action: 'BUY',  strategy: 'Trend',    confidence: 82, entryReason: 'EMA crossover confirmed' },
-  { createdAt: Date.now() - 5 * 60000, ticker: 'TSLA', action: 'SELL', strategy: 'Reversal', confidence: 74, entryReason: 'Bearish engulfing at resistance' },
-  { createdAt: Date.now() - 7 * 60000, ticker: 'SPY',  action: 'BUY',  strategy: 'Trend',    confidence: 68, entryReason: 'Market breadth positive' },
-];
-
-const DEMO_POSITIONS = [
-  { ticker: 'AAPL', side: 'Long',  value: 45231,  pnl: 1742.21, pnlPct: 4.01 },
-  { ticker: 'NVDA', side: 'Long',  value: 32156,  pnl: 2156.32, pnlPct: 7.18 },
-  { ticker: 'SPY',  side: 'Long',  value: 28420,  pnl: 533.21,  pnlPct: 1.91 },
-  { ticker: 'TSLA', side: 'Short', value: 22940,  pnl: -842.11, pnlPct: -2.32 },
-];
-
-// ─── Main Dashboard ────────────────────────────────────────────────────────
+// ─── Main Dashboard ────────────────────────────────────────────────────────────
 export function Dashboard() {
   const botStatus  = useQuery(convexApi.botSettings.getStatus) as ConvexBotStatus | undefined;
   const perfData   = useQuery(convexApi.performance.summary) as ConvexPerf | undefined;
   const signalData = useQuery(convexApi.signals.list, { limit: 10 }) as ConvexSignal[] | undefined;
   const watchlist  = useQuery(convexApi.watchlist.list) as Array<{ symbol: string }> | undefined;
+  const tradeData  = useQuery(convexApi.trades.list, { limit: 200 }) as { items: Array<{ closedAt?: number; pnl?: number }> } | undefined;
   const setMode    = useMutation(convexApi.botSettings.setMode);
   const runNow     = useAction(convexApi.bot.runNow);
 
-  const [quotes, setQuotes]   = useState<Quote[]>([]);
-  const [busy, setBusy]       = useState(false);
-  const [tab, setTab]         = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
+  const [quotes, setQuotes]               = useState<Quote[]>([]);
+  const [brokerAccount, setBrokerAccount] = useState<BrokerAccount | null>(null);
+  const [positions, setPositions]         = useState<BrokerPosition[] | null>(null);
+  const [busy, setBusy]                   = useState(false);
+  const [tab, setTab]                     = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
 
-  // Fetch live prices whenever watchlist symbols change.
+  // Fetch live prices for watchlist symbols
   const symbolsKey = watchlist?.map((w) => w.symbol).join(',') ?? '';
   useEffect(() => {
     if (!symbolsKey) return;
@@ -353,6 +371,29 @@ export function Dashboard() {
     return () => clearInterval(t);
   }, [symbolsKey]);
 
+  // Fetch real broker account and positions
+  useEffect(() => {
+    const fetchBroker = async () => {
+      try {
+        const [acctRes, posRes] = await Promise.all([
+          fetch('/api/v1/broker/account'),
+          fetch('/api/v1/broker/positions'),
+        ]);
+        if (acctRes.ok) {
+          const body = (await acctRes.json()) as { data: BrokerAccount | null };
+          setBrokerAccount(body.data ?? null);
+        }
+        if (posRes.ok) {
+          const body = (await posRes.json()) as { data: BrokerPosition[] };
+          setPositions(body.data ?? []);
+        }
+      } catch { /* degrade gracefully */ }
+    };
+    void fetchBroker();
+    const t = setInterval(fetchBroker, 30_000);
+    return () => clearInterval(t);
+  }, []);
+
   async function toggle() {
     setBusy(true);
     try {
@@ -362,30 +403,38 @@ export function Dashboard() {
     }
   }
 
-  const pa        = botStatus?.paperAccount;
-  const equity    = pa?.equity ?? 128747.52;
-  const balance   = pa?.balance ?? 124132;
-  const dayGain   = equity - balance;
-  const dayGainPct = (dayGain / balance) * 100;
+  // ── Account value ────────────────────────────────────────────────────────────
+  // Priority: real Alpaca account (live or paper via Alpaca) → Convex paper account
+  const pa = botStatus?.paperAccount;
+  const equity = brokerAccount?.equity ?? pa?.equity ?? 0;
+  const balance = brokerAccount?.cash ?? pa?.balance ?? equity;
+  const dayGain = perfData?.dailyPnl ?? 0;
+  const dayGainPct = balance > 0 ? (dayGain / balance) * 100 : 0;
 
-  // Convex winRate is 0–1 fraction; convert to 0–100 for display.
-  const winRate = perfData ? Math.round(perfData.winRate * 100) : 82;
+  // ── Performance ──────────────────────────────────────────────────────────────
+  const winRate = perfData ? Math.round(perfData.winRate * 100) : 0;
   const regime  = winRate >= 70 ? 'Bullish' : winRate >= 50 ? 'Neutral' : 'Bearish';
 
-  const signals: Signal[] = signalData?.length
-    ? signalData.map((s) => ({
-        createdAt: s.createdAt,
-        ticker: s.ticker,
-        action: s.action,
-        strategy: s.strategy,
-        confidence: s.confidence,
-        entryReason: s.entryReason,
-      }))
-    : DEMO_SIGNALS;
+  // ── Signals ──────────────────────────────────────────────────────────────────
+  const signals: ConvexSignal[] = signalData ?? [];
 
+  // ── Heatmap from watchlist quotes ────────────────────────────────────────────
   const heatmapData = quotes.length >= 4
     ? quotes.slice(0, 10).map((q) => ({ sym: q.symbol, pct: q.changePct ?? 0, large: true }))
-    : HEATMAP_DEMO;
+    : HEATMAP_FALLBACK;
+
+  // ── Real positions (from Alpaca) or empty ────────────────────────────────────
+  const livePositions = positions ?? [];
+
+  // ── Real equity curve from trade history ─────────────────────────────────────
+  const equityCurve = buildRealCurve(balance, tradeData?.items ?? []);
+
+  // ── Mode display ─────────────────────────────────────────────────────────────
+  const modeLabel = botStatus
+    ? botStatus.running
+      ? `LIVE · ${botStatus.mode}`
+      : botStatus.mode
+    : '…';
 
   return (
     <div className="db-root">
@@ -394,8 +443,13 @@ export function Dashboard() {
         <div className="db-topbar-left">
           <span className={`badge ${botStatus?.running ? 'badge-on' : 'badge-off'}`}>
             {botStatus?.running && <span className="live-dot" />}
-            {botStatus ? (botStatus.running ? 'LIVE · PAPER' : botStatus.mode.toUpperCase()) : '…'}
+            {modeLabel}
           </span>
+          {brokerAccount && (
+            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+              Alpaca {brokerAccount.mode} · buying power {money(brokerAccount.buyingPower)}
+            </span>
+          )}
         </div>
         <div className="db-topbar-right">
           <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy} onClick={() => void runNow({})}>Scan Now</button>
@@ -420,21 +474,27 @@ export function Dashboard() {
             <span className="db-live-badge"><span className="live-dot" />Live</span>
           </div>
           <div className="db-signal-list">
-            {signals.slice(0, 4).map((s, i) => (
-              <div key={i} className="db-signal-row">
-                <MiniSparkline seed={i * 17 + 3} up={s.action === 'BUY'} />
-                <div className="db-signal-info">
-                  <span className="db-signal-ticker">{s.ticker}</span>
-                  <span className={`db-signal-action ${s.action === 'BUY' ? 'buy' : 'sell'}`}>
-                    {s.action === 'BUY' ? '▲' : '▼'} {s.action}
-                  </span>
-                  <span className="db-signal-conf">Confidence: {Math.round(s.confidence)}%</span>
+            {signals.length === 0 ? (
+              <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
+                No signals yet — start the bot to generate signals.
+              </p>
+            ) : (
+              signals.slice(0, 4).map((s, i) => (
+                <div key={i} className="db-signal-row">
+                  <MiniSparkline seed={i * 17 + 3} up={s.action === 'BUY'} />
+                  <div className="db-signal-info">
+                    <span className="db-signal-ticker">{s.ticker}</span>
+                    <span className={`db-signal-action ${s.action === 'BUY' ? 'buy' : 'sell'}`}>
+                      {s.action === 'BUY' ? '▲' : '▼'} {s.action}
+                    </span>
+                    <span className="db-signal-conf">Confidence: {Math.round(s.confidence)}%</span>
+                  </div>
+                  <span className="db-signal-age">{minsAgo(s.createdAt)}</span>
                 </div>
-                <span className="db-signal-age">{minsAgo(s.createdAt)}</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
-          <a href="#" className="db-view-all">View all signals →</a>
+          {signals.length > 0 && <a href="#" className="db-view-all">View all signals →</a>}
         </div>
 
         {/* Portfolio Value */}
@@ -447,12 +507,13 @@ export function Dashboard() {
               ))}
             </div>
           </div>
-          <div className="db-portfolio-value">{money(equity)}</div>
+          <div className="db-portfolio-value">{equity > 0 ? money(equity) : '--'}</div>
           <div className={`db-portfolio-change ${dayGain >= 0 ? 'pos' : 'neg'}`}>
             {dayGain >= 0 ? '▲' : '▼'} {Math.abs(dayGainPct).toFixed(2)}% (Today)
+            {perfData && <span style={{ marginLeft: 8, opacity: 0.7 }}>{dayGain >= 0 ? '+' : ''}{money(dayGain)}</span>}
           </div>
           <div className="db-chart-area">
-            <PortfolioChart equity={equity} />
+            <PortfolioChart data={equityCurve} />
           </div>
         </div>
 
@@ -469,7 +530,7 @@ export function Dashboard() {
             <span className="db-regime-value teal">{regime} ↗</span>
           </div>
           <div className="db-confidence-chart">
-            <MiniSparkline seed={99} up={true} />
+            <MiniSparkline seed={99} up={winRate >= 50} />
           </div>
         </div>
       </div>
@@ -480,22 +541,36 @@ export function Dashboard() {
         {/* Positions */}
         <div className="db-panel db-positions-panel">
           <div className="db-panel-header">
-            <span className="db-panel-title">POSITIONS ({DEMO_POSITIONS.length})</span>
+            <span className="db-panel-title">
+              POSITIONS ({positions === null ? '…' : livePositions.length})
+            </span>
           </div>
-          <table className="db-pos-table">
-            <tbody>
-              {DEMO_POSITIONS.map((p, i) => (
-                <tr key={i} className="db-pos-row">
-                  <td className="db-pos-ticker">{p.ticker}</td>
-                  <td className={`db-pos-side ${p.side === 'Long' ? 'buy' : 'sell'}`}>{p.side}</td>
-                  <td className="db-pos-value">{money(p.value)}</td>
-                  <td className={`db-pos-pnl ${p.pnl >= 0 ? 'pos' : 'neg'}`}>{p.pnl >= 0 ? '+' : ''}{money(p.pnl)}</td>
-                  <td className={`db-pos-pct ${p.pnlPct >= 0 ? 'pos' : 'neg'}`}>{p.pnlPct >= 0 ? '+' : ''}{p.pnlPct.toFixed(2)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <a href="#" className="db-view-all">View all positions →</a>
+          {positions === null ? (
+            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>Loading positions…</p>
+          ) : livePositions.length === 0 ? (
+            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
+              No open positions.{!brokerAccount && ' Connect Alpaca in Settings to see live positions.'}
+            </p>
+          ) : (
+            <table className="db-pos-table">
+              <tbody>
+                {livePositions.map((p, i) => {
+                  const pnl = p.unrealizedPnl ?? 0;
+                  const pnlPct = p.unrealizedPnlPct ?? 0;
+                  return (
+                    <tr key={i} className="db-pos-row">
+                      <td className="db-pos-ticker">{p.symbol}</td>
+                      <td className={`db-pos-side ${p.side === 'LONG' ? 'buy' : 'sell'}`}>{p.side === 'LONG' ? 'Long' : 'Short'}</td>
+                      <td className="db-pos-value">{p.marketValue != null ? money(p.marketValue) : `${p.qty} shares`}</td>
+                      <td className={`db-pos-pnl ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : ''}{money(pnl)}</td>
+                      <td className={`db-pos-pct ${pnlPct >= 0 ? 'pos' : 'neg'}`}>{pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          <a href="/history" className="db-view-all">View trade history →</a>
         </div>
 
         {/* Market Heatmap */}
@@ -521,38 +596,46 @@ export function Dashboard() {
           <div className="db-perf-list">
             <div className="db-perf-row">
               <span className="db-perf-label">Today</span>
-              <span className={`db-perf-value ${pnlClass(dayGainPct)}`}>+{dayGainPct.toFixed(2)}%</span>
+              <span className={`db-perf-value ${pnlClass(dayGain)}`}>
+                {perfData ? `${dayGain >= 0 ? '+' : ''}${money(dayGain)}` : '--'}
+              </span>
             </div>
             <div className="db-perf-row">
               <span className="db-perf-label">This Week</span>
-              <span className="db-perf-value pos">
-                {perfData ? `${perfData.weeklyPnl >= 0 ? '+' : ''}${money(perfData.weeklyPnl)}` : '+8.21%'}
+              <span className={`db-perf-value ${pnlClass(perfData?.weeklyPnl)}`}>
+                {perfData ? `${perfData.weeklyPnl >= 0 ? '+' : ''}${money(perfData.weeklyPnl)}` : '--'}
               </span>
             </div>
             <div className="db-perf-row">
               <span className="db-perf-label">This Month</span>
-              <span className="db-perf-value pos">
-                {perfData ? `${perfData.monthlyPnl >= 0 ? '+' : ''}${money(perfData.monthlyPnl)}` : '+14.32%'}
+              <span className={`db-perf-value ${pnlClass(perfData?.monthlyPnl)}`}>
+                {perfData ? `${perfData.monthlyPnl >= 0 ? '+' : ''}${money(perfData.monthlyPnl)}` : '--'}
               </span>
             </div>
             <div className="db-perf-row">
               <span className="db-perf-label">All Time</span>
-              <span className="db-perf-value pos">
-                {perfData ? `${perfData.totalPnl >= 0 ? '+' : ''}${money(perfData.totalPnl)}` : '+$42,710'}
+              <span className={`db-perf-value ${pnlClass(perfData?.totalPnl)}`}>
+                {perfData ? `${perfData.totalPnl >= 0 ? '+' : ''}${money(perfData.totalPnl)}` : '--'}
               </span>
             </div>
           </div>
           <div className="db-perf-sparkline">
-            <MiniSparkline seed={42} up={true} />
+            <MiniSparkline seed={42} up={(perfData?.totalPnl ?? 0) >= 0} />
           </div>
           <div className="db-perf-stats">
             <div className="db-perf-stat">
               <span className="db-perf-stat-label">Win Rate</span>
-              <span className="db-perf-stat-value pos">{winRate}%</span>
+              <span className={`db-perf-stat-value ${winRate >= 50 ? 'pos' : 'neg'}`}>
+                {perfData ? `${winRate}%` : '--'}
+              </span>
             </div>
             <div className="db-perf-stat">
-              <span className="db-perf-stat-label">Open Trades</span>
-              <span className="db-perf-stat-value">{botStatus?.openTrades ?? DEMO_POSITIONS.length}</span>
+              <span className="db-perf-stat-label">Total Trades</span>
+              <span className="db-perf-stat-value">{perfData?.totalTrades ?? '--'}</span>
+            </div>
+            <div className="db-perf-stat">
+              <span className="db-perf-stat-label">Open</span>
+              <span className="db-perf-stat-value">{positions === null ? '…' : livePositions.length}</span>
             </div>
           </div>
         </div>

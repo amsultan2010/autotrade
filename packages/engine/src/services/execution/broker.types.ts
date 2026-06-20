@@ -30,6 +30,10 @@ export interface BrokerPosition {
   qty: number;
   avgEntryPrice: number;
   side: TradeSide;
+  currentPrice?: number;
+  marketValue?: number;
+  unrealizedPnl?: number;
+  unrealizedPnlPct?: number;
 }
 
 export interface BrokerAccount {
