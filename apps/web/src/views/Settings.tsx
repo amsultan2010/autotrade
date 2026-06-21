@@ -67,6 +67,12 @@ export function Settings() {
   if (settingsData === undefined) {
     return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
   }
+  // null = the user has no botSettings row yet. AuthProvider's ensureExists
+  // seeds it on mount and Convex will push the update reactively, so this is a
+  // brief, self-resolving state rather than an indefinite spinner.
+  if (settingsData === null) {
+    return <div className="page"><h1>Settings</h1><p className="muted">Setting up your account…</p></div>;
+  }
   if (!local) {
     return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
   }

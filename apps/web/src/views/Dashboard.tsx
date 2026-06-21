@@ -354,6 +354,7 @@ export function Dashboard() {
   const [brokerAccount, setBrokerAccount] = useState<BrokerAccount | null>(null);
   const [positions, setPositions]         = useState<BrokerPosition[] | null>(null);
   const [busy, setBusy]                   = useState(false);
+  const [error, setError]                 = useState<string | null>(null);
   const [tab, setTab]                     = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
 
   // Fetch live prices for watchlist symbols
@@ -380,12 +381,13 @@ export function Dashboard() {
           fetch('/api/v1/broker/positions'),
         ]);
         if (acctRes.ok) {
-          const body = (await acctRes.json()) as { data: BrokerAccount | null };
-          setBrokerAccount(body.data ?? null);
+          // The API returns the account object directly (ok() does not wrap in { data }).
+          const body = (await acctRes.json()) as BrokerAccount | null;
+          setBrokerAccount(body ?? null);
         }
         if (posRes.ok) {
-          const body = (await posRes.json()) as { data: BrokerPosition[] };
-          setPositions(body.data ?? []);
+          const body = (await posRes.json()) as BrokerPosition[];
+          setPositions(Array.isArray(body) ? body : []);
         }
       } catch { /* degrade gracefully */ }
     };
@@ -396,8 +398,23 @@ export function Dashboard() {
 
   async function toggle() {
     setBusy(true);
+    setError(null);
     try {
       await setMode({ mode: botStatus?.running ? 'DISABLED' : 'PAPER' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change bot mode');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function scanNow() {
+    setBusy(true);
+    setError(null);
+    try {
+      await runNow({});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Scan failed — check that the bot is configured');
     } finally {
       setBusy(false);
     }
@@ -452,7 +469,7 @@ export function Dashboard() {
           )}
         </div>
         <div className="db-topbar-right">
-          <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy} onClick={() => void runNow({})}>Scan Now</button>
+          <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy} onClick={() => void scanNow()}>Scan Now</button>
           <button
             className={botStatus?.running ? 'btn-danger' : 'btn-primary'}
             style={{ fontSize: 13, padding: '7px 16px' }}
@@ -463,6 +480,10 @@ export function Dashboard() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="error-banner" style={{ margin: '0 0 12px' }}>{error}</div>
+      )}
 
       {/* ── Row 1 ── */}
       <div className="db-grid-top">
