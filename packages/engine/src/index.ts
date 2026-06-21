@@ -22,3 +22,8 @@ export * from './services/subscription.service';
 export * from './services/trades.service';
 export * from './workers/scanLoop';
 export * from './workers/liveEngine';
+
+// Modular Strategy Engine (additive — wraps the original decision/risk engines
+// as `legacy` strategies and adds new ones alongside). Namespaced to avoid any
+// name collisions with the exports above. Usage: `strategyEngine.runStrategyEngine(...)`.
+export * as strategyEngine from './services/strategy-engine';
