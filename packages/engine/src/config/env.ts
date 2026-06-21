@@ -70,13 +70,17 @@ const schema = z.object({
 const parsed = schema.safeParse(process.env);
 
 if (!parsed.success) {
+  const details = parsed.error.issues
+    .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+    .join('\n');
   // eslint-disable-next-line no-console
-  console.error('❌ Invalid environment configuration:');
-  for (const issue of parsed.error.issues) {
-    // eslint-disable-next-line no-console
-    console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
-  }
-  process.exit(1);
+  console.error(`❌ Invalid environment configuration:\n${details}`);
+  // Throw rather than process.exit(1): in a serverless / Next.js API-route
+  // context, exiting the process tears down the whole function so EVERY route
+  // 500s (not just the one with the bad config). Throwing surfaces a clear
+  // error for the failing request and lets a standalone process (worker) still
+  // crash with a useful stack at startup.
+  throw new Error(`Invalid environment configuration:\n${details}`);
 }
 
 export const env = parsed.data;

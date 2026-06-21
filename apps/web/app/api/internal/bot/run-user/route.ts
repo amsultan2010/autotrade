@@ -36,6 +36,72 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
+  // ── Mirror Convex config → Postgres ──────────────────────────────────────
+  // Convex is the source of truth for what the user configures in the UI
+  // (bot settings + watchlist), but the engine reads Postgres. Pull the
+  // current config and mirror it just-in-time so the bot honors the user's
+  // real watchlist and settings instead of stale Postgres defaults. Best-effort:
+  // a sync failure falls back to the last-known Postgres config rather than
+  // aborting the cycle.
+  try {
+    const config = (await convexServer.query(
+      makeFunctionReference<'query'>('botInternal:getConfigForBot'),
+      { clerkId },
+    )) as {
+      settings: null | {
+        mode: 'DISABLED' | 'PAPER' | 'LIVE';
+        riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+        maxActiveTrades: number;
+        maxTradeSize: number;
+        riskPerTradePct: number;
+        defaultStopPct: number;
+        defaultTakeProfitPct: number;
+        maxDailyLoss: number;
+        tradingHoursStart: string;
+        tradingHoursEnd: string;
+        minConfidence: number;
+        timeframes: string[];
+        strategies: string[];
+      };
+      watchlist: Array<{ symbol: string; exchange: string; mic: string | null }>;
+    };
+
+    if (config.settings) {
+      await prisma.botSettings.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id, ...config.settings },
+        update: { ...config.settings },
+      });
+    }
+
+    // Mirror the watchlist (Convex is source of truth): add new, drop removed.
+    const existing = await prisma.watchedSymbol.findMany({
+      where: { userId: user.id },
+      select: { id: true, symbol: true, exchange: true },
+    });
+    const key = (s: string, e: string) => `${s}:${e}`;
+    const desiredKeys = new Set(config.watchlist.map((w) => key(w.symbol, w.exchange)));
+    const existingKeys = new Set(existing.map((w) => key(w.symbol, w.exchange)));
+    const toDelete = existing.filter((w) => !desiredKeys.has(key(w.symbol, w.exchange)));
+    const toCreate = config.watchlist.filter((w) => !existingKeys.has(key(w.symbol, w.exchange)));
+    if (toDelete.length > 0) {
+      await prisma.watchedSymbol.deleteMany({ where: { id: { in: toDelete.map((w) => w.id) } } });
+    }
+    if (toCreate.length > 0) {
+      await prisma.watchedSymbol.createMany({
+        data: toCreate.map((w) => ({
+          userId: user.id,
+          symbol: w.symbol,
+          exchange: w.exchange,
+          mic: w.mic ?? undefined,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  } catch (err) {
+    Sentry.captureException(err, { extra: { context: 'bot_config_sync', clerkId } });
+  }
+
   const settings = await prisma.botSettings.findUnique({
     where: { userId: user.id },
     select: { mode: true },
