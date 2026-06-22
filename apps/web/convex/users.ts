@@ -59,7 +59,8 @@ export const syncFromClerk = mutation({
   },
 });
 
-/** Called from the Clerk webhook (user.deleted) to mark a user disabled. */
+/** Called from the Clerk webhook (user.deleted) to mark a user disabled.
+ *  Returns the user's email so the caller can unsubscribe them from mailing lists. */
 export const disableFromClerk = mutation({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
@@ -69,7 +70,9 @@ export const disableFromClerk = mutation({
       .unique();
     if (user) {
       await ctx.db.patch(user._id, { status: 'DISABLED' });
+      return user.email;
     }
+    return null;
   },
 });
 

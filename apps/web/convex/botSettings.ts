@@ -1,5 +1,5 @@
 import { query, mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { v, ConvexError } from 'convex/values';
 
 function requireAuth(identity: { subject: string } | null): string {
   if (!identity) throw new Error('Unauthenticated');
@@ -49,7 +49,7 @@ export const update = mutation({
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
 
-    if (!settings) throw new Error('Bot settings not found — user not fully initialised');
+    if (!settings) throw new ConvexError('Bot settings not found — user not fully initialised');
 
     // Strip undefined fields before patching.
     const patch = Object.fromEntries(
@@ -116,15 +116,15 @@ export const setMode = mutation({
           .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
           .unique();
         const entitled = sub?.status === 'ACTIVE' || sub?.status === 'TRIALING';
-        if (!entitled) throw new Error('Live trading requires a Pro subscription.');
+        if (!entitled) throw new ConvexError('Live trading requires a Pro subscription.');
       }
 
       const cred = await ctx.db
         .query('brokerCredentials')
         .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
         .unique();
-      if (!cred) throw new Error('Connect a live Alpaca account before enabling LIVE mode');
-      if (cred.paper) throw new Error('Your Alpaca account is set to paper trading — connect with live trading to use LIVE mode');
+      if (!cred) throw new ConvexError('Connect a live Alpaca account before enabling LIVE mode');
+      if (cred.paper) throw new ConvexError('Your Alpaca account is set to paper trading — connect a live Alpaca account to use LIVE mode');
     }
 
     let settings = await ctx.db
