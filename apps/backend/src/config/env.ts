@@ -57,6 +57,10 @@ const schema = z.object({
 
   PAPER_STARTING_BALANCE: z.coerce.number().positive().default(100_000),
 
+  // 64 hex-char key for AES-256-GCM encryption of broker credentials.
+  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  BROKER_ENCRYPTION_KEY: z.string().optional(),
+
   // When true, the backend starts its own embedded Postgres before serving
   // (used by the packaged desktop app so it's a single self-sufficient process).
   EMBEDDED_DB: z

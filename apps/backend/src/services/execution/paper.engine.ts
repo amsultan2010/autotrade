@@ -18,6 +18,7 @@ import { prisma } from '../../lib/prisma.js';
 import { getMarketData } from '../marketdata/index.js';
 import { recordOutcome } from '../learning/index.js';
 import type { RiskDecision } from '../risk/index.js';
+import type { BrokerProvider, BrokerOrder } from './broker.types.js';
 
 export interface EntrySnapshot {
   price: number;
@@ -26,6 +27,53 @@ export interface EntrySnapshot {
   volume: number;
   avgVolume: number;
   rrRatio: number | null;
+}
+
+/** Submit a real order via the broker and record it in DB with mode=LIVE. */
+export async function openLiveTrade(params: {
+  userId: string;
+  signalId: string;
+  signal: TradeSignal;
+  risk: Extract<RiskDecision, { approved: true }>;
+  entrySnapshot: EntrySnapshot;
+  broker: BrokerProvider;
+}): Promise<string> {
+  const { userId, signalId, signal, risk, entrySnapshot, broker } = params;
+  const clientOrderId = `at-${userId.slice(-8)}-${Date.now()}`;
+  const order: BrokerOrder = {
+    symbol: signal.ticker,
+    side: risk.side,
+    qty: risk.qty,
+    type: 'market',
+    stopLoss: risk.stopLoss ?? undefined,
+    takeProfit: risk.takeProfit ?? undefined,
+    clientOrderId,
+  };
+  const result = await broker.submitOrder(order);
+  if (result.status === 'rejected') {
+    throw new Error(`Alpaca rejected order for ${signal.ticker}: ${result.brokerOrderId ?? 'unknown order'}`);
+  }
+  const trade = await prisma.trade.create({
+    data: {
+      userId,
+      signalId,
+      symbol: signal.ticker,
+      exchange: signal.exchange,
+      side: risk.side,
+      mode: 'LIVE',
+      qty: risk.qty,
+      entryPrice: result.filledPrice ?? signal.price,
+      stopLoss: risk.stopLoss,
+      takeProfit: risk.takeProfit,
+      strategy: signal.strategy,
+      confidence: signal.confidence,
+      entryReason: signal.entryReason,
+      result: 'OPEN',
+      brokerOrderId: result.brokerOrderId,
+      entrySnapshot: entrySnapshot as unknown as Prisma.InputJsonValue,
+    },
+  });
+  return trade.id;
 }
 
 /** Open a paper position from a signal the RiskManager approved. */
@@ -122,6 +170,45 @@ function unrealized(trade: Trade, price: number): number {
 }
 
 /**
+ * Live trade sync: polls Alpaca for the status of open LIVE trades and closes
+ * any that Alpaca has already filled/closed (stop hit, target hit, expired).
+ */
+export async function monitorUserLiveTrades(
+  userId: string,
+  broker: BrokerProvider,
+): Promise<void> {
+  const open = await prisma.trade.findMany({
+    where: { userId, mode: 'LIVE', result: 'OPEN', brokerOrderId: { not: null } },
+  });
+  if (open.length === 0) return;
+
+  let alpacaPositions: Array<{ symbol: string }>;
+  try {
+    alpacaPositions = await broker.getPositions();
+  } catch {
+    return;
+  }
+
+  const openSymbols = new Set(alpacaPositions.map((p) => p.symbol.toUpperCase()));
+
+  for (const trade of open) {
+    if (openSymbols.has(trade.symbol.toUpperCase())) continue;
+    // Position no longer exists in Alpaca — it was closed (stop, target, or manual).
+    let exitPrice = trade.entryPrice;
+    try {
+      exitPrice = (await getMarketData().getQuote(trade.symbol)).price;
+    } catch { /* use entry price as fallback */ }
+
+    const isLong = trade.side === 'LONG';
+    const hitStop =
+      trade.stopLoss != null &&
+      (isLong ? exitPrice <= trade.stopLoss : exitPrice >= trade.stopLoss);
+
+    await applyClose(trade, exitPrice, hitStop);
+  }
+}
+
+/**
  * Polling monitor: check a user's open trades against REST quotes and close any
  * that hit stop/target. Used when streaming is off. Returns realized P/L.
  */
@@ -185,21 +272,37 @@ export async function closeOpenTradesForSymbolAtPrice(symbol: string, price: num
   return total;
 }
 
-/** Manually close one open paper trade at the current market price. */
+/** Manually close one open trade (PAPER or LIVE) at the current market price. */
 export async function closeTradeAtMarket(
   tradeId: string,
   userId: string,
+  broker?: BrokerProvider,
 ): Promise<{ closed: boolean; pnl?: number; reason?: string }> {
   const trade = await prisma.trade.findFirst({
-    where: { id: tradeId, userId, mode: 'PAPER', result: 'OPEN' },
+    where: { id: tradeId, userId, result: 'OPEN' },
   });
   if (!trade) return { closed: false, reason: 'Trade not found or already closed' };
 
   let price: number;
-  try {
-    price = (await getMarketData().getQuote(trade.symbol)).price;
-  } catch {
-    return { closed: false, reason: 'Could not get a current price' };
+
+  if (trade.mode === 'LIVE' && broker) {
+    // For live trades: close in Alpaca to get real fill price.
+    const fillPrice = await broker.closePosition(trade.symbol);
+    if (fillPrice != null) {
+      price = fillPrice;
+    } else {
+      try {
+        price = (await getMarketData().getQuote(trade.symbol)).price;
+      } catch {
+        return { closed: false, reason: 'Could not get a current price' };
+      }
+    }
+  } else {
+    try {
+      price = (await getMarketData().getQuote(trade.symbol)).price;
+    } catch {
+      return { closed: false, reason: 'Could not get a current price' };
+    }
   }
 
   const isLong = trade.side === 'LONG';
@@ -219,10 +322,12 @@ export async function closeTradeAtMarket(
     },
   });
 
-  await prisma.paperAccount.updateMany({
-    where: { userId },
-    data: { balance: { increment: pnl }, equity: { increment: pnl } },
-  });
+  if (trade.mode === 'PAPER') {
+    await prisma.paperAccount.updateMany({
+      where: { userId },
+      data: { balance: { increment: pnl }, equity: { increment: pnl } },
+    });
+  }
   await recordOutcome({ userId, strategy: trade.strategy, symbol: trade.symbol, pnl, win: result === 'WIN' });
   return { closed: true, pnl };
 }

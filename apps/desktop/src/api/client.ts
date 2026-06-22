@@ -200,6 +200,17 @@ export const api = {
   botStop: () => request('/bot/stop', { method: 'POST' }),
   botRunNow: () => request('/bot/run-now', { method: 'POST' }),
 
+  // ── Broker ──
+  brokerStatus: () => request<{ connected: boolean; provider?: string; paper?: boolean }>('/broker/status'),
+  brokerConnect: (keyId: string, secret: string, paper: boolean) =>
+    request<{ connected: boolean; provider: string; paper: boolean }>('/broker/connect', {
+      method: 'POST',
+      body: JSON.stringify({ keyId, secret, paper }),
+    }),
+  brokerDisconnect: () => request('/broker/connect', { method: 'DELETE' }),
+  brokerAccount: () =>
+    request<{ cash: number; equity: number; buyingPower: number; mode: string } | null>('/broker/account'),
+
   // ── Admin (role-gated server-side; normal users get 403) ──
   adminMetrics: () =>
     request<{ users: number; activeSubs: number; openTrades: number; signals24h: number }>('/admin/metrics'),

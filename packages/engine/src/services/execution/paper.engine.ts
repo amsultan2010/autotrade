@@ -81,6 +81,9 @@ export async function openLiveTrade(params: {
     clientOrderId,
   };
   const result = await broker.submitOrder(order);
+  if (result.status === 'rejected') {
+    throw new Error(`Alpaca rejected order for ${signal.ticker}: ${result.brokerOrderId ?? 'unknown order'}`);
+  }
   const trade = await prisma.trade.create({
     data: {
       userId,
@@ -96,7 +99,7 @@ export async function openLiveTrade(params: {
       strategy: signal.strategy,
       confidence: signal.confidence,
       entryReason: signal.entryReason,
-      result: result.status === 'filled' ? 'OPEN' : 'OPEN',
+      result: 'OPEN',
       brokerOrderId: result.brokerOrderId,
       entrySnapshot: entrySnapshot as unknown as Prisma.InputJsonValue,
     },

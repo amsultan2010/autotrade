@@ -118,6 +118,13 @@ export const setMode = mutation({
         const entitled = sub?.status === 'ACTIVE' || sub?.status === 'TRIALING';
         if (!entitled) throw new Error('Live trading requires a Pro subscription.');
       }
+
+      const cred = await ctx.db
+        .query('brokerCredentials')
+        .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+        .unique();
+      if (!cred) throw new Error('Connect a live Alpaca account before enabling LIVE mode');
+      if (cred.paper) throw new Error('Your Alpaca account is set to paper trading — connect with live trading to use LIVE mode');
     }
 
     const settings = await ctx.db

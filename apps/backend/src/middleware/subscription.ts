@@ -12,11 +12,20 @@ import { PaymentRequiredError, UnauthorizedError } from '../lib/errors.js';
 export function isEntitled(
   role: string,
   sub: { status: string; currentPeriodEnd: Date | null } | null,
+  requiredTier: 'free' | 'pro' = 'free',
 ): boolean {
   if (role === 'ADMIN' || role === 'DEVELOPER') return true;
+  if (requiredTier === 'free') return true;
   if (!sub) return false;
   const periodOk = !sub.currentPeriodEnd || sub.currentPeriodEnd.getTime() > Date.now();
   return (sub.status === 'ACTIVE' || sub.status === 'TRIALING') && periodOk;
+}
+
+export function isProEntitled(
+  role: string,
+  sub: { status: string; currentPeriodEnd: Date | null } | null,
+): boolean {
+  return isEntitled(role, sub, 'pro');
 }
 
 export async function subscriptionGuard(_req: FastifyRequest, _reply: FastifyReply): Promise<void> {

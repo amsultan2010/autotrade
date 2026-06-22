@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react';
 import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, type BotSettingsDTO } from '@autotrade/shared';
 import { api, ApiError } from '../api/client';
 
+type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
+
 export function Settings() {
   const [s, setS] = useState<BotSettingsDTO | null>(null);
+  const [broker, setBroker] = useState<BrokerStatus | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try { setS(await api.getSettings()); }
-      catch { setError('Could not load settings. Check your connection and try again.'); }
-    })();
+    Promise.all([
+      api.getSettings().then(setS).catch(() => setError('Could not load settings.')),
+      api.brokerStatus().then(setBroker).catch(() => setBroker({ connected: false })),
+    ]);
   }, []);
 
   if (!s && !error) return <div className="page"><h1>Settings</h1><p className="muted">Loading…</p></div>;
@@ -38,6 +41,25 @@ export function Settings() {
     }
   }
 
+  async function setMode(mode: BotSettingsDTO['mode']) {
+    if (mode === 'LIVE' && !broker?.connected) {
+      setError('Connect an Alpaca account first before enabling live trading.');
+      return;
+    }
+    if (mode === 'LIVE' && broker?.paper) {
+      setError('Your Alpaca account is set to paper trading. Connect with live trading enabled to use LIVE mode.');
+      return;
+    }
+    setError(null);
+    try {
+      const updated = await api.updateSettings({ ...s!, mode });
+      setS(updated);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not update mode');
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-head">
@@ -51,6 +73,40 @@ export function Settings() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+
+      <AlpacaCard
+        broker={broker}
+        onError={setError}
+        onStatusChange={(status) => setBroker(status)}
+      />
+
+      <section className="panel">
+        <h2>Execution mode</h2>
+        <p className="muted">
+          Paper trading uses real market data with simulated money. Live trading executes real orders through your Alpaca account.
+        </p>
+        <div className="chips">
+          {(['PAPER', 'LIVE', 'DISABLED'] as const).map((m) => {
+            const locked = m === 'LIVE' && (!broker?.connected || broker?.paper);
+            return (
+              <button
+                key={m}
+                className={`chip ${s.mode === m ? 'on' : ''} ${locked ? 'disabled' : ''}`}
+                onClick={() => void setMode(m)}
+                title={
+                  m === 'LIVE' && !broker?.connected
+                    ? 'Connect a live Alpaca account first'
+                    : m === 'LIVE' && broker?.paper
+                    ? 'Switch Alpaca connection to live trading'
+                    : undefined
+                }
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="panel form-grid">
         <Field label="Risk level">
@@ -104,20 +160,118 @@ export function Settings() {
           ))}
         </div>
       </section>
-
-      <section className="panel">
-        <h2>Execution mode</h2>
-        <p className="muted">
-          Paper trading uses real market data. Live trading is disabled until a licensed broker is
-          connected — a safety guard, not a limitation of your account.
-        </p>
-        <div className="chips">
-          <span className={`chip ${s.mode === 'PAPER' ? 'on' : ''}`}>PAPER</span>
-          <span className="chip disabled">LIVE (broker required)</span>
-          <span className={`chip ${s.mode === 'DISABLED' ? 'on' : ''}`}>DISABLED</span>
-        </div>
-      </section>
     </div>
+  );
+}
+
+function AlpacaCard({
+  broker,
+  onError,
+  onStatusChange,
+}: {
+  broker: BrokerStatus | null;
+  onError: (msg: string) => void;
+  onStatusChange: (status: BrokerStatus) => void;
+}) {
+  const [keyId, setKeyId] = useState('');
+  const [secret, setSecret] = useState('');
+  const [paper, setPaper] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  async function connect() {
+    if (!keyId || !secret) { onError('Enter both Key ID and Secret Key.'); return; }
+    setLoading(true);
+    onError('');
+    try {
+      const result = await api.brokerConnect(keyId, secret, paper);
+      setKeyId('');
+      setSecret('');
+      onStatusChange(result);
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Could not connect — check your keys and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function disconnect() {
+    setConfirming(false);
+    setLoading(true);
+    try {
+      await api.brokerDisconnect();
+      onStatusChange({ connected: false });
+    } catch {
+      onError('Could not disconnect. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (broker?.connected) {
+    return (
+      <section className="panel">
+        <h2>Alpaca account</h2>
+        <p className="muted" style={{ marginBottom: '1rem' }}>
+          Connected · {broker.paper ? 'Paper trading' : '⚡ Live trading'}
+        </p>
+        {confirming ? (
+          <div className="row gap">
+            <span className="muted">Remove your Alpaca connection?</span>
+            <button className="btn-danger" onClick={() => void disconnect()} disabled={loading}>Yes, disconnect</button>
+            <button className="btn-ghost" onClick={() => setConfirming(false)}>Cancel</button>
+          </div>
+        ) : (
+          <button className="btn-ghost" onClick={() => setConfirming(true)}>Disconnect</button>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="panel">
+      <h2>Connect Alpaca</h2>
+      <p className="muted" style={{ marginBottom: '1rem' }}>
+        Alpaca is a free brokerage that lets the AI execute trades for you.{' '}
+        <a href="https://alpaca.markets" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+          Create a free account →
+        </a>
+      </p>
+      <div className="form-grid" style={{ marginBottom: '1rem' }}>
+        <Field label="API Key ID">
+          <input
+            type="text"
+            placeholder="PKxxxxxxxxxxxxxxxx"
+            value={keyId}
+            onChange={(e) => setKeyId(e.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+        <Field label="Secret Key">
+          <input
+            type="password"
+            placeholder="••••••••••••••••••••••••••••••••••••••••"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+      </div>
+      <div className="row gap" style={{ marginBottom: '1rem' }}>
+        <label className="row gap" style={{ cursor: 'pointer', gap: '0.5rem' }}>
+          <input type="checkbox" checked={paper} onChange={(e) => setPaper(e.target.checked)} />
+          <span>Paper trading (safe — no real money)</span>
+        </label>
+      </div>
+      {!paper && (
+        <div className="error-banner" style={{ marginBottom: '1rem' }}>
+          ⚠️ Live trading will execute real orders with real money. Make sure your Alpaca account is funded.
+        </div>
+      )}
+      <button className="btn-primary" onClick={() => void connect()} disabled={loading || !keyId || !secret}>
+        {loading ? 'Connecting…' : 'Connect Alpaca'}
+      </button>
+    </section>
   );
 }
 
