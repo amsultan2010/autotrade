@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { clerkId },
-    select: { id: true },
+    select: {
+      id: true,
+      role: true,
+      subscription: { select: { status: true, currentPeriodEnd: true } },
+    },
   });
 
   if (!user) {
@@ -107,6 +111,27 @@ export async function POST(req: NextRequest) {
     select: { mode: true },
   });
   const botMode = settings?.mode ?? 'PAPER';
+
+  // Free-plan guard: LIVE cycles require an active subscription.
+  // Admins and developers bypass this check.
+  if (botMode === 'LIVE') {
+    const isBypassRole = user.role === 'ADMIN' || user.role === 'DEVELOPER';
+    if (!isBypassRole) {
+      const sub = user.subscription;
+      const periodOk = !sub?.currentPeriodEnd || sub.currentPeriodEnd.getTime() > Date.now();
+      const entitled =
+        sub !== null &&
+        sub !== undefined &&
+        (sub.status === 'ACTIVE' || sub.status === 'TRIALING') &&
+        periodOk;
+      if (!entitled) {
+        return NextResponse.json(
+          { ok: false, skipped: true, reason: 'live_requires_subscription' },
+          { status: 200 },
+        );
+      }
+    }
+  }
 
   // Snapshot open trade IDs before the cycle so we can diff what changed.
   const cycleStartedAt = new Date();

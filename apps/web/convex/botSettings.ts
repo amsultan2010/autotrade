@@ -103,6 +103,23 @@ export const setMode = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
 
+    if (mode === 'LIVE') {
+      const user = await ctx.db
+        .query('users')
+        .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+        .unique();
+      const isBypassRole = user?.role === 'ADMIN' || user?.role === 'DEVELOPER';
+
+      if (!isBypassRole) {
+        const sub = await ctx.db
+          .query('subscriptions')
+          .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+          .unique();
+        const entitled = sub?.status === 'ACTIVE' || sub?.status === 'TRIALING';
+        if (!entitled) throw new Error('Live trading requires a Pro subscription.');
+      }
+    }
+
     const settings = await ctx.db
       .query('botSettings')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
