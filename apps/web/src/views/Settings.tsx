@@ -111,6 +111,10 @@ export function Settings() {
   }
 
   async function setMode(mode: Mode) {
+    if (mode === 'LIVE' && !sub.entitled) {
+      setError('Live trading requires a Pro subscription. Upgrade to enable real money trading.');
+      return;
+    }
     if (mode === 'LIVE' && !broker?.connected) {
       setError('Connect an Alpaca account first before enabling live trading.');
       return;
