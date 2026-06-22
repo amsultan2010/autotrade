@@ -4,7 +4,9 @@ import { TIMEFRAMES, type Timeframe } from '@autotrade/shared';
 import { prisma } from '../../lib/prisma.js';
 import { parse } from '../../lib/validate.js';
 import { requireEntitled } from '../../middleware/guards.js';
-import { NotFoundError, UnauthorizedError } from '../../lib/errors.js';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../../lib/errors.js';
+
+const MAX_WATCHLIST_SIZE = 100;
 import { getMarketData } from '../../services/marketdata/index.js';
 import { liveEngine } from '../../workers/liveEngine.js';
 import { isStockMarketOpen } from '../../lib/alpaca.js';
@@ -26,10 +28,14 @@ export async function watchlistRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  // Add a symbol — no artificial limit.
+  // Add a symbol — capped at MAX_WATCHLIST_SIZE to prevent resource exhaustion.
   app.post('/watchlist', requireEntitled, async (req, reply) => {
     const user = req.authUser!;
     const body = parse(addSchema, req.body);
+    const count = await prisma.watchedSymbol.count({ where: { userId: user.id } });
+    if (count >= MAX_WATCHLIST_SIZE) {
+      throw new BadRequestError(`Watchlist limit reached (max ${MAX_WATCHLIST_SIZE} symbols)`);
+    }
     const created = await prisma.watchedSymbol.upsert({
       where: {
         userId_symbol_exchange: { userId: user.id, symbol: body.symbol, exchange: body.exchange },
@@ -43,7 +49,7 @@ export async function watchlistRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/watchlist/:id', requireEntitled, async (req, reply) => {
     const user = req.authUser;
     if (!user) throw new UnauthorizedError();
-    const { id } = req.params as { id: string };
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const found = await prisma.watchedSymbol.findFirst({ where: { id, userId: user.id } });
     if (!found) throw new NotFoundError('Symbol not in your watchlist');
     await prisma.watchedSymbol.delete({ where: { id } });
@@ -103,7 +109,7 @@ export async function watchlistRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/market/quote/:symbol', requireEntitled, async (req) => {
-    const { symbol } = req.params as { symbol: string };
+    const { symbol } = parse(z.object({ symbol: z.string().min(1).max(20).regex(/^[A-Za-z0-9./-]+$/) }), req.params);
     return getMarketData().getQuote(symbol.toUpperCase());
   });
 

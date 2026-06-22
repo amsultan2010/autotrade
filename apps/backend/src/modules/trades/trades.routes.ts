@@ -40,14 +40,14 @@ export async function tradesRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/trades/:id', requireEntitled, async (req) => {
     const user = req.authUser!;
-    const { id } = req.params as { id: string };
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     return prisma.trade.findFirst({ where: { id, userId: user.id }, include: { signal: true } });
   });
 
   // Manually close an open position at the current market price.
   app.post('/trades/:id/close', requireEntitled, async (req) => {
     const user = req.authUser!;
-    const { id } = req.params as { id: string };
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const broker = await loadUserBroker(user.id);
     const result = await closeTradeAtMarket(id, user.id, broker ?? undefined);
     if (!result.closed) throw new BadRequestError(result.reason ?? 'Could not close trade');

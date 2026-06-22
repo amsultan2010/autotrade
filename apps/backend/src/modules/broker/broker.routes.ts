@@ -12,6 +12,7 @@ import { AlpacaBroker } from '../../services/execution/alpaca.broker.js';
 import { requireEntitled } from '../../middleware/guards.js';
 import { parse } from '../../lib/validate.js';
 import { BadRequestError } from '../../lib/errors.js';
+import { writeAudit } from '../../lib/audit.js';
 
 const connectSchema = z.object({
   keyId: z.string().min(1),
@@ -67,6 +68,7 @@ export async function brokerRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    void writeAudit({ actorId: user.id, action: 'BROKER_CONNECT', meta: { provider: 'alpaca', paper }, ip: req.ip });
     return { connected: true, provider: 'alpaca', paper };
   });
 
@@ -78,6 +80,7 @@ export async function brokerRoutes(app: FastifyInstance): Promise<void> {
       where: { userId: user.id, mode: 'LIVE' },
       data: { mode: 'PAPER' },
     });
+    void writeAudit({ actorId: user.id, action: 'BROKER_DISCONNECT', ip: req.ip });
     return { connected: false };
   });
 

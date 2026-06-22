@@ -36,7 +36,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/admin/users/:id', requireAdmin, async (req) => {
-    const { id } = req.params as { id: string };
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
@@ -57,7 +57,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   // Enable / disable an account.
   app.post('/admin/users/:id/status', requireAdmin, async (req) => {
-    const { id } = req.params as { id: string };
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const { status } = parse(z.object({ status: z.enum(USER_STATUSES) }), req.body);
     const updated = await prisma.user.update({ where: { id }, data: { status } });
     await writeAudit({ actorId: req.authUser!.id, action: 'USER_STATUS_CHANGE', target: id, meta: { status }, ip: req.ip });
@@ -70,7 +70,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   // Change a user's role (e.g. grant DEVELOPER access without payment).
   app.post('/admin/users/:id/role', requireAdmin, async (req) => {
-    const { id } = req.params as { id: string };
+    const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
     const { role } = parse(z.object({ role: z.enum(ROLES) }), req.body);
     const updated = await prisma.user.update({ where: { id }, data: { role } });
     await writeAudit({ actorId: req.authUser!.id, action: 'USER_ROLE_CHANGE', target: id, meta: { role }, ip: req.ip });
@@ -132,7 +132,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   app.put('/admin/provider-settings/:key', requireAdmin, async (req) => {
-    const { key } = req.params as { key: string };
+    const { key } = parse(z.object({ key: z.string().min(1).max(100).regex(/^[a-zA-Z0-9_.-]+$/) }), req.params);
     const { value } = parse(z.object({ value: z.string().max(2000) }), req.body);
     const saved = await prisma.providerSetting.upsert({
       where: { key },

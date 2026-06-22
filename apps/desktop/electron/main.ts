@@ -73,8 +73,12 @@ function createWindow(): void {
   });
 
   // Open external links in the system browser, never in-app.
+  // Restrict to http(s) so window.open('file://...') or similar can't be exploited.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    try {
+      const { protocol } = new URL(url);
+      if (protocol === 'https:' || protocol === 'http:') void shell.openExternal(url);
+    } catch { /* ignore malformed URLs */ }
     return { action: 'deny' };
   });
 
@@ -113,7 +117,18 @@ ipcMain.handle('token:clear', () => {
   return true;
 });
 
-ipcMain.handle('open-external', (_evt, url: string) => shell.openExternal(url));
+ipcMain.handle('open-external', (_evt, url: string) => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return Promise.reject(new Error('Invalid URL'));
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return Promise.reject(new Error('Only http(s) URLs may be opened externally'));
+  }
+  return shell.openExternal(url);
+});
 
 /**
  * Dev-only convenience: if launched with DEV_AUTOLOGIN_EMAIL/PASSWORD, log in

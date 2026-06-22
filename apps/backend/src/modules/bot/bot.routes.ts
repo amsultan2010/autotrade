@@ -40,7 +40,9 @@ export async function botRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Trigger one scan cycle immediately (useful for testing / manual refresh).
-  app.post('/bot/run-now', requireEntitled, async (req, reply) => {
+  // Tight per-user rate limit: prevents resource exhaustion via repeated triggers.
+  const runNowLimit = { ...requireEntitled, config: { rateLimit: { max: 3, timeWindow: '1 minute' } } };
+  app.post('/bot/run-now', runNowLimit, async (req, reply) => {
     const user = req.authUser!;
     await runCycleForUser(user.id);
     return reply.send({ ok: true });
