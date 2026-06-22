@@ -66,7 +66,7 @@ async function syncCredentialToPostgres(
 ): Promise<void> {
   const botSecret = process.env.BOT_INTERNAL_SECRET;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
-  if (!botSecret || !appUrl) return;
+  if (!botSecret || !appUrl) throw new Error('Server misconfiguration: BOT_INTERNAL_SECRET or APP_URL not set — broker credential cannot be synced to the trading engine');
   const base = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
   await fetch(`${base}/api/internal/broker/sync`, {
     method: 'POST',

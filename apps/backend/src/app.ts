@@ -13,6 +13,7 @@ import { settingsRoutes } from './modules/settings/settings.routes.js';
 import { tradesRoutes } from './modules/trades/trades.routes.js';
 import { botRoutes } from './modules/bot/bot.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
+import { brokerRoutes } from './modules/broker/broker.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -83,6 +84,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(tradesRoutes, { prefix: '/api/v1' });
   await app.register(botRoutes, { prefix: '/api/v1' });
   await app.register(adminRoutes, { prefix: '/api/v1' });
+  await app.register(brokerRoutes, { prefix: '/api/v1' });
 
   return app;
 }

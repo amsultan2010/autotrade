@@ -12,18 +12,25 @@ export async function botRoutes(app: FastifyInstance): Promise<void> {
       prisma.paperAccount.findUnique({ where: { userId: user.id } }),
       prisma.trade.count({ where: { userId: user.id, result: 'OPEN' } }),
     ]);
+    const mode = settings?.mode ?? 'DISABLED';
     return {
-      mode: settings?.mode ?? 'DISABLED',
-      running: settings?.mode === 'PAPER',
+      mode,
+      running: mode === 'PAPER' || mode === 'LIVE',
       openTrades,
       paperAccount: paper,
     };
   });
 
-  // Start the bot in paper mode (live requires a connected broker — future).
+  // Start the bot. Defaults to PAPER; LIVE requires a connected broker.
   app.post('/bot/start', requireEntitled, async (req) => {
     const user = req.authUser!;
-    return prisma.botSettings.update({ where: { userId: user.id }, data: { mode: 'PAPER' } });
+    const cred = await prisma.brokerCredential.findUnique({
+      where: { userId: user.id },
+      select: { paper: true },
+    });
+    // Use LIVE only if a live (non-paper) broker is connected.
+    const mode = cred && !cred.paper ? 'LIVE' : 'PAPER';
+    return prisma.botSettings.update({ where: { userId: user.id }, data: { mode } });
   });
 
   // Stop = kill-switch (DISABLED).

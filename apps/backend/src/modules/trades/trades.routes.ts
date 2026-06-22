@@ -6,6 +6,7 @@ import { parse } from '../../lib/validate.js';
 import { requireEntitled } from '../../middleware/guards.js';
 import { computeBreakdowns, computePerformance } from './trades.service.js';
 import { closeTradeAtMarket } from '../../services/execution/paper.engine.js';
+import { loadUserBroker } from '../../lib/broker-credentials.js';
 import { BadRequestError } from '../../lib/errors.js';
 
 const historyQuery = z.object({
@@ -47,7 +48,8 @@ export async function tradesRoutes(app: FastifyInstance): Promise<void> {
   app.post('/trades/:id/close', requireEntitled, async (req) => {
     const user = req.authUser!;
     const { id } = req.params as { id: string };
-    const result = await closeTradeAtMarket(id, user.id);
+    const broker = await loadUserBroker(user.id);
+    const result = await closeTradeAtMarket(id, user.id, broker ?? undefined);
     if (!result.closed) throw new BadRequestError(result.reason ?? 'Could not close trade');
     return result;
   });

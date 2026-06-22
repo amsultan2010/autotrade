@@ -35,9 +35,12 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
   app.put('/settings', requireEntitled, async (req) => {
     const user = req.authUser!;
     const data = parse(updateSchema, req.body);
-    // LIVE mode is intentionally not selectable until a broker is connected.
+    // LIVE mode requires a connected broker credential.
     if (data.mode === 'LIVE') {
-      data.mode = 'PAPER';
+      const cred = await prisma.brokerCredential.findUnique({ where: { userId: user.id } });
+      if (!cred) {
+        data.mode = 'PAPER';
+      }
     }
     return prisma.botSettings.update({ where: { userId: user.id }, data });
   });

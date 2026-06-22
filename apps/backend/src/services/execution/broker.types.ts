@@ -43,6 +43,8 @@ export interface BrokerProvider {
   readonly mode: 'paper' | 'live';
   submitOrder(order: BrokerOrder): Promise<BrokerOrderResult>;
   cancelOrder(brokerOrderId: string): Promise<void>;
+  /** Close an open position by symbol at market. Returns the exit price, or null on failure. */
+  closePosition(symbol: string): Promise<number | null>;
   getPositions(): Promise<BrokerPosition[]>;
   getAccount(): Promise<BrokerAccount>;
 }

@@ -103,6 +103,15 @@ export const setMode = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
 
+    if (mode === 'LIVE') {
+      const cred = await ctx.db
+        .query('brokerCredentials')
+        .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+        .unique();
+      if (!cred) throw new Error('Connect a live Alpaca account before enabling LIVE mode');
+      if (cred.paper) throw new Error('Your Alpaca account is set to paper trading — connect with live trading to use LIVE mode');
+    }
+
     const settings = await ctx.db
       .query('botSettings')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
