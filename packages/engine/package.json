@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "prisma generate --schema prisma/schema.prisma"
+    "generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "exports": {
     ".": "./src/index.ts"

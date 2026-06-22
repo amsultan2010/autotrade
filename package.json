@@ -11,12 +11,13 @@
     "dev": "pnpm --filter @autotrade/web dev",
     "dev:web": "pnpm --filter @autotrade/web dev",
     "dev:worker": "pnpm --filter @autotrade/worker dev",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @autotrade/shared build && pnpm -r --filter !@autotrade/shared build",
     "build:web": "pnpm --filter @autotrade/web build",
     "build:worker": "pnpm --filter @autotrade/worker build",
     "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @autotrade/engine prisma:generate",
-    "db:migrate": "pnpm --filter @autotrade/engine prisma:migrate"
+    "db:generate": "pnpm --filter @autotrade/backend prisma:generate && pnpm --filter @autotrade/engine generate",
+    "db:migrate": "pnpm --filter @autotrade/backend prisma:migrate",
+    "setup": "pnpm --filter @autotrade/shared build && pnpm db:generate"
   },
   "devDependencies": {
     "typescript": "^5.6.3"
