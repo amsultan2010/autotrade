@@ -127,12 +127,32 @@ export const setMode = mutation({
       if (cred.paper) throw new Error('Your Alpaca account is set to paper trading — connect with live trading to use LIVE mode');
     }
 
-    const settings = await ctx.db
+    let settings = await ctx.db
       .query('botSettings')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
 
-    if (!settings) throw new Error('Bot settings not found');
+    if (!settings) {
+      // Self-heal: create default settings if missing (e.g. webhook missed on sign-up).
+      const id = await ctx.db.insert('botSettings', {
+        clerkId,
+        mode,
+        riskLevel: 'MEDIUM',
+        maxActiveTrades: 5,
+        maxTradeSize: 10_000,
+        riskPerTradePct: 1.0,
+        defaultStopPct: 2.0,
+        defaultTakeProfitPct: 4.0,
+        maxDailyLoss: 2_000,
+        tradingHoursStart: '09:30',
+        tradingHoursEnd: '16:00',
+        minConfidence: 60,
+        timeframes: ['5m', '15m', '1h', '1d'],
+        strategies: ['TrendBreakout', 'PullbackContinuation', 'MeanReversion', 'CryptoMomentum'],
+      });
+      return ctx.db.get(id);
+    }
+
     await ctx.db.patch(settings._id, { mode });
     return ctx.db.get(settings._id);
   },

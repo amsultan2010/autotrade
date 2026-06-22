@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
-import { prisma, runCycleForUser } from '@autotrade/engine';
+import { createClerkClient } from '@clerk/backend';
+import { prisma, runCycleForUser, env, DEFAULT_WATCHLIST } from '@autotrade/engine';
 import { capture } from '@/lib/analytics';
 import { convexServer } from '@/lib/convex-server';
 import { makeFunctionReference } from 'convex/server';
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { clerkId },
     select: {
       id: true,
@@ -37,7 +38,38 @@ export async function POST(req: NextRequest) {
   });
 
   if (!user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Self-heal: user exists in Clerk but not yet in Postgres (webhook may have
+    // missed on sign-up). Create them now, identical to requireUser() in lib/auth.ts.
+    try {
+      const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+      const clerkUser = await clerk.users.getUser(clerkId);
+      const email = clerkUser.emailAddresses.find(
+        (e) => e.id === clerkUser.primaryEmailAddressId,
+      )?.emailAddress;
+      if (!email) return NextResponse.json({ error: 'Clerk user has no primary email' }, { status: 400 });
+      const normalized = email.trim().toLowerCase();
+      user = await prisma.user.upsert({
+        where: { email: normalized },
+        update: { clerkId },
+        create: {
+          email: normalized,
+          clerkId,
+          passwordHash: '',
+          paperAccount: { create: { balance: env.PAPER_STARTING_BALANCE, equity: env.PAPER_STARTING_BALANCE } },
+          botSettings: { create: {} },
+          subscription: { create: { status: 'NONE' } },
+          watchlist: { create: DEFAULT_WATCHLIST },
+        },
+        select: {
+          id: true,
+          role: true,
+          subscription: { select: { status: true, currentPeriodEnd: true } },
+        },
+      });
+    } catch (err) {
+      Sentry.captureException(err, { extra: { context: 'bot_user_auto_create', clerkId } });
+      return NextResponse.json({ error: 'User not found and could not be auto-created' }, { status: 404 });
+    }
   }
 
   // ── Mirror Convex config → Postgres ──────────────────────────────────────
