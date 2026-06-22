@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { sendWelcomeEmail } from '@/lib/email';
-import { syncResendContact, removeResendContact } from '@/lib/resend-audience';
+import { syncResendContact, unsubscribeResendContact } from '@/lib/resend-audience';
 import { identifyUser } from '@/lib/analytics';
 import { convexServer } from '@/lib/convex-server';
 import { api as convexApi } from '@/convex/_generated/api';
@@ -87,8 +87,14 @@ export async function POST(req: Request) {
   }
 
   if (event.type === 'user.deleted') {
-    void removeResendContact(event.data.id);
-    void convexServer.mutation(convexApi.users.disableFromClerk, { clerkId: event.data.id });
+    // Disable in Convex first — mutation returns the user's email so we can
+    // unsubscribe them from Resend without a separate lookup.
+    const email = await convexServer.mutation(convexApi.users.disableFromClerk, {
+      clerkId: event.data.id,
+    });
+    if (email) {
+      void unsubscribeResendContact(email);
+    }
   }
 
   return NextResponse.json({ received: true });

@@ -4,6 +4,7 @@
 
 import { internalAction, action } from './_generated/server';
 import { internal } from './_generated/api';
+import { ConvexError } from 'convex/values';
 
 /** Trigger a single bot cycle for the current user on demand. */
 export const runNow = action({
@@ -14,7 +15,11 @@ export const runNow = action({
 
     const botSecret = process.env.BOT_INTERNAL_SECRET;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
-    if (!botSecret || !appUrl) throw new Error('Bot not configured — set BOT_INTERNAL_SECRET and NEXT_PUBLIC_APP_URL');
+    if (!botSecret || !appUrl) {
+      throw new ConvexError(
+        'Bot not configured — set BOT_INTERNAL_SECRET and NEXT_PUBLIC_APP_URL in the Convex dashboard',
+      );
+    }
 
     const baseUrl = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
     const res = await fetch(`${baseUrl}/api/internal/bot/run-user`, {
@@ -25,7 +30,7 @@ export const runNow = action({
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Bot run failed: HTTP ${res.status} — ${text}`);
+      throw new ConvexError(`Bot run failed (HTTP ${res.status}): ${text.slice(0, 200)}`);
     }
 
     return res.json() as Promise<{ signalsGenerated?: number; tradesOpened?: number }>;
