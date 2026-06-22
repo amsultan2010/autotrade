@@ -8,6 +8,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { PaymentRequiredError, UnauthorizedError } from '../lib/errors.js';
+import { isProd } from '../config/env.js';
 
 export function isEntitled(
   role: string,
@@ -28,14 +29,19 @@ export function isProEntitled(
   return isEntitled(role, sub, 'pro');
 }
 
-export async function subscriptionGuard(_req: FastifyRequest, _reply: FastifyReply): Promise<void> {
-  // PAYWALL DISABLED — re-enable when Stripe is set up
-  // const user = req.authUser;
-  // if (!user) throw new UnauthorizedError();
-  // if (user.role === 'ADMIN' || user.role === 'DEVELOPER') return;
-  // const sub = await prisma.subscription.findUnique({
-  //   where: { userId: user.id },
-  //   select: { status: true, currentPeriodEnd: true },
-  // });
-  // if (!isEntitled(user.role, sub)) throw new PaymentRequiredError();
+export async function subscriptionGuard(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
+  // PAYWALL DISABLED — re-enable by uncommenting the block below when Stripe is set up.
+  // In production the guard is enforced regardless, to prevent accidental open access.
+  if (isProd) {
+    const user = req.authUser;
+    if (!user) throw new UnauthorizedError();
+    if (user.role === 'ADMIN' || user.role === 'DEVELOPER') return;
+    const sub = await prisma.subscription.findUnique({
+      where: { userId: user.id },
+      select: { status: true, currentPeriodEnd: true },
+    });
+    if (!isEntitled(user.role, sub)) throw new PaymentRequiredError();
+    return;
+  }
+  // Dev/test: paywall bypassed so the app can be used without Stripe configured.
 }

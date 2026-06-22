@@ -17,6 +17,7 @@ import {
 } from '../../lib/crypto.js';
 import { signAccessToken } from '../../lib/jwt.js';
 import { ConflictError, UnauthorizedError } from '../../lib/errors.js';
+import { writeAudit } from '../../lib/audit.js';
 import { DEFAULT_WATCHLIST } from '../../config/defaults.js';
 import type { AuthTokens, AuthUser } from '@autotrade/shared';
 
@@ -78,10 +79,15 @@ export async function login(
 
   // Constant-ish behavior: always run a verify to limit user enumeration via timing.
   const ok = user ? await verifyPassword(user.passwordHash, password) : false;
-  if (!user || !ok) throw new UnauthorizedError('Invalid email or password');
+  if (!user || !ok) {
+    // Audit failed login (non-fatal: don't reveal which field was wrong).
+    void writeAudit({ action: 'LOGIN_FAILED', meta: { email: normalized } });
+    throw new UnauthorizedError('Invalid email or password');
+  }
   if (user.status === 'DISABLED') throw new UnauthorizedError('This account has been disabled');
 
   const tokens = await issueTokens(user, randomUUID());
+  void writeAudit({ actorId: user.id, action: 'LOGIN_SUCCESS' });
   return {
     user: { id: user.id, email: user.email, role: user.role, status: user.status },
     tokens,
@@ -123,10 +129,12 @@ export async function refresh(rawToken: string): Promise<AuthTokens> {
 
 export async function logout(rawToken: string): Promise<void> {
   const tokenHash = hashToken(rawToken);
+  const record = await prisma.refreshToken.findUnique({ where: { tokenHash }, select: { userId: true } });
   await prisma.refreshToken.updateMany({
     where: { tokenHash, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  if (record) void writeAudit({ actorId: record.userId, action: 'LOGOUT' });
 }
 
 /** Verify a Clerk session token, then find-or-create the local user and issue backend JWTs. */
