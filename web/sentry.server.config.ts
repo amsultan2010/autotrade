@@ -4,7 +4,6 @@ import { getBaseSentryOptions } from './lib/sentry-options';
 Sentry.init({
   ...getBaseSentryOptions(),
   integrations: [
-    Sentry.prismaIntegration(),
     Sentry.httpIntegration({ breadcrumbs: true }),
   ],
 });

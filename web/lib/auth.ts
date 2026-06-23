@@ -1,15 +1,24 @@
-import { auth } from '@clerk/nextjs/server';
-import { createClerkClient } from '@clerk/backend';
-import { prisma, env, DEFAULT_WATCHLIST, UnauthorizedError, ForbiddenError } from '@autotrade/engine/public';
+import { auth, createClerkClient } from '@clerk/nextjs/server';
+import { fetchMutation, fetchQuery } from 'convex/nextjs';
+import { api } from '@/convex/_generated/api';
+import { env, ForbiddenError, UnauthorizedError } from '@autotrade/engine/public';
+import { convexToken } from './convex-auth-token';
 
-export async function requireUser() {
+export interface AuthUser {
+  /** Clerk user id — used as the primary identifier in Convex. */
+  id: string;
+  clerkId: string;
+  email: string;
+  role: string;
+  status: string;
+}
+
+export async function requireUser(): Promise<AuthUser> {
   const { userId } = await auth();
   if (!userId) throw new UnauthorizedError('Not signed in');
 
-  let user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    select: { id: true, email: true, role: true, status: true },
-  });
+  const token = await convexToken();
+  let user = await fetchQuery(api.users.me, {}, { token });
 
   if (!user) {
     const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
@@ -18,26 +27,21 @@ export async function requireUser() {
       (e) => e.id === clerkUser.primaryEmailAddressId,
     )?.emailAddress;
     if (!email) throw new UnauthorizedError('Clerk user has no primary email');
-    const normalized = email.trim().toLowerCase();
 
-    user = await prisma.user.upsert({
-      where: { email: normalized },
-      update: { clerkId: userId },
-      create: {
-        email: normalized,
-        clerkId: userId,
-        passwordHash: '',
-        paperAccount: { create: { balance: env.PAPER_STARTING_BALANCE, equity: env.PAPER_STARTING_BALANCE } },
-        botSettings: { create: {} },
-        subscription: { create: { status: 'NONE' } },
-        watchlist: { create: DEFAULT_WATCHLIST },
-      },
-      select: { id: true, email: true, role: true, status: true },
-    });
+    await fetchMutation(api.users.ensureExists, { email }, { token });
+    user = await fetchQuery(api.users.me, {}, { token });
   }
 
+  if (!user) throw new UnauthorizedError('User profile not found');
   if (user.status === 'DISABLED') throw new ForbiddenError('This account has been disabled');
-  return user;
+
+  return {
+    id: user.clerkId,
+    clerkId: user.clerkId,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+  };
 }
 
 export async function requireAdmin() {

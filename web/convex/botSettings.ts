@@ -1,10 +1,6 @@
 import { query, mutation, type QueryCtx } from './_generated/server';
 import { v, ConvexError } from 'convex/values';
-import {
-  FREE_PAPER_TRADE_LIMIT,
-  canUsePaperTrading,
-  isProEntitled,
-} from '@autotrade/shared';
+import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
 
 function requireAuth(identity: { subject: string } | null): string {
   if (!identity) throw new Error('Unauthenticated');
@@ -23,8 +19,8 @@ async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
     role,
     sub,
     paperTradesUsed,
-    canUsePaperTrading: canUsePaperTrading(role, sub, paperTradesUsed),
-    entitled: isProEntitled(role, sub),
+    canUsePaperTrading: canUsePaperTrading(),
+    entitled: isLiveEntitled(role, sub),
   };
 }
 
@@ -116,7 +112,6 @@ export const getStatus = query({
         ? { balance: paperAccount.balance, equity: paperAccount.equity }
         : null,
       paperTradesUsed: paperEntitlement.paperTradesUsed,
-      paperTradesLimit: FREE_PAPER_TRADE_LIMIT,
       canUsePaperTrading: paperEntitlement.canUsePaperTrading,
       entitled: paperEntitlement.entitled,
     };
@@ -130,15 +125,6 @@ export const setMode = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
 
-    if (mode === 'PAPER') {
-      const ent = await getPaperEntitlement(ctx, clerkId);
-      if (!ent.canUsePaperTrading) {
-        throw new ConvexError(
-          `Free paper trading limit reached (${FREE_PAPER_TRADE_LIMIT} trades). Upgrade to Pro to continue.`,
-        );
-      }
-    }
-
     if (mode === 'LIVE') {
       const user = await ctx.db
         .query('users')
@@ -151,8 +137,9 @@ export const setMode = mutation({
           .query('subscriptions')
           .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
           .unique();
-        const entitled = sub?.status === 'ACTIVE' || sub?.status === 'TRIALING';
-        if (!entitled) throw new ConvexError('Live trading requires a Pro subscription.');
+        if (!isLiveEntitled(user?.role ?? 'USER', sub)) {
+          throw new ConvexError('Live trading requires an active subscription.');
+        }
       }
 
       const cred = await ctx.db

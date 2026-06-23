@@ -407,13 +407,7 @@ export function Dashboard() {
     setError(null);
     try {
       const nextMode = botStatus?.running ? 'DISABLED' : 'PAPER';
-      if (nextMode === 'PAPER' && botStatus?.canUsePaperTrading === false) {
-        setError(
-          `Free paper trading limit reached (${botStatus.paperTradesLimit ?? 10} trades). Upgrade to Pro to continue.`,
-        );
-        return;
-      }
-      await setMode({ mode: nextMode });
+await setMode({ mode: nextMode });
     } catch (err) {
       reportTrackedError(ErrorCodes.BOT, err, { route: '/dashboard', action: 'toggle' });
       setError(formatUserError(err, 'Could not change bot mode'));
@@ -482,23 +476,13 @@ export function Dashboard() {
               Alpaca {brokerAccount.mode} · buying power {money(brokerAccount.buyingPower)}
             </span>
           )}
-          {!botStatus?.entitled && botStatus?.canUsePaperTrading === false && (
-            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-              Paper trial used ({botStatus.paperTradesLimit ?? 10}/{botStatus.paperTradesLimit ?? 10} trades)
-            </span>
-          )}
-          {!botStatus?.entitled && botStatus?.canUsePaperTrading !== false && (
-            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-              Paper trial: {botStatus?.paperTradesUsed ?? 0}/{botStatus?.paperTradesLimit ?? 10} trades
-            </span>
-          )}
         </div>
         <div className="db-topbar-right">
           <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy} onClick={() => void scanNow()}>Scan Now</button>
           <button
             className={botStatus?.running ? 'btn-danger' : 'btn-primary'}
             style={{ fontSize: 13, padding: '7px 16px' }}
-            disabled={busy || (!botStatus?.running && botStatus?.canUsePaperTrading === false)}
+            disabled={busy}
             onClick={() => void toggle()}
           >
             {botStatus?.running ? 'Stop Bot' : 'Start Bot'}

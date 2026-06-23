@@ -48,12 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             : null,
           entitled: entitled ?? false,
           paperTradesUsed: paperTrial?.paperTradesUsed ?? 0,
-          paperTradesLimit: paperTrial?.paperTradesLimit ?? 10,
+          paperTradesLimit: 0,
           canUsePaperTrading: paperTrial?.canUsePaperTrading ?? true,
         }
       : null;
 
-  const loading = !isLoaded || (isSignedIn && (subData === undefined || paperTrial === undefined));
+  const loading = !isLoaded;
 
   async function refreshSubscription(): Promise<void> {
     // Convex queries refresh automatically; this is a no-op kept for API compat.

@@ -24,12 +24,11 @@ export function isProEntitled(
 
 /** True if the user may open paper trades / enable paper bot mode. */
 export function canUsePaperTrading(
-  role: string,
-  sub: SubscriptionSnapshot | null,
-  paperTradeCount: number,
+  _role: string,
+  _sub: SubscriptionSnapshot | null,
+  _paperTradeCount: number,
 ): boolean {
-  if (isProEntitled(role, sub)) return true;
-  return paperTradeCount < FREE_PAPER_TRADE_LIMIT;
+  return true;
 }
 
 export function paperTradesRemaining(

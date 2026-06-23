@@ -1,9 +1,6 @@
 import { query, type QueryCtx } from './_generated/server';
-import {
-  FREE_PAPER_TRADE_LIMIT,
-  canUsePaperTrading,
-  isProEntitled,
-} from '@autotrade/shared';
+import { v } from 'convex/values';
+import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
 
 async function paperTradeCount(ctx: QueryCtx, clerkId: string): Promise<number> {
   const trades = await ctx.db
@@ -25,9 +22,28 @@ async function getUserAndSub(ctx: QueryCtx, clerkId: string) {
   return { user, sub };
 }
 
+const subscriptionReturn = v.union(
+  v.object({
+    _id: v.id('subscriptions'),
+    _creationTime: v.number(),
+    clerkId: v.string(),
+    tier: v.optional(v.string()),
+    status: v.union(
+      v.literal('NONE'),
+      v.literal('ACTIVE'),
+      v.literal('PAST_DUE'),
+      v.literal('CANCELED'),
+      v.literal('TRIALING'),
+    ),
+    currentPeriodEnd: v.optional(v.number()),
+  }),
+  v.null(),
+);
+
 /** Get the current user's subscription record. */
 export const get = query({
   args: {},
+  returns: subscriptionReturn,
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
@@ -38,21 +54,30 @@ export const get = query({
   },
 });
 
-/** Returns true if the user is entitled to Pro features. */
+/** Returns true if the user is entitled to live trading. */
 export const isEntitled = query({
   args: {},
+  returns: v.boolean(),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return false;
 
     const { user, sub } = await getUserAndSub(ctx, identity.subject);
-    return isProEntitled(user?.role ?? 'USER', sub);
+    return isLiveEntitled(user?.role ?? 'USER', sub);
   },
 });
 
-/** Paper trial usage for free-tier users. */
+/** Paper trading usage stats (paper is always allowed). */
 export const getPaperTrial = query({
   args: {},
+  returns: v.union(
+    v.object({
+      paperTradesUsed: v.number(),
+      canUsePaperTrading: v.boolean(),
+      entitled: v.boolean(),
+    }),
+    v.null(),
+  ),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
@@ -62,9 +87,8 @@ export const getPaperTrial = query({
     const role = user?.role ?? 'USER';
     return {
       paperTradesUsed: used,
-      paperTradesLimit: FREE_PAPER_TRADE_LIMIT,
-      canUsePaperTrading: canUsePaperTrading(role, sub, used),
-      entitled: isProEntitled(role, sub),
+      canUsePaperTrading: canUsePaperTrading(),
+      entitled: isLiveEntitled(role, sub),
     };
   },
 });

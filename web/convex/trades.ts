@@ -1,6 +1,6 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
-import { canUsePaperTrading, isProEntitled } from '@autotrade/shared';
+import { isLiveEntitled } from './lib/entitlements';
 
 function requireAuth(identity: { subject: string } | null): string {
   if (!identity) throw new Error('Unauthenticated');
@@ -86,26 +86,13 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
 
-    if (args.mode === 'PAPER') {
-      const [user, sub, trades] = await Promise.all([
-        ctx.db.query('users').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
-        ctx.db.query('subscriptions').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
-        ctx.db.query('trades').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).collect(),
-      ]);
-      const paperTradesUsed = trades.filter((t) => t.mode === 'PAPER').length;
-      const role = user?.role ?? 'USER';
-      if (!canUsePaperTrading(role, sub, paperTradesUsed)) {
-        throw new Error('Free paper trading limit reached. Upgrade to Pro to continue.');
-      }
-    }
-
     if (args.mode === 'LIVE') {
       const [user, sub] = await Promise.all([
         ctx.db.query('users').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
         ctx.db.query('subscriptions').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
       ]);
-      if (!isProEntitled(user?.role ?? 'USER', sub)) {
-        throw new Error('Live trading requires an active Pro subscription.');
+      if (!isLiveEntitled(user?.role ?? 'USER', sub)) {
+        throw new Error('Live trading requires an active subscription.');
       }
     }
 
