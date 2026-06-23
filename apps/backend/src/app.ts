@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
+import { ErrorCodes, generateErrorRefId } from '@autotrade/shared';
 import { env, isDev } from './config/env.js';
 import { AppError } from './lib/errors.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
@@ -61,16 +62,17 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
     if (err instanceof ZodError) {
       return reply.code(400).send({
-        error: { code: 'BAD_REQUEST', message: 'Validation failed', details: err.flatten() },
+        error: { code: ErrorCodes.VALIDATION_FAILED, message: 'Validation failed', details: err.flatten() },
       });
     }
     // Fastify's built-in rate-limit error
     if ((err as { statusCode?: number }).statusCode === 429) {
-      return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+      return reply.code(429).send({ error: { code: ErrorCodes.RATE_LIMITED, message: 'Too many requests' } });
     }
-    req.log.error({ err }, 'Unhandled error');
+    const refId = generateErrorRefId();
+    req.log.error({ err, refId }, 'Unhandled error');
     return reply.code(500).send({
-      error: { code: 'INTERNAL', message: 'Something went wrong' },
+      error: { code: ErrorCodes.INTERNAL, message: 'Something went wrong', refId },
     });
   });
 

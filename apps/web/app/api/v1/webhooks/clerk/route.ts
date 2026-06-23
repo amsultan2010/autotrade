@@ -1,7 +1,8 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { ErrorCodes } from '@autotrade/shared';
+import { captureAppError } from '@/lib/error-tracking';
 import { sendWelcomeEmail } from '@/lib/email';
 import { syncResendContact, unsubscribeResendContact } from '@/lib/resend-audience';
 import { identifyUser } from '@/lib/analytics';
@@ -54,7 +55,9 @@ export async function POST(req: Request) {
       'svix-signature': svixSignature,
     }) as ClerkEvent;
   } catch (err) {
-    Sentry.captureException(err, { extra: { context: 'clerk_webhook_signature_verify' } });
+    captureAppError(ErrorCodes.CLERK_WEBHOOK_VERIFY, err, {
+      route: '/api/v1/webhooks/clerk',
+    });
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 

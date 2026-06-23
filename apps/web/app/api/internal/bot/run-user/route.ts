@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { ErrorCodes } from '@autotrade/shared';
+import { captureAppError } from '@/lib/error-tracking';
 import { createClerkClient } from '@clerk/backend';
 import { prisma, runCycleForUser, env, DEFAULT_WATCHLIST } from '@autotrade/engine';
 import { capture } from '@/lib/analytics';
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (err) {
-      Sentry.captureException(err, { extra: { context: 'bot_user_auto_create', clerkId } });
+      captureAppError(ErrorCodes.BOT_USER_CREATE, err, { route: '/api/internal/bot/run-user', clerkId });
       return NextResponse.json({ error: 'User not found and could not be auto-created' }, { status: 404 });
     }
   }
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (err) {
-    Sentry.captureException(err, { extra: { context: 'bot_config_sync', clerkId } });
+    captureAppError(ErrorCodes.BOT_CONFIG_SYNC, err, { route: '/api/internal/bot/run-user', clerkId });
   }
 
   const settings = await prisma.botSettings.findUnique({
@@ -174,13 +175,14 @@ export async function POST(req: NextRequest) {
   const openBeforeIds = new Set(openBefore.map((t) => t.id));
 
   try {
-    await Sentry.withScope(async (scope) => {
-      scope.setUser({ id: clerkId });
-      scope.setTag('bot_cycle', 'true');
-      await runCycleForUser(user.id);
-    });
+    await runCycleForUser(user.id);
   } catch (err) {
-    Sentry.captureException(err, { extra: { clerkId, userId: user.id } });
+    captureAppError(ErrorCodes.BOT_CYCLE, err, {
+      route: '/api/internal/bot/run-user',
+      clerkId,
+      userId: user.id,
+      bot_cycle: true,
+    });
     throw err;
   }
 

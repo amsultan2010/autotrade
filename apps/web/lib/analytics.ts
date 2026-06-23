@@ -39,6 +39,20 @@ export function capture(userId: string, payload: AnalyticsEvent) {
   });
 }
 
+export function captureError(
+  userId: string | undefined,
+  props: { errorCode: string; refId: string; route?: string },
+) {
+  const client = getClient();
+  if (!client) return;
+
+  client.capture({
+    distinctId: userId ?? 'anonymous',
+    event: 'app_error',
+    properties: props,
+  });
+}
+
 export function identifyUser(userId: string, traits: { email?: string; name?: string; role?: string }) {
   const client = getClient();
   if (!client) return;

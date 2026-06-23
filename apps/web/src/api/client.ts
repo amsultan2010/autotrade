@@ -1,4 +1,5 @@
-import type { Candle, SymbolSearchResult, Timeframe } from '@autotrade/shared';
+import { type Candle, type ErrorCode, type SymbolSearchResult, type Timeframe, ErrorCodes, isErrorPayload } from '@autotrade/shared';
+import { captureAppError } from '@/lib/error-tracking';
 
 const BASE = '/api/v1';
 
@@ -7,8 +8,10 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public refId?: string,
   ) {
     super(message);
+    this.name = 'ApiError';
   }
 }
 
@@ -19,13 +22,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
 
   if (!res.ok) {
-    let code = 'ERROR';
+    let code: string = ErrorCodes.UNKNOWN;
     let message = res.statusText;
+    let refId: string | undefined;
     try {
-      const body = (await res.json()) as { error?: { code: string; message: string } };
-      if (body.error) { code = body.error.code; message = body.error.message; }
+      const body = (await res.json()) as { error?: unknown };
+      if (isErrorPayload(body.error)) {
+        code = body.error.code;
+        message = body.error.message;
+        refId = body.error.refId;
+      }
     } catch { /* non-JSON */ }
-    throw new ApiError(res.status, code, message);
+
+    const apiError = new ApiError(res.status, code, message, refId);
+    if (res.status >= 500) {
+      captureAppError(code as ErrorCode, apiError, {
+        route: path,
+        refId,
+      });
+    }
+    throw apiError;
   }
 
   if (res.status === 204) return undefined as T;

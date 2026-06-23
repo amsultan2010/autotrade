@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { enrichSentryEvent } from './lib/error-tracking';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -9,6 +10,7 @@ Sentry.init({
   replaysSessionSampleRate: isProd ? 0.05 : 0,
   replaysOnErrorSampleRate: isProd ? 1.0 : 0,
   debug: false,
+  beforeSend: enrichSentryEvent,
   integrations: [
     Sentry.replayIntegration({
       maskAllText: true,
