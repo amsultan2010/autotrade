@@ -7,6 +7,26 @@ Autotrade has **two backends that each need their own environment variables**:
 | **Vercel** (or `.env.local` locally) | The Next.js app + REST API routes + the bot engine (`engine`) | Vercel project settings / `.env.local` |
 | **Convex** | Auth verification, the database, the cron, the bot actions | `npx convex env set NAME value` or the Convex dashboard |
 
+
+## Automatic deploys (default workflow)
+
+You do **not** need to run `pnpm convex:deploy` by hand after every merge.
+
+| What | How it ships |
+|---|---|
+| **Next.js app** (UI, API routes, Sentry hooks) | Vercel auto-builds on every push to `main` |
+| **Convex functions** (`web/convex/`) | GitHub Actions runs `convex deploy` on push to `main` when convex files change |
+
+**One-time setup** (5 minutes): add a Convex Production Deploy Key to GitHub so the workflow can authenticate:
+
+```bash
+pnpm setup:convex-ci
+```
+
+That script stores `CONVEX_DEPLOY_KEY` in your GitHub repo secrets. After that, merge to `main` and both halves deploy on their own.
+
+Manual fallback (rare): `pnpm deploy:convex` from the repo root.
+
 The full variable list with comments is in [`web/.env.example`](../web/.env.example). This doc is the **deploy checklist** and a **symptom → fix** map.
 
 ---

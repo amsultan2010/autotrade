@@ -22,7 +22,9 @@
     "setup": "pnpm --filter @autotrade/shared build",
     "env:validate": "bash scripts/validate-env.sh",
     "env:secrets": "bash scripts/generate-secrets.sh",
-    "env:sync-convex": "bash scripts/sync-shared-secrets.sh"
+    "env:sync-convex": "bash scripts/sync-shared-secrets.sh",
+    "deploy:convex": "pnpm --filter @autotrade/web convex:deploy",
+    "setup:convex-ci": "bash scripts/setup-convex-ci.sh"
   },
   "devDependencies": {
     "typescript": "^5.6.3"
