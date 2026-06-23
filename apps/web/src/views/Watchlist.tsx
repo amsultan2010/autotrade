@@ -19,6 +19,8 @@ interface Popular {
   kind: 'stock' | 'crypto';
   exchange: string;
   open: boolean;
+  price: number | null;
+  changePct: number | null;
 }
 
 function money(n: number | null): string {
@@ -73,7 +75,7 @@ export function Watchlist() {
   }, []);
 
   async function loadPopular() {
-    if (popular.length > 0) return;
+    // Always refetch so the live % change stats are fresh each time it opens.
     try {
       const p = await api.getPopular();
       setPopular(p.items);
@@ -173,6 +175,10 @@ export function Watchlist() {
                 >
                   <span className="mono">{p.symbol}</span>
                   <span className="muted truncate">{p.name}</span>
+                  <span className="mono muted">{p.price != null ? money(p.price) : ''}</span>
+                  <span className={p.changePct == null ? 'muted' : p.changePct >= 0 ? 'pos' : 'neg'}>
+                    {p.changePct == null ? '' : `${p.changePct >= 0 ? '+' : ''}${p.changePct}%`}
+                  </span>
                   {p.kind === 'crypto' ? (
                     <span className="dot-badge open">24/7</span>
                   ) : (

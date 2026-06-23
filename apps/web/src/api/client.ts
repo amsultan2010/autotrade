@@ -56,7 +56,7 @@ export const api = {
   // ── Market data ──
   searchSymbols: (q: string) => request<SymbolSearchResult[]>(`/market/search?q=${encodeURIComponent(q)}`),
   getPopular: () =>
-    request<{ marketOpen: boolean; items: Array<{ symbol: string; name: string; kind: 'stock' | 'crypto'; exchange: string; open: boolean }> }>('/market/popular'),
+    request<{ marketOpen: boolean; items: Array<{ symbol: string; name: string; kind: 'stock' | 'crypto'; exchange: string; open: boolean; price: number | null; changePct: number | null }> }>('/market/popular'),
   getCandles: (symbol: string, timeframe: Timeframe) =>
     request<{ symbol: string; timeframe: Timeframe; candles: Candle[] }>(`/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}`),
 
