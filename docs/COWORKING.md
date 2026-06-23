@@ -1,84 +1,117 @@
 # Coworking guide
 
-This monorepo is split so two developers can work in parallel without stepping on each other.
+Two developers work in parallel on separate feature branches. Each person owns a top-level folder — no more digging through `apps/` vs `packages/`.
+
+## Repo layout
+
+```
+web/       Abdullah — Next.js website + Convex
+engine/    Preston — trading algorithm + Prisma
+worker/    Preston — background scan loop (deploys separately)
+shared/    Both — types, DTOs, error codes (coordinate changes)
+legacy/    Archived backend + desktop (not in workspace)
+```
+
+## Branch workflow
+
+Always branch from latest `main`. Use a prefix that matches your area:
+
+| Prefix | Who | Example |
+|--------|-----|---------|
+| `web/` | Abdullah | `web/watchlist-redesign` |
+| `engine/` | Preston | `engine/momentum-strategy-v2` |
+| `shared/` | Both (pair on it) | `shared/add-signal-status-enum` |
+
+```bash
+git checkout main && git pull
+git checkout -b web/my-feature    # or engine/my-feature
+# ... work only in your folder ...
+pnpm typecheck:web                # or pnpm typecheck:engine
+git push -u origin web/my-feature
+# open PR → merge to main
+```
+
+**Rules to avoid conflicts:**
+
+1. Stay in your folder. Abdullah edits `web/`, Preston edits `engine/` and `worker/`.
+2. Never edit the other person's folder on the same branch.
+3. `shared/` changes need both reviewers — they trigger full CI for everyone.
+4. Preston exposes new server APIs only through `engine/src/public/index.ts`.
+5. Abdullah imports engine only via `@autotrade/engine/public` in API routes.
 
 ## Ownership
 
-| Area | Paths | Owner | Deploy target |
-|------|-------|-------|---------------|
-| **Web** | `apps/web/` | User A (website) | Vercel |
-| **Engine** | `packages/engine/` | User B (algorithm) | — |
-| **Worker** | `apps/worker/` | User B (scan loop) | Railway / Fly / VPS |
-| **Shared contract** | `packages/shared/` | Both (coordinate) | npm workspace |
-| **Legacy** | `apps/backend/`, `apps/desktop/` | As needed | — |
+| Area | Path | Owner | Deploy |
+|------|------|-------|--------|
+| Web | `web/` | @amsultan2010 | Vercel |
+| Engine | `engine/` | @preston-inter | — |
+| Worker | `worker/` | @preston-inter | Railway / Fly / VPS |
+| Shared | `shared/` | Both | npm workspace |
 
-Update `.github/CODEOWNERS` with both GitHub usernames.
+GitHub CODEOWNERS auto-requests the right reviewer on PRs.
 
 ## Package boundaries
 
-### `apps/web` (Next.js + Convex)
+### `web/` (Next.js + Convex)
 
-- **Types**: import from `@autotrade/shared` only.
-- **Server operations** (API routes, cron): import from `@autotrade/engine/public` only.
-- **Never** import `@autotrade/engine` root or deep paths (`@autotrade/engine/src/...`).
+- **UI types**: `@autotrade/shared`
+- **Server ops** (API routes): `@autotrade/engine/public` only
+- **Never** import `@autotrade/engine` root or deep paths
 
-The `/public` entry is the stable surface. Engine internals can change freely; web builds should not break as long as `/public` stays compatible.
+### `engine/` (trading algorithm)
 
-### `packages/engine` (trading algorithm)
+- All strategy, market data, Prisma, execution logic lives here.
+- Export web-facing APIs through `src/public/index.ts`.
+- Refactor freely inside `src/` outside `public/`.
 
-- All strategy, market data, Prisma, and execution logic lives here.
-- Export new web-facing APIs through `src/public/index.ts` — do not expect web to import internals.
-- Breaking changes to `/public` require coordinating with User A.
+### `worker/` (scan loop)
 
-### `apps/worker` (background scan loop)
+- Thin process: imports full `@autotrade/engine`.
+- Deploy independently from web.
 
-- Depends only on `@autotrade/engine` (full) and `@autotrade/shared`.
-- Deploy independently from web. Algorithm changes ship via worker redeploy, not Vercel.
+### `shared/` (contract layer)
 
-### `packages/shared` (cross-boundary contract)
+- DTOs, enums, entitlements both sides compile against.
+- Any change here runs **full typecheck** in CI.
 
-- DTOs, enums, error codes, entitlements — anything both web UI and engine need at compile time.
-- Changes here trigger **full CI** (web + engine + worker) because both sides depend on it.
+## Daily commands
 
-## Typical workflows
-
-### User A — website only (ignore engine for a week)
+### Abdullah — website only
 
 ```bash
 pnpm install
-pnpm --filter @autotrade/shared build
-pnpm --filter @autotrade/web dev
+pnpm setup
+pnpm dev:web
 ```
 
-Work in `apps/web/` and `packages/shared/` (types only, with care). No need to run the worker or touch `packages/engine/`.
+Work in `web/`. No need to run the worker.
 
-### User B — algorithm only
+### Preston — algorithm only
 
 ```bash
 pnpm install
-pnpm db:generate
-pnpm --filter @autotrade/engine typecheck
-pnpm dev:worker
+pnpm setup
+pnpm typecheck:engine
+pnpm dev:engine
 ```
 
-Refactor freely inside `packages/engine/src/` (outside `public/`). Add or adjust `/public` exports only when web needs new server capabilities.
+Refactor freely in `engine/src/` (outside `public/`).
 
 ### Shared type change
 
-1. Update `packages/shared`.
-2. Run `pnpm typecheck` at root (or let CI run full matrix).
-3. Both developers pull before merging.
+1. Branch: `shared/descriptive-name`
+2. Update `shared/`, then `pnpm typecheck` at root
+3. Both owners review the PR before merge
 
-## CI path filters
+## CI
 
-`.github/workflows/ci.yml` runs scoped checks:
+Path-filtered checks on every PR to `main`:
 
-- `apps/web/**` → web typecheck
-- `packages/engine/**` or `apps/worker/**` → engine + worker typecheck
-- `packages/shared/**` or root lockfile → full typecheck
+| Changed paths | CI runs |
+|---------------|---------|
+| `web/**` | `typecheck:web` + boundary check |
+| `engine/**` or `worker/**` | `typecheck:engine` + boundary check |
+| `shared/**` or lockfile | Full `typecheck` |
+| Always | `scripts/check-boundaries.sh` |
 
-## Future decoupling
-
-- Move admin/legacy Prisma routes behind thin wrappers in `/public` (or Convex mutations).
-- Consider HTTP boundary between web and engine if teams fully diverge.
-- `AppError` in engine vs `TrackedError` in shared — align over time for client consistency.
+Run locally: `pnpm check:boundaries`

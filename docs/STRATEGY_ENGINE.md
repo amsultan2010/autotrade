@@ -1,6 +1,6 @@
 # Strategy Engine
 
-A modular, additive decision layer in `packages/engine/src/services/strategy-engine`.
+A modular, additive decision layer in `engine/src/services/strategy-engine`.
 It gives the bot multiple **comparable** strategy options, a **market-regime
 filter**, layered **risk controls**, and a **plain-English explanation** for every
 decision — traded or not.
@@ -123,7 +123,7 @@ trading-hours, max-active-trades, daily-loss, and final **position sizing**:
 `conservative`, `balanced`, `aggressive` (risk-appetite presets),
 `paper_only` (forces paper execution), `strategy_specific` (pin one strategy via
 `manualStrategy`), `auto` (bot chooses — balanced defaults). See
-[`strategy-engine.config.example.json`](../packages/engine/src/services/strategy-engine/strategy-engine.config.example.json).
+[`strategy-engine.config.example.json`](../engine/src/services/strategy-engine/strategy-engine.config.example.json).
 
 ## Logging
 

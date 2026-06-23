@@ -1,5 +1,5 @@
 /**
- * Stable public API for packages outside the engine (e.g. apps/web).
+ * Stable public API for packages outside the engine (e.g. web).
  *
  * Web and other consumers MUST import from `@autotrade/engine/public` only.
  * Internal paths may change without notice during algorithm work.

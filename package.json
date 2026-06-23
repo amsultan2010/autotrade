@@ -8,15 +8,18 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter @autotrade/web dev",
+    "dev": "pnpm dev:web",
     "dev:web": "pnpm --filter @autotrade/web dev",
-    "dev:worker": "pnpm --filter @autotrade/worker dev",
+    "dev:engine": "pnpm --filter @autotrade/worker dev",
     "build": "pnpm --filter @autotrade/shared build && pnpm -r --filter !@autotrade/shared build",
     "build:web": "pnpm --filter @autotrade/web build",
+    "build:vercel": "pnpm --filter @autotrade/shared build && pnpm --filter @autotrade/engine generate && pnpm --filter @autotrade/web build",
     "build:worker": "pnpm --filter @autotrade/worker build",
     "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @autotrade/backend prisma:generate && pnpm --filter @autotrade/engine generate",
-    "db:migrate": "pnpm --filter @autotrade/backend prisma:migrate",
+    "typecheck:web": "pnpm --filter @autotrade/web typecheck",
+    "typecheck:engine": "pnpm --filter @autotrade/engine typecheck && pnpm --filter @autotrade/worker typecheck",
+    "check:boundaries": "bash scripts/check-boundaries.sh",
+    "db:generate": "pnpm --filter @autotrade/engine generate",
     "setup": "pnpm --filter @autotrade/shared build && pnpm db:generate"
   },
   "devDependencies": {

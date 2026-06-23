@@ -10,6 +10,8 @@ release/
 *.tsbuildinfo
 
 # Electron packaged artifacts
+legacy/desktop/release/
+legacy/desktop/dist-electron/
 apps/desktop/release/
 apps/desktop/dist-electron/
 
@@ -19,10 +21,13 @@ apps/desktop/dist-electron/
 !.env.example
 
 # Prisma
+legacy/backend/prisma/*.db
+legacy/backend/prisma/migrations/dev.db*
 apps/backend/prisma/*.db
 apps/backend/prisma/migrations/dev.db*
 
 # Local embedded Postgres data dir
+legacy/backend/.pgdata/
 apps/backend/.pgdata/
 
 # Logs
@@ -41,4 +46,5 @@ Thumbs.db
 # Local encrypted desktop store
 *.alphabot-store
 .vercel
+web/.next/
 apps/web/.next/

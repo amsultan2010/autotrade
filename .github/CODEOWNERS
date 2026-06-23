@@ -1,6 +1,15 @@
-# Shared paths require both owners.
+# Abdullah — website (Next.js + Convex)
+/web/                          @amsultan2010
 
-/apps/web/                    @amsultan2010
-/packages/engine/             @preston-inter
-/apps/worker/                 @preston-inter
-/packages/shared/             @amsultan2010 @preston-inter
+# Preston — trading algorithm + background worker
+/engine/                       @preston-inter
+/worker/                       @preston-inter
+
+# Both — shared types/DTOs (coordinate before merging)
+/shared/                       @amsultan2010 @preston-inter
+
+# Root config changes affect everyone
+/package.json                  @amsultan2010 @preston-inter
+/pnpm-lock.yaml                @amsultan2010 @preston-inter
+/pnpm-workspace.yaml           @amsultan2010 @preston-inter
+/tsconfig.base.json             @amsultan2010 @preston-inter

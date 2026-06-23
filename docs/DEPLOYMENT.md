@@ -4,14 +4,18 @@ Autotrade has **two backends that each need their own environment variables**:
 
 | Where | What runs there | How to set env |
 |---|---|---|
-| **Vercel** (or `.env.local` locally) | The Next.js app + REST API routes + the bot engine (`packages/engine`) | Vercel project settings / `.env.local` |
+| **Vercel** (or `.env.local` locally) | The Next.js app + REST API routes + the bot engine (`engine`) | Vercel project settings / `.env.local` |
 | **Convex** | Auth verification, the database, the cron, the bot actions | `npx convex env set NAME value` or the Convex dashboard |
 
-The full variable list with comments is in [`apps/web/.env.example`](../apps/web/.env.example). This doc is the **deploy checklist** and a **symptom → fix** map.
+The full variable list with comments is in [`web/.env.example`](../web/.env.example). This doc is the **deploy checklist** and a **symptom → fix** map.
 
 ---
 
 ## 1. Vercel checklist
+
+**Root Directory:** `web` (not `apps/web`).
+
+**Install / build commands:** leave **empty** in the Vercel dashboard so `web/vercel.json` is used. If you override them in the UI (e.g. `cd ../.. && pnpm install`), deploys will fail — that path was for the old `apps/web` layout.
 
 Required (the app will not work without these):
 
