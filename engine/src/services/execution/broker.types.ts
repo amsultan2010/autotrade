@@ -41,6 +41,12 @@ export interface BrokerAccount {
   lastEquity?: number;
 }
 
+export interface PortfolioHistory {
+  equity: number[];
+  /** Unix timestamps in seconds. */
+  timestamp: number[];
+}
+
 export interface BrokerProvider {
   readonly name: string;
   readonly mode: 'paper' | 'live';
@@ -50,4 +56,5 @@ export interface BrokerProvider {
   closePosition(symbol: string): Promise<number | null>;
   getPositions(): Promise<BrokerPosition[]>;
   getAccount(): Promise<BrokerAccount>;
+  getPortfolioHistory(period: '1D' | '1W' | '1M' | '3M' | '1A'): Promise<PortfolioHistory>;
 }

@@ -5,6 +5,15 @@ import { ErrorCodes } from '@autotrade/shared';
 import { api as convexApi } from '@/convex/_generated/api';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 import { mergeOpenPositions, type DisplayPosition } from '@/lib/positions';
+import {
+  averageSignalConfidence,
+  buildConfidenceTrend,
+  buildCumulativePnlSeries,
+  buildSimulatorEquityCurve,
+  formatHistoryLabels,
+  signalRegime,
+  type EquityTab,
+} from '@/lib/dashboard-charts';
 
 // ─── Convex data shapes ───────────────────────────────────────────────────────
 interface ConvexBotStatus {
@@ -59,59 +68,11 @@ function minsAgo(ts: number | string): string {
   return `${diff}m ago`;
 }
 
-// ─── Equity curve from real trade history ────────────────────────────────────
-function buildRealCurve(
-  startBalance: number,
-  trades: Array<{ closedAt?: number; pnl?: number }>,
-  tab: '1D' | '1W' | '1M' | '3M' | '1Y',
-  points = 60,
-): number[] {
-  const now = Date.now();
-  const tabMs: Record<typeof tab, number> = {
-    '1D': 86_400_000,
-    '1W': 7 * 86_400_000,
-    '1M': 30 * 86_400_000,
-    '3M': 90 * 86_400_000,
-    '1Y': 365 * 86_400_000,
-  };
-
-  const closed = trades
-    .filter((t) => t.closedAt != null && t.pnl != null && now - (t.closedAt ?? 0) <= tabMs[tab])
-    .sort((a, b) => (a.closedAt ?? 0) - (b.closedAt ?? 0));
-
-  if (closed.length === 0) {
-    // Flat line at current equity
-    return Array(points).fill(startBalance) as number[];
-  }
-
-  // Build cumulative PnL series
-  let running = startBalance;
-  const points_data: number[] = [startBalance];
-  for (const t of closed) {
-    running += t.pnl ?? 0;
-    points_data.push(running);
-  }
-
-  // Resample to exactly `points` data points
-  const result: number[] = [];
-  for (let i = 0; i < points; i++) {
-    const idx = Math.round((i / (points - 1)) * (points_data.length - 1));
-    result.push(points_data[Math.min(idx, points_data.length - 1)] ?? startBalance);
-  }
-  return result;
-}
-
-// Seeded PRNG for demo sparklines
-function seededRand(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
-}
+// ─── Equity curve helpers (simulator fallback) ───────────────────────────────
+// Live Alpaca portfolio history is fetched via /api/v1/broker/portfolio-history.
 
 // ─── Portfolio area chart (canvas) ───────────────────────────────────────────
-function PortfolioChart({ data }: { data: number[] }) {
+function PortfolioChart({ data, labels }: { data: number[]; labels: string[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -143,12 +104,12 @@ function PortfolioChart({ data }: { data: number[] }) {
         ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
       }
 
-      const labels = ['12AM', '4AM', '8AM', '12PM', '4PM', '8PM'];
+      const labelsToDraw = labels.length >= 2 ? labels : ['', '', '', '', '', ''];
       ctx.fillStyle = 'rgba(168,190,206,0.6)';
       ctx.font = `${10 * devicePixelRatio}px Inter, sans-serif`;
       ctx.textAlign = 'center';
-      labels.forEach((lbl, i) => {
-        const x = pad.l + (i / (labels.length - 1)) * innerW;
+      labelsToDraw.forEach((lbl, i) => {
+        const x = pad.l + (i / (labelsToDraw.length - 1)) * innerW;
         ctx.fillText(lbl, x, H - 6);
       });
 
@@ -199,7 +160,7 @@ function PortfolioChart({ data }: { data: number[] }) {
     const ro = new ResizeObserver(draw);
     ro.observe(canvas);
     return () => ro.disconnect();
-  }, [data]);
+  }, [data, labels]);
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
 }
@@ -273,18 +234,18 @@ function ConfidenceGauge({ value }: { value: number }) {
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
 }
 
-// ─── Mini sparkline ───────────────────────────────────────────────────────────
-function MiniSparkline({ seed, up }: { seed: number; up: boolean }) {
+// ─── Sparkline from real price / PnL series ───────────────────────────────────
+function DataSparkline({ values, up, width = 44, height = 22 }: { values: number[]; up: boolean; width?: number; height?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rand = seededRand(seed);
-    const pts: number[] = [0.5];
-    for (let i = 1; i < 14; i++) {
-      pts.push(Math.max(0.05, Math.min(0.95, pts[i - 1]! + (rand() - (up ? 0.44 : 0.56)) * 0.18)));
-    }
+    if (!canvas || values.length < 2) return;
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const pts = values.map((v) => (v - min) / range);
 
     function draw() {
       const W = canvas!.offsetWidth * devicePixelRatio;
@@ -306,9 +267,13 @@ function MiniSparkline({ seed, up }: { seed: number; up: boolean }) {
     }
 
     draw();
-  }, [seed, up]);
+  }, [values, up]);
 
-  return <canvas ref={canvasRef} style={{ width: 44, height: 22, display: 'block' }} />;
+  if (values.length < 2) {
+    return <span className="muted" style={{ fontSize: 10, width, display: 'inline-block' }}>—</span>;
+  }
+
+  return <canvas ref={canvasRef} style={{ width, height, display: 'block' }} />;
 }
 
 // ─── Heatmap tile ─────────────────────────────────────────────────────────────
@@ -328,20 +293,6 @@ function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: bo
     </div>
   );
 }
-
-// ─── Fallback heatmap tiles (only when watchlist is empty) ───────────────────
-const HEATMAP_FALLBACK = [
-  { sym: 'AAPL', pct: 0, large: true },
-  { sym: 'MSFT', pct: 0, large: true },
-  { sym: 'NVDA', pct: 0, large: true },
-  { sym: 'AMZN', pct: 0, large: true },
-  { sym: 'GOOG', pct: 0, large: true },
-  { sym: 'META', pct: 0, large: true },
-  { sym: 'TSLA', pct: 0, large: true },
-  { sym: 'JPM',  pct: 0 },
-  { sym: 'SPY',  pct: 0 },
-  { sym: 'QQQ',  pct: 0 },
-];
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export function Dashboard() {
@@ -365,7 +316,10 @@ export function Dashboard() {
   const [error, setError]   = useState<string | null>(null);
   const [brokerError, setBrokerError] = useState<string | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
-  const [tab, setTab]       = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
+  const [tab, setTab]       = useState<EquityTab>('1D');
+  const [alpacaEquitySeries, setAlpacaEquitySeries] = useState<number[] | null>(null);
+  const [alpacaTimestamps, setAlpacaTimestamps] = useState<number[]>([]);
+  const [symbolSparklines, setSymbolSparklines] = useState<Record<string, number[]>>({});
 
   // Fetch live prices for watchlist symbols
   const symbolsKey = watchlist?.map((w) => w.symbol).join(',') ?? '';
@@ -402,6 +356,69 @@ export function Dashboard() {
     const t = setInterval(runSync, 15_000);
     return () => clearInterval(t);
   }, [brokerConnected, convexAuthLoading, isAuthenticated, syncBroker]);
+
+  // Alpaca portfolio equity history for the chart (live account curve).
+  useEffect(() => {
+    if (!brokerConnected || convexAuthLoading || !isAuthenticated) {
+      setAlpacaEquitySeries(null);
+      setAlpacaTimestamps([]);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(`/api/v1/broker/portfolio-history?tab=${tab}`)
+      .then((r) => r.json())
+      .then((hist: { equity?: number[]; timestamp?: number[] } | null) => {
+        if (cancelled) return;
+        if (hist?.equity?.length) {
+          setAlpacaEquitySeries(hist.equity);
+          setAlpacaTimestamps(hist.timestamp ?? []);
+        } else {
+          setAlpacaEquitySeries(null);
+          setAlpacaTimestamps([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAlpacaEquitySeries(null);
+          setAlpacaTimestamps([]);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [brokerConnected, convexAuthLoading, isAuthenticated, tab]);
+
+  const signals: ConvexSignal[] = signalData ?? [];
+
+  // Mini price sparklines for signal feed tickers (real 1D candles).
+  const signalTickersKey = signals.slice(0, 4).map((s) => s.ticker).join(',');
+  useEffect(() => {
+    if (!signalTickersKey) return;
+    const tickers = signalTickersKey.split(',').filter(Boolean);
+    let cancelled = false;
+
+    Promise.all(
+      tickers.map(async (symbol) => {
+        try {
+          const r = await fetch(`/api/v1/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=1d&limit=14`);
+          const json = (await r.json()) as { candles?: Array<{ c: number }> };
+          const closes = (json.candles ?? []).map((c) => c.c);
+          return [symbol.toUpperCase(), closes] as const;
+        } catch {
+          return [symbol.toUpperCase(), [] as number[]] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const next: Record<string, number[]> = {};
+      for (const [sym, closes] of entries) {
+        if (closes.length >= 2) next[sym] = closes;
+      }
+      setSymbolSparklines(next);
+    });
+
+    return () => { cancelled = true; };
+  }, [signalTickersKey]);
 
   async function toggle() {
     if (convexAuthLoading || !isAuthenticated) {
@@ -500,30 +517,39 @@ export function Dashboard() {
 
   // ── Performance ──────────────────────────────────────────────────────────────
   const winRate = perfData ? Math.round(perfData.winRate * 100) : 0;
-  const regime  = winRate >= 70 ? 'Bullish' : winRate >= 50 ? 'Neutral' : 'Bearish';
+  const avgConfidence = averageSignalConfidence(signals);
+  const regime = signalRegime(signals);
+  const confidenceTrend = buildConfidenceTrend(signals);
+  const perfPnlSeries = buildCumulativePnlSeries(tradeData?.items ?? []);
 
-  // ── Signals ──────────────────────────────────────────────────────────────────
-  const signals: ConvexSignal[] = signalData ?? [];
-
-  // ── Heatmap from watchlist (always show user's symbols) ─────────────────────
+  // ── Heatmap from watchlist (user symbols + live quotes) ─────────────────────
   const watchlistSymbols = watchlist?.map((w) => w.symbol) ?? [];
   const quoteBySymbol = new Map(quotes.map((q) => [q.symbol.toUpperCase(), q.changePct ?? 0]));
-  const heatmapData =
-    watchlistSymbols.length > 0
-      ? watchlistSymbols.slice(0, 10).map((sym, i) => ({
-          sym,
-          pct: quoteBySymbol.get(sym.toUpperCase()) ?? 0,
-          large: i < 7,
-        }))
-      : HEATMAP_FALLBACK;
+  const heatmapData = watchlistSymbols.slice(0, 10).map((sym, i) => ({
+    sym,
+    pct: quoteBySymbol.get(sym.toUpperCase()) ?? 0,
+    large: i < 7,
+  }));
+
+  // ── Equity curve: Alpaca history when connected, else simulator from trades ─
+  const rawEquitySeries =
+    alpacaEquitySeries && alpacaEquitySeries.length >= 2
+      ? alpacaEquitySeries
+      : buildSimulatorEquityCurve(equity, tradeData?.items ?? [], tab);
+  const equityCurve = rawEquitySeries.length >= 2
+    ? rawEquitySeries
+    : buildSimulatorEquityCurve(Math.max(equity, 1), tradeData?.items ?? [], tab);
+  const chartLabels =
+    alpacaTimestamps.length >= 2
+      ? formatHistoryLabels(alpacaTimestamps, tab)
+      : formatHistoryLabels([], tab);
+
+  const perfToday = alpacaDayGain ?? perfData?.dailyPnl ?? 0;
 
   // ── Positions: broker snapshot + simulator open trades (same source as history)
   const livePositions: DisplayPosition[] = mergeOpenPositions(snap?.positions ?? [], openTrades?.items ?? []);
   const openTradeCount = openTrades?.items.length ?? perfData?.openTrades ?? 0;
   const positionsLoading = brokerConnected && brokerSnapshot === undefined && openTrades === undefined;
-
-  // ── Real equity curve from trade history ─────────────────────────────────────
-  const equityCurve = buildRealCurve(balance, tradeData?.items ?? [], tab);
 
   // ── Mode display ─────────────────────────────────────────────────────────────
   const modeLabel = botStatus
@@ -625,9 +651,12 @@ export function Dashboard() {
                 No signals yet — start the bot to generate signals.
               </p>
             ) : (
-              signals.slice(0, 4).map((s, i) => (
-                <div key={i} className="db-signal-row">
-                  <MiniSparkline seed={i * 17 + 3} up={s.action === 'BUY'} />
+              signals.slice(0, 4).map((s) => {
+                const spark = symbolSparklines[s.ticker.toUpperCase()] ?? [];
+                const sparkUp = spark.length >= 2 ? spark[spark.length - 1]! >= spark[0]! : s.action === 'BUY';
+                return (
+                <div key={`${s.ticker}-${s.createdAt}`} className="db-signal-row">
+                  <DataSparkline values={spark} up={sparkUp} />
                   <div className="db-signal-info">
                     <span className="db-signal-ticker">{s.ticker}</span>
                     <span className={`db-signal-action ${s.action === 'BUY' ? 'buy' : 'sell'}`}>
@@ -637,7 +666,7 @@ export function Dashboard() {
                   </div>
                   <span className="db-signal-age">{minsAgo(s.createdAt)}</span>
                 </div>
-              ))
+              );})
             )}
           </div>
           {signals.length > 0 && <a href="#" className="db-view-all">View all signals →</a>}
@@ -663,7 +692,7 @@ export function Dashboard() {
             )}
           </div>
           <div className="db-chart-area">
-            <PortfolioChart data={equityCurve} />
+            <PortfolioChart data={equityCurve} labels={chartLabels} />
           </div>
         </div>
 
@@ -673,15 +702,20 @@ export function Dashboard() {
             <span className="db-panel-title">AI CONFIDENCE</span>
           </div>
           <div className="db-gauge-wrap">
-            <ConfidenceGauge value={winRate} />
+            <ConfidenceGauge value={avgConfidence} />
           </div>
           <div className="db-regime-row">
-            <span className="db-regime-label">Market Regime</span>
-            <span className="db-regime-value teal">{regime} ↗</span>
+            <span className="db-regime-label">Signal Regime</span>
+            <span className={`db-regime-value ${regime === 'Bullish' ? 'teal' : regime === 'Bearish' ? 'neg' : ''}`}>
+              {regime} {regime === 'Bullish' ? '↗' : regime === 'Bearish' ? '↘' : '→'}
+            </span>
           </div>
           <div className="db-confidence-chart">
-            <MiniSparkline seed={99} up={winRate >= 50} />
+            <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={120} height={28} />
           </div>
+          <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+            Win rate {perfData ? `${winRate}%` : '—'} · {signals.length} recent signal{signals.length === 1 ? '' : 's'}
+          </p>
         </div>
       </div>
 
@@ -734,12 +768,20 @@ export function Dashboard() {
             <span className="db-panel-title">MARKET HEATMAP</span>
           </div>
           <div className="db-heatmap-grid">
-            {heatmapData.slice(0, 7).map((t, i) => (
-              <HeatmapTile key={i} sym={t.sym} pct={t.pct} large={t.large} />
-            ))}
-            {heatmapData.slice(7).map((t, i) => (
-              <HeatmapTile key={`s${i}`} sym={t.sym} pct={t.pct} />
-            ))}
+            {heatmapData.length === 0 ? (
+              <p className="muted" style={{ padding: '1rem 0', fontSize: 13, gridColumn: '1 / -1' }}>
+                Add symbols to your Watchlist to see live market heatmap.
+              </p>
+            ) : (
+              <>
+                {heatmapData.slice(0, 7).map((t) => (
+                  <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} large={t.large} />
+                ))}
+                {heatmapData.slice(7).map((t) => (
+                  <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} />
+                ))}
+              </>
+            )}
           </div>
         </div>
 
@@ -751,8 +793,8 @@ export function Dashboard() {
           <div className="db-perf-list">
             <div className="db-perf-row">
               <span className="db-perf-label">Today</span>
-              <span className={`db-perf-value ${pnlClass(dayGain)}`}>
-                {perfData ? `${dayGain >= 0 ? '+' : ''}${money(dayGain)}` : '--'}
+              <span className={`db-perf-value ${pnlClass(perfToday)}`}>
+                {perfData || alpacaDayGain != null ? `${perfToday >= 0 ? '+' : ''}${money(perfToday)}` : '--'}
               </span>
             </div>
             <div className="db-perf-row">
@@ -775,7 +817,7 @@ export function Dashboard() {
             </div>
           </div>
           <div className="db-perf-sparkline">
-            <MiniSparkline seed={42} up={(perfData?.totalPnl ?? 0) >= 0} />
+            <DataSparkline values={perfPnlSeries} up={(perfData?.totalPnl ?? 0) >= 0} width={120} height={28} />
           </div>
           <div className="db-perf-stats">
             <div className="db-perf-stat">

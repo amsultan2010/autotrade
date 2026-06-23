@@ -179,6 +179,18 @@ export class AlpacaBroker implements BrokerProvider {
       lastEquity: a.last_equity != null ? Number(a.last_equity) : undefined,
     };
   }
+
+  async getPortfolioHistory(period: '1D' | '1W' | '1M' | '3M' | '1A'): Promise<import('./broker.types').PortfolioHistory> {
+    const timeframe =
+      period === '1D' ? '5Min' : period === '1W' ? '1H' : '1D';
+    const r = await this.req<{ equity: number[]; timestamp: number[] }>(
+      `/v2/account/portfolio/history?period=${period}&timeframe=${timeframe}`,
+    );
+    return {
+      equity: r.equity ?? [],
+      timestamp: r.timestamp ?? [],
+    };
+  }
 }
 
 /** Verify Alpaca API keys against paper or live trading endpoint. */
