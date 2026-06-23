@@ -26,6 +26,7 @@ import type * as lib_defaultBotSettings from "../lib/defaultBotSettings.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
 import type * as lib_founderSubscription from "../lib/founderSubscription.js";
 import type * as lib_internalSecret from "../lib/internalSecret.js";
+import type * as lib_strategyDefaults from "../lib/strategyDefaults.js";
 import type * as lib_userBootstrap from "../lib/userBootstrap.js";
 import type * as paperAccount from "../paperAccount.js";
 import type * as performance from "../performance.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "lib/entitlements": typeof lib_entitlements;
   "lib/founderSubscription": typeof lib_founderSubscription;
   "lib/internalSecret": typeof lib_internalSecret;
+  "lib/strategyDefaults": typeof lib_strategyDefaults;
   "lib/userBootstrap": typeof lib_userBootstrap;
   paperAccount: typeof paperAccount;
   performance: typeof performance;
