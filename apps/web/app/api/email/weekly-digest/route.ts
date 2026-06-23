@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { type NextRequest } from 'next/server';
 import { sendWeeklyDigest } from '@/lib/email';
-import { prisma } from '@autotrade/engine';
+import { prisma } from '@autotrade/engine/public';
 import { requireUser } from '@/lib/auth';
 
 async function sendDigestForUserId(userId: string, email: string) {

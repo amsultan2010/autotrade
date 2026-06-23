@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { getMarketData } from '@autotrade/engine';
+import { getMarketData } from '@autotrade/engine/public';
 
 const SYMBOL_RE = /^[A-Z0-9./-]{1,20}$/;
 

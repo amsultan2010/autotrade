@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { loadUserBroker } from '@autotrade/engine';
+import { loadUserBroker } from '@autotrade/engine/public';
 import { ok, handleError } from '@/lib/api-response';
 
 export async function GET() {

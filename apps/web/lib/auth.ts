@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { createClerkClient } from '@clerk/backend';
-import { prisma, env, DEFAULT_WATCHLIST, UnauthorizedError, ForbiddenError } from '@autotrade/engine';
+import { prisma, env, DEFAULT_WATCHLIST, UnauthorizedError, ForbiddenError } from '@autotrade/engine/public';
 
 export async function requireUser() {
   const { userId } = await auth();

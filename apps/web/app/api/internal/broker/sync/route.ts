@@ -6,7 +6,7 @@
  * Protected by BOT_INTERNAL_SECRET — never exposed to clients.
  */
 import { type NextRequest, NextResponse } from 'next/server';
-import { prisma, encryptSecret, env } from '@autotrade/engine';
+import { prisma, encryptSecret, env } from '@autotrade/engine/public';
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.BOT_INTERNAL_SECRET;

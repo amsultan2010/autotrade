@@ -1,6 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { isStockMarketOpen, POPULAR_TICKERS } from '@autotrade/engine';
+import { isStockMarketOpen, POPULAR_TICKERS } from '@autotrade/engine/public';
 
 export async function GET() {
   try {

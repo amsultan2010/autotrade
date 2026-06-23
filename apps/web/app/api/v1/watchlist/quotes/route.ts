@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getMarketData, liveEngine } from '@autotrade/engine';
+import { getMarketData, liveEngine } from '@autotrade/engine/public';
 import { ok, handleError } from '@/lib/api-response';
 
 export async function GET(req: NextRequest) {

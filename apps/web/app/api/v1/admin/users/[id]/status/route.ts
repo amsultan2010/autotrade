@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { USER_STATUSES } from '@autotrade/shared';
 import { requireAdmin } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { prisma, parse, writeAudit } from '@autotrade/engine';
+import { prisma, parse, writeAudit } from '@autotrade/engine/public';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

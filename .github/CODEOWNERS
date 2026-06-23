@@ -1,0 +1,6 @@
+# Update handles for your team. Shared paths require both owners.
+
+/apps/web/                    @amsultan2010
+/packages/engine/             @amsultan2010
+/apps/worker/                 @amsultan2010
+/packages/shared/             @amsultan2010

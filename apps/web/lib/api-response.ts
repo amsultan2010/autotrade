@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { AppError } from '@autotrade/engine';
+import { AppError } from '@autotrade/engine/public';
 import { ErrorCodes, type ErrorPayload } from '@autotrade/shared';
 import { captureAppError } from '@/lib/error-tracking';
 

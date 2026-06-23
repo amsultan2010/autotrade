@@ -1,7 +1,7 @@
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
 import { capture } from '@/lib/analytics';
-import { createCheckoutSession } from '@autotrade/engine';
+import { createCheckoutSession } from '@autotrade/engine/public';
 
 export async function POST() {
   try {
