@@ -9,6 +9,8 @@ export default defineSchema({
     email: v.string(),
     role: v.union(v.literal('USER'), v.literal('ADMIN'), v.literal('DEVELOPER')),
     status: v.union(v.literal('ACTIVE'), v.literal('DISABLED')),
+    /** false = show Alpaca linking guide; undefined = legacy user (skip guide). */
+    alpacaGuideCompleted: v.optional(v.boolean()),
   })
     .index('by_clerk_id', ['clerkId'])
     .index('by_email', ['email']),

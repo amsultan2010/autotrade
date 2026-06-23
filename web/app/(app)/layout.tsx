@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nextjs';
 import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
+import { AlpacaOnboardingGuide } from '@/src/components/AlpacaOnboardingGuide';
 
 const NAV = [
   { href: '/dashboard',  label: 'Dashboard',    icon: '▦' },
@@ -38,6 +39,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
+      <AlpacaOnboardingGuide />
       <ConstellationBg dim />
       <div className="app-shell">
         <aside className="sidebar">

@@ -47,6 +47,7 @@ export const syncFromClerk = mutation({
       email,
       role: role ?? 'USER',
       status: 'ACTIVE',
+      alpacaGuideCompleted: false,
     });
 
     // Seed paper account and default bot settings for every new user.
@@ -136,6 +137,7 @@ export const ensureExists = mutation({
       email,
       role: 'USER',
       status: 'ACTIVE',
+      alpacaGuideCompleted: false,
     });
 
     await ctx.db.insert('paperAccounts', { clerkId, balance: 100_000, equity: 100_000 });
@@ -159,6 +161,26 @@ export const ensureExists = mutation({
     await ensureFounderSubscription(ctx, clerkId, email);
 
     return userId;
+  },
+});
+
+
+/** Marks the Alpaca linking guide as completed for the current user. */
+export const completeAlpacaGuide = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Not authenticated');
+
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
+      .unique();
+    if (!user) throw new Error('User not found');
+
+    await ctx.db.patch(user._id, { alpacaGuideCompleted: true });
+    return null;
   },
 });
 
