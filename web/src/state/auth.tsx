@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useAuth as useClerkAuth, useUser } from '@clerk/nextjs';
-import { useQuery, useMutation } from 'convex/react';
+import { useConvexAuth, useQuery, useMutation } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import type { SubscriptionInfo } from '@autotrade/shared';
 
@@ -14,6 +14,7 @@ const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn } = useClerkAuth();
+  const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const { user } = useUser();
 
   // Self-heal: ensure this signed-in user has their Convex records
@@ -26,13 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncedRef = useRef(false);
   const email = user?.primaryEmailAddress?.emailAddress ?? '';
   useEffect(() => {
-    if (!isSignedIn || !email || syncedRef.current) return;
+    if (!isSignedIn || convexAuthLoading || !isAuthenticated || !email || syncedRef.current) return;
     syncedRef.current = true;
     ensureExists({ email }).catch(() => {
       // Allow a retry on a later render if the first attempt failed.
       syncedRef.current = false;
     });
-  }, [isSignedIn, email, ensureExists]);
+  }, [isSignedIn, convexAuthLoading, isAuthenticated, email, ensureExists]);
 
   const subData    = useQuery(convexApi.subscription.get);
   const entitled   = useQuery(convexApi.subscription.isEntitled);

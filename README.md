@@ -57,13 +57,15 @@ See [docs/COWORKING.md](docs/COWORKING.md) for the full guide.
 | `pnpm typecheck:engine` | Typecheck engine + worker |
 | `pnpm check:boundaries` | Verify web/engine import rules |
 | `pnpm setup` | Build shared package |
+| `pnpm setup:convex-ci` | One-time: store Convex deploy key in GitHub secrets |
+| `pnpm deploy:convex` | Manual Convex deploy (CI handles this on merge) |
 
 ## Deploy
 
 | Component | Target | Docs |
 |-----------|--------|------|
 | Web | Vercel (Root Directory: `web`) | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
-| Convex | `pnpm convex:deploy` in `web/` | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| Convex | Auto on merge to `main` (GitHub Actions); manual: `pnpm deploy:convex` | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | Worker | Railway / Fly / VPS | [docs/COWORKING.md](docs/COWORKING.md) |
 
 ## Security

@@ -1,0 +1,39 @@
+# Deploy Convex backend when convex functions change on main.
+# Requires CONVEX_DEPLOY_KEY in repo secrets (one-time setup — see docs/DEPLOYMENT.md).
+name: Deploy Convex
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/convex/**'
+      - 'web/convex.json'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: deploy-convex-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Convex to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Convex functions
+        working-directory: web
+        run: pnpm exec convex deploy --yes
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}

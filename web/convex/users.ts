@@ -1,5 +1,6 @@
 import { mutation, query, internalQuery, type MutationCtx } from './_generated/server';
 import { v } from 'convex/values';
+import { requireAuth } from './lib/adminAuth';
 import { FOUNDER_TIER, isFounderEmail } from './lib/billing';
 
 async function ensureFounderSubscription(
@@ -119,8 +120,7 @@ export const ensureExists = mutation({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error('Unauthenticated');
-    const clerkId = identity.subject;
+    const clerkId = requireAuth(identity);
 
     const existing = await ctx.db
       .query('users')

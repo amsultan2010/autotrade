@@ -4,7 +4,7 @@
 
 import { action } from './_generated/server';
 import { internal } from './_generated/api';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import crypto from 'node:crypto';
 import { requireInternalSecret } from './lib/internalSecret';
 import { hasLiveTradingAccess } from './lib/entitlements';
@@ -13,7 +13,7 @@ const ALGORITHM = 'aes-256-gcm';
 
 function getKey(): Buffer {
   const raw = process.env.BROKER_ENCRYPTION_KEY;
-  if (!raw) throw new Error('BROKER_ENCRYPTION_KEY is not set in Convex environment variables');
+  if (!raw) throw new ConvexError('BROKER_ENCRYPTION_KEY is not set in Convex environment variables');
   if (/^[0-9a-f]{64}$/i.test(raw)) return Buffer.from(raw, 'hex');
   return Buffer.from(raw, 'base64');
 }
@@ -69,21 +69,21 @@ export const connect = action({
   },
   handler: async (ctx, { keyId, secret, paper }) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error('Unauthenticated');
+    if (!identity) throw new ConvexError('Unauthenticated');
 
     const check = await verifyAlpacaKeys(keyId, secret, paper);
-    if (!check.ok) throw new Error(check.error ?? 'Invalid Alpaca keys');
+    if (!check.ok) throw new ConvexError(check.error ?? 'Invalid Alpaca keys');
 
     if (!paper) {
       const user = await ctx.runQuery(internal.users._getByClerkId, {
         clerkId: identity.subject,
       });
-      if (!user) throw new Error('User not found');
+      if (!user) throw new ConvexError('User not found');
       const sub = await ctx.runQuery(internal.subscriptionInternal._getByClerkId, {
         clerkId: identity.subject,
       });
       if (!hasLiveTradingAccess(user.role, sub, user.email)) {
-        throw new Error('Live Alpaca keys require live trading access.');
+        throw new ConvexError('Live Alpaca keys require live trading access.');
       }
     }
 
@@ -103,7 +103,7 @@ export const disconnect = action({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error('Unauthenticated');
+    if (!identity) throw new ConvexError('Unauthenticated');
     await ctx.runMutation(internal.brokerCredential._deleteCredential, {
       clerkId: identity.subject,
     });
@@ -119,7 +119,7 @@ export const getDecryptedKeys = action({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error('Unauthenticated');
+    if (!identity) throw new ConvexError('Unauthenticated');
 
     const cred = (await ctx.runQuery(internal.brokerCredential._getRaw, {
       clerkId: identity.subject,

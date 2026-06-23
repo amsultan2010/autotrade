@@ -1,11 +1,8 @@
 import { query, mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
+import { requireAuth } from './lib/adminAuth';
 import { isLiveEntitled } from './lib/entitlements';
 
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
 
 /** List trades for the current user with optional filters and cursor pagination. */
 export const list = query({
@@ -92,7 +89,7 @@ export const create = mutation({
         ctx.db.query('subscriptions').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
       ]);
       if (!isLiveEntitled(user?.role ?? 'USER', sub, user?.email)) {
-        throw new Error('Live trading requires an active subscription.');
+        throw new ConvexError('Live trading requires an active subscription.');
       }
     }
 
@@ -122,8 +119,8 @@ export const close = mutation({
     const clerkId = requireAuth(identity);
 
     const trade = await ctx.db.get(id);
-    if (!trade || trade.clerkId !== clerkId) throw new Error('Trade not found');
-    if (trade.result !== 'OPEN') throw new Error('Trade is already closed');
+    if (!trade || trade.clerkId !== clerkId) throw new ConvexError('Trade not found');
+    if (trade.result !== 'OPEN') throw new ConvexError('Trade is already closed');
 
     const rawPnl = trade.side === 'LONG'
       ? (exitPrice - trade.entryPrice) * trade.qty
@@ -258,7 +255,7 @@ export const annotate = mutation({
     const clerkId = requireAuth(identity);
 
     const trade = await ctx.db.get(id);
-    if (!trade || trade.clerkId !== clerkId) throw new Error('Trade not found');
+    if (!trade || trade.clerkId !== clerkId) throw new ConvexError('Trade not found');
 
     await ctx.db.patch(id, { mistakeTags, reasoningCorrect });
   },

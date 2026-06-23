@@ -1,10 +1,7 @@
 import { query, mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
+import { requireAuth } from './lib/adminAuth';
 
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
 
 /** Get the current user's paper trading account. */
 export const get = query({
@@ -34,7 +31,7 @@ export const update = mutation({
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
 
-    if (!account) throw new Error('Paper account not found');
+    if (!account) throw new ConvexError('Paper account not found');
     await ctx.db.patch(account._id, { balance, equity });
     return ctx.db.get(account._id);
   },
@@ -52,7 +49,7 @@ export const reset = mutation({
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
 
-    if (!account) throw new Error('Paper account not found');
+    if (!account) throw new ConvexError('Paper account not found');
     await ctx.db.patch(account._id, { balance: 100_000, equity: 100_000 });
   },
 });

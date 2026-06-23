@@ -1,9 +1,5 @@
 import { query } from './_generated/server';
 
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
 
 /** Compute performance summary from all trades for the current user. */
 export const summary = query({

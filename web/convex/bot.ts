@@ -11,7 +11,7 @@ export const runNow = action({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error('Unauthenticated');
+    if (!identity) throw new ConvexError('Unauthenticated');
 
     const botSecret = process.env.BOT_INTERNAL_SECRET;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;

@@ -2,11 +2,7 @@ import { query, mutation, type QueryCtx } from './_generated/server';
 import { v, ConvexError } from 'convex/values';
 import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
 import { isBillingEnabled } from './lib/billing';
-
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
+import { requireAuth } from './lib/adminAuth';
 
 async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
   const [user, sub, trades] = await Promise.all([

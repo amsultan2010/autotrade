@@ -1,10 +1,7 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { requireAuth } from './lib/adminAuth';
 
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
 
 /** List the most recent signals for the current user. */
 export const list = query({
