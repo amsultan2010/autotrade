@@ -37,7 +37,7 @@ export { isStockMarketOpen } from '../lib/alpaca';
 
 // Broker
 export { loadUserBroker } from '../lib/broker-credentials';
-export { AlpacaBroker } from '../services/execution/alpaca.broker';
+export { AlpacaBroker, verifyAlpacaCredentials } from '../services/execution/alpaca.broker';
 export type { BrokerProvider } from '../services/execution/broker.types';
 
 // Billing

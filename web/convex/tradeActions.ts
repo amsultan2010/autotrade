@@ -4,7 +4,7 @@ import { api } from './_generated/api';
 import { ConvexError, v } from 'convex/values';
 
 /** Close an open trade at the current market price.
- * For LIVE trades, also closes the position in Alpaca before recording in Convex. */
+ * For broker-backed trades (paper or live), closes the Alpaca position before recording in Convex. */
 export const closeAtMarket = action({
   args: { id: v.id('trades') },
   handler: async (ctx, { id }): Promise<unknown> => {
@@ -15,6 +15,7 @@ export const closeAtMarket = action({
       entryPrice: number;
       symbol: string;
       mode?: string;
+      brokerOrderId?: string;
     } | null;
     if (!trade) throw new ConvexError('Trade not found');
 
@@ -24,8 +25,8 @@ export const closeAtMarket = action({
 
     let exitPrice: number = trade.entryPrice;
 
-    if (trade.mode === 'LIVE' && base && botSecret) {
-      // For live trades: close the Alpaca position and get the real fill price.
+    if (trade.brokerOrderId && base && botSecret) {
+      // Close the Alpaca position and get the real fill price when available.
       try {
         const res = await fetch(`${base}/api/internal/broker/close-position`, {
           method: 'POST',

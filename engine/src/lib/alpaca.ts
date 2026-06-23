@@ -18,8 +18,8 @@ export function alpacaStreamUrl(): string {
 
 export function alpacaHeaders(): Record<string, string> {
   return {
-    'APCA-API-KEY-ID': env.ALPACA_API_KEY ?? '',
-    'APCA-API-SECRET-KEY': env.ALPACA_API_SECRET ?? '',
+    'APCA-API-KEY-ID': (env.ALPACA_API_KEY ?? '').trim(),
+    'APCA-API-SECRET-KEY': (env.ALPACA_API_SECRET ?? '').trim(),
     Accept: 'application/json',
   };
 }

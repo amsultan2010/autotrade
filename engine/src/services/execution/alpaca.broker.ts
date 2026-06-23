@@ -1,11 +1,9 @@
 /**
  * Alpaca broker provider — implements BrokerProvider against Alpaca's trading
- * API (paper or live, by ALPACA_PAPER). This is the execution seam for LIVE
- * trading. The paper bot still uses the internal simulator today; wiring this
- * in is the single change needed to route real orders, with the SAME decision
- * and risk layers in front of it. Live must remain behind explicit user opt-in.
+ * API (paper or live, selected per-user via stored credentials). This is the
+ * execution seam for real orders; the internal simulator is used when no broker
+ * is connected. Live trading requires explicit user opt-in and live API keys.
  */
-import { alpacaHeaders, alpacaTradingBase } from '../../lib/alpaca';
 import { env } from '../../config/env';
 import type {
   BrokerAccount,
@@ -15,6 +13,17 @@ import type {
   BrokerProvider,
 } from './broker.types';
 
+type AlpacaOrderResponse = {
+  id: string;
+  status: string;
+  filled_avg_price?: string;
+  filled_qty?: string;
+};
+
+function trimCredential(value: string | undefined): string {
+  return (value ?? '').trim();
+}
+
 export class AlpacaBroker implements BrokerProvider {
   readonly name = 'alpaca';
   private readonly _keyId: string;
@@ -22,8 +31,8 @@ export class AlpacaBroker implements BrokerProvider {
   private readonly _paper: boolean;
 
   constructor(credentials?: { keyId: string; secret: string; paper: boolean }) {
-    this._keyId = credentials?.keyId ?? env.ALPACA_API_KEY ?? '';
-    this._secret = credentials?.secret ?? env.ALPACA_API_SECRET ?? '';
+    this._keyId = trimCredential(credentials?.keyId ?? env.ALPACA_API_KEY);
+    this._secret = trimCredential(credentials?.secret ?? env.ALPACA_API_SECRET);
     this._paper = credentials?.paper ?? env.ALPACA_PAPER;
   }
 
@@ -55,6 +64,32 @@ export class AlpacaBroker implements BrokerProvider {
     return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
+  private mapOrderResult(r: AlpacaOrderResponse): BrokerOrderResult {
+    return {
+      brokerOrderId: r.id,
+      status:
+        r.status === 'filled' ? 'filled' : r.status === 'rejected' || r.status === 'canceled' ? 'rejected' : 'accepted',
+      filledPrice: r.filled_avg_price ? Number(r.filled_avg_price) : undefined,
+      filledQty: r.filled_qty ? Number(r.filled_qty) : undefined,
+    };
+  }
+
+  async getOrder(brokerOrderId: string): Promise<BrokerOrderResult> {
+    const r = await this.req<AlpacaOrderResponse>(`/v2/orders/${brokerOrderId}`);
+    return this.mapOrderResult(r);
+  }
+
+  /** Poll until a market order fills or times out (Alpaca often returns accepted first). */
+  private async waitForFill(orderId: string, maxMs = 8_000): Promise<BrokerOrderResult> {
+    const deadline = Date.now() + maxMs;
+    while (Date.now() < deadline) {
+      const result = await this.getOrder(orderId);
+      if (result.status === 'filled' || result.status === 'rejected') return result;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return this.getOrder(orderId);
+  }
+
   async submitOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     const side = order.side === 'LONG' ? 'buy' : 'sell';
     const body: Record<string, unknown> = {
@@ -73,16 +108,15 @@ export class AlpacaBroker implements BrokerProvider {
       body.take_profit = { limit_price: order.takeProfit };
     }
 
-    const r = await this.req<{ id: string; status: string; filled_avg_price?: string; filled_qty?: string }>(
-      '/v2/orders',
-      { method: 'POST', body: JSON.stringify(body) },
-    );
-    return {
-      brokerOrderId: r.id,
-      status: r.status === 'filled' ? 'filled' : r.status === 'rejected' ? 'rejected' : 'accepted',
-      filledPrice: r.filled_avg_price ? Number(r.filled_avg_price) : undefined,
-      filledQty: r.filled_qty ? Number(r.filled_qty) : undefined,
-    };
+    const r = await this.req<AlpacaOrderResponse>('/v2/orders', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    if (order.type === 'market' && r.status !== 'filled' && r.status !== 'rejected' && r.status !== 'canceled') {
+      return this.waitForFill(r.id);
+    }
+    return this.mapOrderResult(r);
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
@@ -91,11 +125,16 @@ export class AlpacaBroker implements BrokerProvider {
 
   async closePosition(symbol: string): Promise<number | null> {
     try {
-      const r = await this.req<{ filled_avg_price?: string }>(
+      const r = await this.req<AlpacaOrderResponse>(
         `/v2/positions/${encodeURIComponent(symbol)}`,
         { method: 'DELETE' },
       );
-      return r?.filled_avg_price ? Number(r.filled_avg_price) : null;
+      if (!r?.id) return r?.filled_avg_price ? Number(r.filled_avg_price) : null;
+
+      if (r.filled_avg_price) return Number(r.filled_avg_price);
+
+      const filled = await this.waitForFill(r.id, 10_000);
+      return filled.filledPrice ?? null;
     } catch {
       return null;
     }
@@ -139,5 +178,34 @@ export class AlpacaBroker implements BrokerProvider {
       buyingPower: Number(a.buying_power),
       lastEquity: a.last_equity != null ? Number(a.last_equity) : undefined,
     };
+  }
+}
+
+/** Verify Alpaca API keys against paper or live trading endpoint. */
+export async function verifyAlpacaCredentials(
+  keyId: string,
+  secret: string,
+  paper: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const base = paper ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
+  const trimmedKey = trimCredential(keyId);
+  const trimmedSecret = trimCredential(secret);
+  if (!trimmedKey || !trimmedSecret) {
+    return { ok: false, error: 'API key and secret are required' };
+  }
+  try {
+    const res = await fetch(`${base}/v2/account`, {
+      headers: {
+        'APCA-API-KEY-ID': trimmedKey,
+        'APCA-API-SECRET-KEY': trimmedSecret,
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.status === 401 || res.status === 403) return { ok: false, error: 'Invalid API keys' };
+    if (!res.ok) return { ok: false, error: `Alpaca returned ${res.status}` };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Could not reach Alpaca — check your internet connection' };
   }
 }

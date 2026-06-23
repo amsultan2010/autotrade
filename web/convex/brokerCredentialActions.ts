@@ -6,28 +6,7 @@ import { ConvexError, v } from 'convex/values';
 import { requireInternalSecret } from './lib/internalSecret';
 import { hasLiveTradingAccess } from './lib/entitlements';
 import { decryptBrokerSecret, encryptBrokerSecret } from './lib/brokerCrypto';
-
-async function verifyAlpacaKeys(
-  keyId: string,
-  secret: string,
-  paper: boolean,
-): Promise<{ ok: boolean; error?: string }> {
-  const base = paper ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
-  try {
-    const res = await fetch(`${base}/v2/account`, {
-      headers: {
-        'APCA-API-KEY-ID': keyId,
-        'APCA-API-SECRET-KEY': secret,
-        Accept: 'application/json',
-      },
-    });
-    if (res.status === 401 || res.status === 403) return { ok: false, error: 'Invalid API keys' };
-    if (!res.ok) return { ok: false, error: `Alpaca returned ${res.status}` };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: 'Could not reach Alpaca — check your internet connection' };
-  }
-}
+import { verifyAlpacaCredentials } from '@autotrade/engine/public';
 
 /** Validate Alpaca keys with the live API, then store AES-256-GCM encrypted. */
 export const connect = action({
@@ -40,7 +19,9 @@ export const connect = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError('Unauthenticated');
 
-    const check = await verifyAlpacaKeys(keyId, secret, paper);
+    const trimmedKey = keyId.trim();
+    const trimmedSecret = secret.trim();
+    const check = await verifyAlpacaCredentials(trimmedKey, trimmedSecret, paper);
     if (!check.ok) throw new ConvexError(check.error ?? 'Invalid Alpaca keys');
 
     if (!paper) {
@@ -58,8 +39,8 @@ export const connect = action({
 
     await ctx.runMutation(internal.brokerCredential._upsertCredential, {
       clerkId: identity.subject,
-      encryptedKeyId: encryptBrokerSecret(keyId),
-      encryptedSecret: encryptBrokerSecret(secret),
+      encryptedKeyId: encryptBrokerSecret(trimmedKey),
+      encryptedSecret: encryptBrokerSecret(trimmedSecret),
       paper,
     });
 

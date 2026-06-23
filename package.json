@@ -21,6 +21,7 @@
     "check:boundaries": "bash scripts/check-boundaries.sh",
     "setup": "pnpm --filter @autotrade/shared build",
     "env:validate": "bash scripts/validate-env.sh",
+    "verify:alpaca": "bash scripts/verify-alpaca.sh",
     "env:secrets": "bash scripts/generate-secrets.sh",
     "env:sync-convex": "bash scripts/sync-shared-secrets.sh",
     "deploy:convex": "pnpm --filter @autotrade/web convex:deploy",

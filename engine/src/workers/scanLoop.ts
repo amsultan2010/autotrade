@@ -131,15 +131,18 @@ export async function loadUserBotContext(clerkId: string): Promise<UserBotContex
   }
 
   let equity = user.paperAccount?.equity ?? user.paperAccount?.balance ?? 0;
-  if (!isLiveMode) {
-    const broker = await loadUserBroker(clerkId);
-    if (broker?.mode === 'paper') {
-      try {
-        const account = await broker.getAccount();
-        equity = account.equity ?? account.buyingPower ?? equity;
-      } catch {
-        /* keep internal paper equity */
-      }
+  const broker = await loadUserBroker(clerkId);
+  const brokerMatchesMode = broker
+    ? isLiveMode
+      ? broker.mode === 'live'
+      : broker.mode === 'paper'
+    : false;
+  if (brokerMatchesMode) {
+    try {
+      const account = await broker!.getAccount();
+      equity = account.equity ?? account.buyingPower ?? equity;
+    } catch {
+      /* keep internal paper equity when broker is unreachable */
     }
   }
 
@@ -251,6 +254,10 @@ export async function evaluateSymbolEntry(
     const broker = await loadUserBroker(clerkId);
     if (!broker) {
       console.warn(`LIVE mode for user ${clerkId} but no broker credentials — skipping`);
+      return;
+    }
+    if (broker.mode !== 'live') {
+      console.warn(`LIVE mode for user ${clerkId} but broker credentials are paper — skipping`);
       return;
     }
     await openLiveTrade({ clerkId, signalId: signalRowId, signal, risk, entrySnapshot, broker });

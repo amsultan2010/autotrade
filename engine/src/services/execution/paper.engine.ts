@@ -210,7 +210,25 @@ export async function monitorUserBrokerTrades(
   const openSymbols = new Set(alpacaPositions.map((p) => p.symbol.toUpperCase()));
 
   for (const trade of withBroker) {
-    if (openSymbols.has(trade.symbol.toUpperCase())) continue;
+    if (openSymbols.has(trade.symbol.toUpperCase())) {
+      // Position still open at broker — check stop/target and close if hit.
+      let price: number;
+      try {
+        price = (await getMarketData().getQuote(trade.symbol)).price;
+      } catch {
+        continue;
+      }
+      const exit = exitFor(trade, price);
+      if (!exit) continue;
+      try {
+        await broker.closePosition(trade.symbol);
+      } catch {
+        /* still record close in Convex */
+      }
+      await applyClose(trade, exit.exitPrice, exit.hitStop);
+      continue;
+    }
+
     let exitPrice = trade.entryPrice;
     try {
       exitPrice = (await getMarketData().getQuote(trade.symbol)).price;
