@@ -9,6 +9,9 @@ const isPublicRoute = createRouteMatcher([
   // Convex cron + server-side callers authenticate via x-internal-secret in the route handler.
   '/api/internal(.*)',
   '/api/email(.*)',
+  // Analytics / error tunnels must stay public (no Clerk session on beacon requests).
+  '/ingest(.*)',
+  '/monitoring(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
