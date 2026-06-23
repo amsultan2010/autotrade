@@ -29,7 +29,12 @@ export async function analyzeSymbol(
   symbol: string,
   timeframes: Timeframe[],
 ): Promise<MultiTimeframeAnalysis> {
-  const md = getMarketData();
+  let md;
+  try {
+    md = getMarketData();
+  } catch {
+    return {};
+  }
   const now = Math.floor(Date.now() / 1000);
   const result: MultiTimeframeAnalysis = {};
 

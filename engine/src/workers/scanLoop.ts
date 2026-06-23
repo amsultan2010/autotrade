@@ -236,16 +236,24 @@ export async function runCycleForUser(clerkId: string): Promise<void> {
   if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) return;
 
   const broker = await loadUserBroker(clerkId);
-  if (ctx.settings.mode === 'LIVE') {
-    if (broker) await monitorUserBrokerTrades(clerkId, broker);
-  } else if (broker?.mode === 'paper') {
-    await monitorUserBrokerTrades(clerkId, broker);
-  } else {
-    await monitorUserOpenTrades(clerkId);
+  try {
+    if (ctx.settings.mode === 'LIVE') {
+      if (broker) await monitorUserBrokerTrades(clerkId, broker);
+    } else if (broker?.mode === 'paper') {
+      await monitorUserBrokerTrades(clerkId, broker);
+    } else {
+      await monitorUserOpenTrades(clerkId);
+    }
+  } catch (err) {
+    console.error(`monitor failed for user ${clerkId}`, err);
   }
 
   for (const watched of ctx.watchlist) {
-    await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange);
+    try {
+      await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange);
+    } catch (err) {
+      console.error(`scan failed for ${watched.symbol} (user ${clerkId})`, err);
+    }
   }
 }
 

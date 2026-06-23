@@ -85,7 +85,7 @@ export type WriteAuditLogArgs = {
 };
 
 function convexUrl(): string {
-  const url = env.CONVEX_URL ?? process.env.NEXT_PUBLIC_CONVEX_URL;
+  const url = env.CONVEX_URL?.trim() || process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
   if (!url) {
     throw new AppError(503, 'CONFIG_ERROR', 'CONVEX_URL is not configured');
   }

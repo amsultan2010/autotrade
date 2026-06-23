@@ -159,7 +159,14 @@ export async function monitorUserOpenTrades(clerkId: string): Promise<number> {
   const open = await db.getOpenTrades(clerkId, 'PAPER');
   if (open.length === 0) return 0;
 
-  const md = getMarketData();
+  let md;
+  try {
+    md = getMarketData();
+  } catch (err) {
+    console.error(`market data unavailable for monitor (user ${clerkId})`, err);
+    return 0;
+  }
+
   let realized = 0;
   let unreal = 0;
 
