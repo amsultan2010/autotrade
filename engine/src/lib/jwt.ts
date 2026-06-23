@@ -9,8 +9,15 @@ export interface AccessTokenClaims {
   role: Role;
 }
 
+function requireJwtAccessSecret(): string {
+  if (!env.JWT_ACCESS_SECRET) {
+    throw new Error('JWT_ACCESS_SECRET is not configured');
+  }
+  return env.JWT_ACCESS_SECRET;
+}
+
 export function signAccessToken(claims: AccessTokenClaims): string {
-  return jwt.sign(claims, env.JWT_ACCESS_SECRET, {
+  return jwt.sign(claims, requireJwtAccessSecret(), {
     expiresIn: `${env.ACCESS_TOKEN_TTL_MIN}m`,
     issuer: 'autotrade',
     audience: 'autotrade-desktop',
@@ -18,7 +25,7 @@ export function signAccessToken(claims: AccessTokenClaims): string {
 }
 
 export function verifyAccessToken(token: string): AccessTokenClaims {
-  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+  const decoded = jwt.verify(token, requireJwtAccessSecret(), {
     issuer: 'autotrade',
     audience: 'autotrade-desktop',
   });

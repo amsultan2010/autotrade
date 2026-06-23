@@ -21,8 +21,9 @@ const schema = z.object({
   // 64 hex chars = 32 bytes. Generate with: openssl rand -hex 32
   BROKER_ENCRYPTION_KEY: z.string().length(64, 'BROKER_ENCRYPTION_KEY must be 64 hex chars').optional(),
 
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be set (>=16 chars)'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be set (>=16 chars)'),
+  // Legacy JWT auth — optional; Clerk is the primary auth path for web/Convex.
+  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be set (>=16 chars)').optional(),
+  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be set (>=16 chars)').optional(),
   ACCESS_TOKEN_TTL_MIN: z.coerce.number().int().positive().default(15),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 

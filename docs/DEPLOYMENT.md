@@ -46,7 +46,8 @@ Required (the app will not work without these):
 - `BROKER_ENCRYPTION_KEY` (64 hex chars — `openssl rand -hex 32`)
 - `BOT_INTERNAL_SECRET` (`openssl rand -hex 32`)
 - `NEXT_PUBLIC_APP_URL` (this deployment's URL, e.g. `https://tryautotrade.com`)
-- `CONVEX_URL` (same deployment as `NEXT_PUBLIC_CONVEX_URL`), `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (engine runtime)
+- `CONVEX_URL` (same deployment as `NEXT_PUBLIC_CONVEX_URL`)
+- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` — optional legacy; Clerk is primary auth
 - `BILLING_ENABLED=false` (default — no Stripe required)
 - `FOUNDER_LIVE_EMAIL=abdullahmsultan1@gmail.com` (founder live-trading bypass)
 
