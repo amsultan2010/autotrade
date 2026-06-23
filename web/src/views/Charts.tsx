@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useConvexAuth } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import { TIMEFRAMES, type Candle, type Timeframe, ErrorCodes } from '@autotrade/shared';
 import { api } from '../api/client';
@@ -38,6 +38,7 @@ function buildMarkers(trades: Array<{
 }
 
 export function Charts() {
+  const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const watchlist = useQuery(convexApi.watchlist.list);
   const [symbol, setSymbol] = useState('');
   const [tf, setTf] = useState<Timeframe>('1h');
@@ -100,7 +101,9 @@ export function Charts() {
       </header>
 
       <section className="panel">
-        {!symbol ? (
+        {convexAuthLoading || (isAuthenticated && watchlist === undefined) ? (
+          <p className="muted">Loading your watchlist…</p>
+        ) : !symbol ? (
           <p className="muted">Add symbols on the Watchlist tab, then pick one here to see its chart.</p>
         ) : error ? (
           <p className="muted">{error}</p>

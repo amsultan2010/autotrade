@@ -1,42 +1,11 @@
 'use node';
-// All exports in this file run in the Node.js runtime.
-// crypto requires Node.js — queries/mutations are in brokerCredential.ts.
 
 import { action } from './_generated/server';
 import { internal } from './_generated/api';
 import { ConvexError, v } from 'convex/values';
-import crypto from 'node:crypto';
 import { requireInternalSecret } from './lib/internalSecret';
 import { hasLiveTradingAccess } from './lib/entitlements';
-
-const ALGORITHM = 'aes-256-gcm';
-
-function getKey(): Buffer {
-  const raw = process.env.BROKER_ENCRYPTION_KEY;
-  if (!raw) throw new ConvexError('BROKER_ENCRYPTION_KEY is not set in Convex environment variables');
-  if (/^[0-9a-f]{64}$/i.test(raw)) return Buffer.from(raw, 'hex');
-  return Buffer.from(raw, 'base64');
-}
-
-function encrypt(plaintext: string): string {
-  const key = getKey();
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return [iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join(':');
-}
-
-function decrypt(stored: string): string {
-  const key = getKey();
-  const [ivB64, tagB64, cipherB64] = stored.split(':');
-  const iv = Buffer.from(ivB64, 'base64');
-  const tag = Buffer.from(tagB64, 'base64');
-  const ciphertext = Buffer.from(cipherB64, 'base64');
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(tag);
-  return decipher.update(ciphertext).toString('utf8') + decipher.final('utf8');
-}
+import { decryptBrokerSecret, encryptBrokerSecret } from './lib/brokerCrypto';
 
 async function verifyAlpacaKeys(
   keyId: string,
@@ -89,9 +58,14 @@ export const connect = action({
 
     await ctx.runMutation(internal.brokerCredential._upsertCredential, {
       clerkId: identity.subject,
-      encryptedKeyId: encrypt(keyId),
-      encryptedSecret: encrypt(secret),
+      encryptedKeyId: encryptBrokerSecret(keyId),
+      encryptedSecret: encryptBrokerSecret(secret),
       paper,
+    });
+
+    // Prime the reactive dashboard snapshot immediately after connect.
+    await ctx.scheduler.runAfter(0, internal.brokerSyncActions._syncForClerk, {
+      clerkId: identity.subject,
     });
 
     return { connected: true, provider: 'alpaca', paper };
@@ -105,6 +79,9 @@ export const disconnect = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError('Unauthenticated');
     await ctx.runMutation(internal.brokerCredential._deleteCredential, {
+      clerkId: identity.subject,
+    });
+    await ctx.runMutation(internal.brokerSync._deleteSnapshot, {
       clerkId: identity.subject,
     });
     return { connected: false };
@@ -127,8 +104,8 @@ export const getDecryptedKeys = action({
     if (!cred) return null;
 
     return {
-      keyId: decrypt(cred.encryptedKeyId),
-      secret: decrypt(cred.encryptedSecret),
+      keyId: decryptBrokerSecret(cred.encryptedKeyId),
+      secret: decryptBrokerSecret(cred.encryptedSecret),
       paper: cred.paper,
       provider: cred.provider,
     };
@@ -164,8 +141,8 @@ export const getDecryptedKeysInternal = action({
     if (!cred) return null;
 
     return {
-      keyId: decrypt(cred.encryptedKeyId),
-      secret: decrypt(cred.encryptedSecret),
+      keyId: decryptBrokerSecret(cred.encryptedKeyId),
+      secret: decryptBrokerSecret(cred.encryptedSecret),
       paper: cred.paper,
       provider: cred.provider,
     };
@@ -180,8 +157,8 @@ export const getDecryptedKeysForUser = action({
     const cred = (await ctx.runQuery(internal.brokerCredential._getRaw, { clerkId })) as { encryptedKeyId: string; encryptedSecret: string; paper: boolean; provider: string } | null;
     if (!cred) return null;
     return {
-      keyId: decrypt(cred.encryptedKeyId),
-      secret: decrypt(cred.encryptedSecret),
+      keyId: decryptBrokerSecret(cred.encryptedKeyId),
+      secret: decryptBrokerSecret(cred.encryptedSecret),
       paper: cred.paper,
       provider: cred.provider,
     };

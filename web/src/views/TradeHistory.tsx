@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useAction } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -38,10 +38,18 @@ export function TradeHistory() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const brokerStatus = useQuery(convexApi.brokerCredential.status);
   const tradeData = useQuery(convexApi.trades.list, {
     result: filter === 'all' ? undefined : filter,
   }) as { items: ConvexTrade[]; nextCursor: string | null } | undefined;
   const closeAtMarket = useAction(convexApi.tradeActions.closeAtMarket);
+  const syncBroker = useAction(convexApi.brokerSyncActions.sync);
+
+  useEffect(() => {
+    if (brokerStatus?.connected) {
+      syncBroker({}).catch(() => {});
+    }
+  }, [brokerStatus?.connected, syncBroker]);
 
   const trades: ConvexTrade[] = tradeData?.items ?? [];
   const selected = trades.find((t) => t._id === selectedId) ?? null;
@@ -68,12 +76,25 @@ export function TradeHistory() {
         </div>
       </header>
 
+      {brokerStatus?.connected && (
+        <p className="muted" style={{ marginBottom: '0.75rem', fontSize: 13 }}>
+          Showing bot-executed trades for your account
+          {brokerStatus.paper ? ' (Alpaca paper)' : ' (Alpaca live)'}.
+          Use Scan Now or Start Bot on the dashboard to generate new trades.
+        </p>
+      )}
+
       <div className="split">
         <section className="panel grow">
           {tradeData === undefined ? (
             <p className="muted">Loading…</p>
           ) : trades.length === 0 ? (
-            <p className="muted">No trades match this filter yet.</p>
+            <p className="muted">
+              No trades match this filter yet.
+              {brokerStatus?.connected
+                ? ' Start the bot or tap Scan Now on the dashboard to open trades via Alpaca.'
+                : ' Connect Alpaca in Settings, then start the bot.'}
+            </p>
           ) : (
             <table className="tbl">
               <thead>

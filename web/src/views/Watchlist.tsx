@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useConvexAuth } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { SymbolSearchResult } from '@autotrade/shared';
@@ -29,6 +29,7 @@ function money(n: number | null): string {
 }
 
 export function Watchlist() {
+  const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   interface WatchlistItem { _id: Id<'watchedSymbols'>; symbol: string; exchange: string }
   const watchlistItems = useQuery(convexApi.watchlist.list) as WatchlistItem[] | undefined;
   const addSymbol      = useMutation(convexApi.watchlist.add);
@@ -193,8 +194,8 @@ export function Watchlist() {
       </div>
 
       <section className="panel">
-        {watchlistItems === undefined ? (
-          <p className="muted">Loading…</p>
+        {convexAuthLoading || (isAuthenticated && watchlistItems === undefined) ? (
+          <p className="muted">Loading your watchlist…</p>
         ) : rows.length === 0 ? (
           <p className="muted">Your watchlist is empty. Click the search bar to browse popular tickers.</p>
         ) : (

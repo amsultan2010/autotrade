@@ -35,13 +35,6 @@ interface ConvexPerf {
 }
 
 // ─── API data shapes ──────────────────────────────────────────────────────────
-interface BrokerAccount {
-  equity: number;
-  cash: number;
-  buyingPower: number;
-  mode: 'paper' | 'live';
-}
-
 interface BrokerPosition {
   symbol: string;
   qty: number;
@@ -77,9 +70,23 @@ function minsAgo(ts: number | string): string {
 }
 
 // ─── Equity curve from real trade history ────────────────────────────────────
-function buildRealCurve(startBalance: number, trades: Array<{ closedAt?: number; pnl?: number }>, points = 60): number[] {
+function buildRealCurve(
+  startBalance: number,
+  trades: Array<{ closedAt?: number; pnl?: number }>,
+  tab: '1D' | '1W' | '1M' | '3M' | '1Y',
+  points = 60,
+): number[] {
+  const now = Date.now();
+  const tabMs: Record<typeof tab, number> = {
+    '1D': 86_400_000,
+    '1W': 7 * 86_400_000,
+    '1M': 30 * 86_400_000,
+    '3M': 90 * 86_400_000,
+    '1Y': 365 * 86_400_000,
+  };
+
   const closed = trades
-    .filter((t) => t.closedAt != null && t.pnl != null)
+    .filter((t) => t.closedAt != null && t.pnl != null && now - (t.closedAt ?? 0) <= tabMs[tab])
     .sort((a, b) => (a.closedAt ?? 0) - (b.closedAt ?? 0));
 
   if (closed.length === 0) {
@@ -349,20 +356,22 @@ const HEATMAP_FALLBACK = [
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export function Dashboard() {
   const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
-  const botStatus  = useQuery(convexApi.botSettings.getStatus) as ConvexBotStatus | undefined;
-  const perfData   = useQuery(convexApi.performance.summary) as ConvexPerf | undefined;
-  const signalData = useQuery(convexApi.signals.list, { limit: 10 }) as ConvexSignal[] | undefined;
-  const watchlist  = useQuery(convexApi.watchlist.list) as Array<{ symbol: string }> | undefined;
-  const tradeData  = useQuery(convexApi.trades.list, { limit: 200 }) as { items: Array<{ closedAt?: number; pnl?: number }> } | undefined;
-  const setMode    = useMutation(convexApi.botSettings.setMode);
-  const runNow     = useAction(convexApi.bot.runNow);
+  const botStatus     = useQuery(convexApi.botSettings.getStatus) as ConvexBotStatus | undefined;
+  const perfData      = useQuery(convexApi.performance.summary) as ConvexPerf | undefined;
+  const signalData    = useQuery(convexApi.signals.list, { limit: 10 }) as ConvexSignal[] | undefined;
+  const watchlist     = useQuery(convexApi.watchlist.list) as Array<{ symbol: string }> | undefined;
+  const tradeData     = useQuery(convexApi.trades.list, { limit: 200 }) as { items: Array<{ closedAt?: number; pnl?: number }> } | undefined;
+  const brokerStatus  = useQuery(convexApi.brokerCredential.status);
+  const brokerSnapshot = useQuery(convexApi.brokerSync.getSnapshot);
+  const setMode       = useMutation(convexApi.botSettings.setMode);
+  const runNow        = useAction(convexApi.bot.runNow);
+  const syncBroker    = useAction(convexApi.brokerSyncActions.sync);
 
-  const [quotes, setQuotes]               = useState<Quote[]>([]);
-  const [brokerAccount, setBrokerAccount] = useState<BrokerAccount | null>(null);
-  const [positions, setPositions]         = useState<BrokerPosition[] | null>(null);
-  const [busy, setBusy]                   = useState(false);
-  const [error, setError]                 = useState<string | null>(null);
-  const [tab, setTab]                     = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [busy, setBusy]     = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+  const [brokerError, setBrokerError] = useState<string | null>(null);
+  const [tab, setTab]       = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
 
   // Fetch live prices for watchlist symbols
   const symbolsKey = watchlist?.map((w) => w.symbol).join(',') ?? '';
@@ -379,29 +388,26 @@ export function Dashboard() {
     return () => clearInterval(t);
   }, [symbolsKey]);
 
-  // Fetch real broker account and positions
+  // Sync Alpaca account snapshot when broker is connected (reactive + periodic).
+  const brokerConnected = brokerStatus?.connected === true;
   useEffect(() => {
-    const fetchBroker = async () => {
-      try {
-        const [acctRes, posRes] = await Promise.all([
-          fetch('/api/v1/broker/account'),
-          fetch('/api/v1/broker/positions'),
-        ]);
-        if (acctRes.ok) {
-          // The API returns the account object directly (ok() does not wrap in { data }).
-          const body = (await acctRes.json()) as BrokerAccount | null;
-          setBrokerAccount(body ?? null);
-        }
-        if (posRes.ok) {
-          const body = (await posRes.json()) as BrokerPosition[];
-          setPositions(Array.isArray(body) ? body : []);
-        }
-      } catch { /* degrade gracefully */ }
+    if (!brokerConnected || convexAuthLoading || !isAuthenticated) return;
+
+    const runSync = () => {
+      syncBroker({})
+        .then((result) => {
+          if (result.error) setBrokerError(result.error);
+          else setBrokerError(null);
+        })
+        .catch((err) => {
+          setBrokerError(formatUserError(err, 'Could not sync Alpaca account'));
+        });
     };
-    void fetchBroker();
-    const t = setInterval(fetchBroker, 30_000);
+
+    runSync();
+    const t = setInterval(runSync, 15_000);
     return () => clearInterval(t);
-  }, []);
+  }, [brokerConnected, convexAuthLoading, isAuthenticated, syncBroker]);
 
   async function toggle() {
     if (convexAuthLoading || !isAuthenticated) {
@@ -439,12 +445,18 @@ export function Dashboard() {
   }
 
   // ── Account value ────────────────────────────────────────────────────────────
-  // Priority: real Alpaca account (live or paper via Alpaca) → Convex paper account
+  // Priority: Alpaca snapshot → Convex paper account simulator
   const pa = botStatus?.paperAccount;
-  const equity = brokerAccount?.equity ?? pa?.equity ?? 0;
-  const balance = brokerAccount?.cash ?? pa?.balance ?? equity;
-  const dayGain = perfData?.dailyPnl ?? 0;
-  const dayGainPct = balance > 0 ? (dayGain / balance) * 100 : 0;
+  const snap = brokerSnapshot;
+  const equity = snap?.equity ?? pa?.equity ?? 0;
+  const balance = snap?.cash ?? pa?.balance ?? equity;
+  const alpacaDayGain = snap?.lastEquity != null ? snap.equity - snap.lastEquity : null;
+  const dayGain = alpacaDayGain ?? perfData?.dailyPnl ?? 0;
+  const dayGainPct = snap?.lastEquity != null && snap.lastEquity > 0
+    ? (alpacaDayGain! / snap.lastEquity) * 100
+    : balance > 0
+      ? (dayGain / balance) * 100
+      : 0;
 
   // ── Performance ──────────────────────────────────────────────────────────────
   const winRate = perfData ? Math.round(perfData.winRate * 100) : 0;
@@ -458,11 +470,12 @@ export function Dashboard() {
     ? quotes.slice(0, 10).map((q) => ({ sym: q.symbol, pct: q.changePct ?? 0, large: true }))
     : HEATMAP_FALLBACK;
 
-  // ── Real positions (from Alpaca) or empty ────────────────────────────────────
-  const livePositions = positions ?? [];
+  // ── Real positions (from Alpaca snapshot) or empty ───────────────────────────
+  const livePositions: BrokerPosition[] = snap?.positions ?? [];
+  const positionsLoading = brokerConnected && brokerSnapshot === undefined;
 
   // ── Real equity curve from trade history ─────────────────────────────────────
-  const equityCurve = buildRealCurve(balance, tradeData?.items ?? []);
+  const equityCurve = buildRealCurve(balance, tradeData?.items ?? [], tab);
 
   // ── Mode display ─────────────────────────────────────────────────────────────
   const modeLabel = botStatus
@@ -474,6 +487,7 @@ export function Dashboard() {
       : '…';
 
   const botControlsReady = !convexAuthLoading && isAuthenticated;
+  const dataLoading = convexAuthLoading || (isAuthenticated && botStatus === undefined);
 
   return (
     <div className="db-root">
@@ -484,10 +498,18 @@ export function Dashboard() {
             {botStatus?.running && <span className="live-dot" />}
             {modeLabel}
           </span>
-          {brokerAccount && (
+          {snap && (
             <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-              Alpaca {brokerAccount.mode} · buying power {money(brokerAccount.buyingPower)}
+              Alpaca {snap.mode} · buying power {money(snap.buyingPower)}
+              {snap.syncedAt && (
+                <span style={{ marginLeft: 6, opacity: 0.6 }}>
+                  · synced {minsAgo(snap.syncedAt)}
+                </span>
+              )}
             </span>
+          )}
+          {brokerConnected && !snap && (
+            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>Syncing Alpaca…</span>
           )}
         </div>
         <div className="db-topbar-right">
@@ -505,6 +527,14 @@ export function Dashboard() {
 
       {error && (
         <div className="error-banner" style={{ margin: '0 0 12px' }}>{error}</div>
+      )}
+      {brokerError && (
+        <div className="error-banner" style={{ margin: '0 0 12px' }}>
+          Alpaca sync: {brokerError}
+        </div>
+      )}
+      {dataLoading && (
+        <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>Loading your account data…</p>
       )}
 
       {/* ── Row 1 ── */}
@@ -553,7 +583,10 @@ export function Dashboard() {
           <div className="db-portfolio-value">{equity > 0 ? money(equity) : '--'}</div>
           <div className={`db-portfolio-change ${dayGain >= 0 ? 'pos' : 'neg'}`}>
             {dayGain >= 0 ? '▲' : '▼'} {Math.abs(dayGainPct).toFixed(2)}% (Today)
-            {perfData && <span style={{ marginLeft: 8, opacity: 0.7 }}>{dayGain >= 0 ? '+' : ''}{money(dayGain)}</span>}
+            <span style={{ marginLeft: 8, opacity: 0.7 }}>{dayGain >= 0 ? '+' : ''}{money(dayGain)}</span>
+            {alpacaDayGain != null && (
+              <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>via Alpaca</span>
+            )}
           </div>
           <div className="db-chart-area">
             <PortfolioChart data={equityCurve} />
@@ -585,14 +618,14 @@ export function Dashboard() {
         <div className="db-panel db-positions-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">
-              POSITIONS ({positions === null ? '…' : livePositions.length})
+              POSITIONS ({positionsLoading ? '…' : livePositions.length})
             </span>
           </div>
-          {positions === null ? (
+          {positionsLoading ? (
             <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>Loading positions…</p>
           ) : livePositions.length === 0 ? (
             <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
-              No open positions.{!brokerAccount && ' Connect Alpaca in Settings to see live positions.'}
+              No open positions.{!brokerConnected && ' Connect Alpaca in Settings to see live positions.'}
             </p>
           ) : (
             <table className="db-pos-table">
@@ -678,7 +711,9 @@ export function Dashboard() {
             </div>
             <div className="db-perf-stat">
               <span className="db-perf-stat-label">Open</span>
-              <span className="db-perf-stat-value">{positions === null ? '…' : livePositions.length}</span>
+              <span className="db-perf-stat-value">
+                {brokerConnected ? livePositions.length : (perfData?.openTrades ?? '--')}
+              </span>
             </div>
           </div>
         </div>

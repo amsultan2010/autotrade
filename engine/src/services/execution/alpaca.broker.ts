@@ -127,7 +127,17 @@ export class AlpacaBroker implements BrokerProvider {
   }
 
   async getAccount(): Promise<BrokerAccount> {
-    const a = await this.req<{ cash: string; equity: string; buying_power: string }>('/v2/account');
-    return { cash: Number(a.cash), equity: Number(a.equity), buyingPower: Number(a.buying_power) };
+    const a = await this.req<{
+      cash: string;
+      equity: string;
+      buying_power: string;
+      last_equity?: string;
+    }>('/v2/account');
+    return {
+      cash: Number(a.cash),
+      equity: Number(a.equity),
+      buyingPower: Number(a.buying_power),
+      lastEquity: a.last_equity != null ? Number(a.last_equity) : undefined,
+    };
   }
 }

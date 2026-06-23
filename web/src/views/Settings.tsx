@@ -252,6 +252,7 @@ function AlpacaCard({
 }) {
   const connectBroker    = useAction(convexApi.brokerCredentialActions.connect);
   const disconnectBroker = useAction(convexApi.brokerCredentialActions.disconnect);
+  const syncBroker       = useAction(convexApi.brokerSyncActions.sync);
 
   const [keyId, setKeyId]         = useState('');
   const [secret, setSecret]       = useState('');
@@ -267,6 +268,7 @@ function AlpacaCard({
       await connectBroker({ keyId, secret, paper });
       setKeyId('');
       setSecret('');
+      await syncBroker({});
     } catch (err) {
       reportTrackedError(ErrorCodes.BROKER, err, { route: '/settings', action: 'connectBroker' });
       onError(formatUserError(err, 'Could not connect — check your keys and try again.'));

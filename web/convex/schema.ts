@@ -157,6 +157,31 @@ export default defineSchema({
     paper: v.boolean(),
   }).index('by_clerk_id', ['clerkId']),
 
+  // ── Broker Snapshots ──────────────────────────────────────────────────────
+  // Cached Alpaca account + positions for reactive dashboard updates.
+  brokerSnapshots: defineTable({
+    clerkId: v.string(),
+    equity: v.number(),
+    cash: v.number(),
+    buyingPower: v.number(),
+    lastEquity: v.optional(v.number()),
+    mode: v.union(v.literal('paper'), v.literal('live')),
+    positions: v.array(
+      v.object({
+        symbol: v.string(),
+        qty: v.number(),
+        avgEntryPrice: v.number(),
+        side: v.union(v.literal('LONG'), v.literal('SHORT')),
+        currentPrice: v.optional(v.number()),
+        marketValue: v.optional(v.number()),
+        unrealizedPnl: v.optional(v.number()),
+        unrealizedPnlPct: v.optional(v.number()),
+      }),
+    ),
+    syncedAt: v.number(),
+    syncError: v.optional(v.string()),
+  }).index('by_clerk_id', ['clerkId']),
+
   // ── Audit Logs ────────────────────────────────────────────────────────────
   auditLogs: defineTable({
     actorClerkId: v.optional(v.string()),

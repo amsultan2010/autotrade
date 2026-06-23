@@ -37,6 +37,8 @@ export interface BrokerAccount {
   cash: number;
   equity: number;
   buyingPower: number;
+  /** Previous session close equity — used for intraday P/L. */
+  lastEquity?: number;
 }
 
 export interface BrokerProvider {
