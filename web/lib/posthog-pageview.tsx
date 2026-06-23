@@ -11,9 +11,8 @@ function PageViewTracker() {
   const posthog = usePostHog();
   const { user, isLoaded } = useUser();
 
-  // Identify + set user properties when Clerk user loads
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !posthog) return;
     if (user) {
       posthog.identify(user.id, {
         email: user.primaryEmailAddress?.emailAddress,
@@ -25,12 +24,12 @@ function PageViewTracker() {
     } else {
       posthog.reset();
     }
-  }, [isLoaded, user?.id, posthog]);
+  }, [isLoaded, user, posthog]);
 
-  // Capture pageview on every route change
   useEffect(() => {
-    if (!pathname || !posthog?.__loaded) return;
-    const url = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+    if (!pathname || !posthog) return;
+    const search = searchParams.toString();
+    const url = search ? `${pathname}?${search}` : pathname;
     posthog.capture('$pageview', { $current_url: url });
   }, [pathname, searchParams, posthog]);
 
