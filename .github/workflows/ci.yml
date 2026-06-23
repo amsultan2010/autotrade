@@ -44,11 +44,10 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @autotrade/shared build
-      - run: pnpm --filter @autotrade/engine generate
 
   typecheck-shared:
     needs: [changes, setup]
@@ -59,11 +58,10 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @autotrade/shared build
-      - run: pnpm --filter @autotrade/engine generate
       - run: pnpm typecheck
 
   typecheck-web:
@@ -75,11 +73,10 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @autotrade/shared build
-      - run: pnpm --filter @autotrade/engine generate
       - run: pnpm typecheck:web
 
   typecheck-engine:
@@ -91,9 +88,8 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @autotrade/shared build
-      - run: pnpm --filter @autotrade/engine generate
       - run: pnpm typecheck:engine

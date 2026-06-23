@@ -5,7 +5,7 @@
   "description": "Autotrade \u2014 personalized AI-powered trading bot",
   "packageManager": "pnpm@11.5.2",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "pnpm dev:web",
