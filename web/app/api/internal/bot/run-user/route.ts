@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { ErrorCodes } from '@autotrade/shared';
-import { captureAppErrorServer } from '@/lib/error-tracking-server';
 import { runCycleForUser } from '@autotrade/engine/public';
+import { handleError } from '@/lib/api-response';
 import { convexServer } from '@/lib/convex-server';
 import { makeFunctionReference } from 'convex/server';
 
@@ -20,6 +19,9 @@ const countTradesOpenedSince = makeFunctionReference<
 function internalSecret(): string | null {
   return process.env.BOT_INTERNAL_SECRET ?? null;
 }
+
+/** Scan cycles fetch candles for every watchlist symbol — allow headroom on Vercel. */
+export const maxDuration = 60;
 
 // Internal endpoint called by the Convex bot cron.
 // Protected by BOT_INTERNAL_SECRET — never expose this to clients.
@@ -47,25 +49,20 @@ export async function POST(req: NextRequest) {
 
   try {
     await runCycleForUser(clerkId);
+
+    let signalsGenerated = 0;
+    let tradesOpened = 0;
+    try {
+      [signalsGenerated, tradesOpened] = await Promise.all([
+        convexServer.query(countSignalsSince, { secret, clerkId, sinceMs: cycleStartedMs }),
+        convexServer.query(countTradesOpenedSince, { secret, clerkId, sinceMs: cycleStartedMs }),
+      ]);
+    } catch {
+      // Counts are best-effort; cycle already ran.
+    }
+
+    return NextResponse.json({ ok: true, signalsGenerated, tradesOpened });
   } catch (err) {
-    captureAppErrorServer(ErrorCodes.BOT_CYCLE, err, {
-      route: '/api/internal/bot/run-user',
-      clerkId,
-      bot_cycle: true,
-    });
-    throw err;
+    return handleError(err, { route: '/api/internal/bot/run-user' });
   }
-
-  let signalsGenerated = 0;
-  let tradesOpened = 0;
-  try {
-    [signalsGenerated, tradesOpened] = await Promise.all([
-      convexServer.query(countSignalsSince, { secret, clerkId, sinceMs: cycleStartedMs }),
-      convexServer.query(countTradesOpenedSince, { secret, clerkId, sinceMs: cycleStartedMs }),
-    ]);
-  } catch {
-    // Counts are best-effort; cycle already ran.
-  }
-
-  return NextResponse.json({ ok: true, signalsGenerated, tradesOpened });
 }

@@ -6,6 +6,21 @@ import { internalAction, action } from './_generated/server';
 import { internal } from './_generated/api';
 import { ConvexError } from 'convex/values';
 
+function formatInternalApiError(status: number, body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string; code?: string } };
+    const message = parsed.error?.message;
+    if (typeof message === 'string' && message.length > 0) {
+      return `Bot run failed (HTTP ${status}): ${message}`;
+    }
+  } catch {
+    /* not JSON — fall through */
+  }
+  const snippet = body.startsWith('<!DOCTYPE') ? 'server error — check Vercel logs' : body.slice(0, 200);
+  return `Bot run failed (HTTP ${status}): ${snippet}`;
+}
+
+
 /** Trigger a single bot cycle for the current user on demand. */
 export const runNow = action({
   args: {},
@@ -30,7 +45,7 @@ export const runNow = action({
 
     if (!res.ok) {
       const text = await res.text();
-      throw new ConvexError(`Bot run failed (HTTP ${res.status}): ${text.slice(0, 200)}`);
+      throw new ConvexError(formatInternalApiError(res.status, text));
     }
 
     return res.json() as Promise<{ signalsGenerated?: number; tradesOpened?: number }>;
@@ -71,7 +86,7 @@ export const runAllUsers = internalAction({
 
           if (!res.ok) {
             const text = await res.text();
-            throw new Error(`HTTP ${res.status}: ${text}`);
+            throw new Error(formatInternalApiError(res.status, text));
           }
 
           const data = (await res.json()) as {
