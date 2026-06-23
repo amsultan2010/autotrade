@@ -1,5 +1,7 @@
 # Autotrade
 
+> **Coworking:** See [docs/COWORKING.md](docs/COWORKING.md) for package ownership and import boundaries.
+
 Personalized, subscription-gated AI trading bot. A **Windows desktop client
 (`.exe`)** backed by a secure Node/TypeScript API. Paper trading runs on **real
 market data**; live trading is architected to route only through licensed
@@ -12,7 +14,10 @@ brokers (never simulated).
 ```
 apps/backend     Fastify API: auth, subscription, market data, engines, admin
 apps/desktop     Electron + React desktop app (the .exe)
-packages/shared  Types shared by backend + desktop
+packages/shared  Cross-boundary types, DTOs, error codes
+packages/engine   Trading algorithm (web uses `@autotrade/engine/public` only)
+apps/worker       Background scan loop (engine owner)
+apps/web          Next.js website + Convex (web owner)
 ```
 
 ## Prerequisites

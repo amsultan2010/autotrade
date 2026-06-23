@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { TIMEFRAMES, type Timeframe } from '@autotrade/shared';
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { getMarketData, parse } from '@autotrade/engine';
+import { getMarketData, parse } from '@autotrade/engine/public';
 
 const BAR_SECONDS: Record<Timeframe, number> = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86_400 };
 

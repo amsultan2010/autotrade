@@ -7,7 +7,7 @@ import {
   toTrackedError,
   type TrackedError,
 } from '@autotrade/shared';
-import { AppError } from '@autotrade/engine';
+import { AppError } from '@autotrade/engine/public';
 
 export interface CaptureContext {
   route?: string;

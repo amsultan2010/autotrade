@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { ErrorCodes } from '@autotrade/shared';
 import { captureAppError } from '@/lib/error-tracking';
 import { createClerkClient } from '@clerk/backend';
-import { prisma, runCycleForUser, env, DEFAULT_WATCHLIST } from '@autotrade/engine';
+import { prisma, runCycleForUser, env, DEFAULT_WATCHLIST } from '@autotrade/engine/public';
 import { capture } from '@/lib/analytics';
 import { convexServer } from '@/lib/convex-server';
 import { makeFunctionReference } from 'convex/server';

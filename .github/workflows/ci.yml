@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      web: ${{ steps.filter.outputs.web }}
+      engine: ${{ steps.filter.outputs.engine }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig.base.json'
+            web:
+              - 'apps/web/**'
+            engine:
+              - 'packages/engine/**'
+              - 'apps/worker/**'
+
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @autotrade/shared build
+      - run: pnpm --filter @autotrade/engine generate
+
+  typecheck-shared:
+    needs: [changes, setup]
+    if: needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @autotrade/shared build
+      - run: pnpm --filter @autotrade/engine generate
+      - run: pnpm typecheck
+
+  typecheck-web:
+    needs: [changes, setup]
+    if: needs.changes.outputs.web == 'true' && needs.changes.outputs.shared != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @autotrade/shared build
+      - run: pnpm --filter @autotrade/engine generate
+      - run: pnpm --filter @autotrade/web typecheck
+
+  typecheck-engine:
+    needs: [changes, setup]
+    if: needs.changes.outputs.engine == 'true' && needs.changes.outputs.shared != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @autotrade/shared build
+      - run: pnpm --filter @autotrade/engine generate
+      - run: pnpm --filter @autotrade/engine typecheck
+      - run: pnpm --filter @autotrade/worker typecheck

@@ -1,6 +1,6 @@
 import { requireAdmin } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { prisma } from '@autotrade/engine';
+import { prisma } from '@autotrade/engine/public';
 
 export async function GET() {
   try {

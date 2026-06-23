@@ -2,7 +2,7 @@ import { type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { getMarketData, parse } from '@autotrade/engine';
+import { getMarketData, parse } from '@autotrade/engine/public';
 
 export async function GET(req: NextRequest) {
   try {
