@@ -125,12 +125,20 @@ function riskLevelFromAnalysis(analysis: Awaited<ReturnType<typeof analyzeSymbol
   return riskLevelFor(atrPct);
 }
 
-export async function loadUserBotContext(clerkId: string): Promise<UserBotContext | null> {
+export async function loadUserBotContext(
+  clerkId: string,
+  options?: { manualScan?: boolean },
+): Promise<UserBotContext | null> {
   const user = await db.getBotContext(clerkId);
   if (!user || user.status === 'DISABLED' || !user.botSettings) return null;
-  if (user.botSettings.mode === 'DISABLED') return null;
+  if (user.botSettings.mode === 'DISABLED' && !options?.manualScan) return null;
 
-  const isLiveMode = user.botSettings.mode === 'LIVE';
+  const botSettings =
+    options?.manualScan && user.botSettings.mode === 'DISABLED'
+      ? { ...user.botSettings, mode: 'PAPER' as const }
+      : user.botSettings;
+
+  const isLiveMode = botSettings.mode === 'LIVE';
   if (isLiveMode && !user.liveEntitled) return null;
 
   if (!isLiveMode) {
@@ -161,14 +169,23 @@ export async function loadUserBotContext(clerkId: string): Promise<UserBotContex
 
   return {
     clerkId,
-    settings: user.botSettings,
-    ...resolveStrategyLists(user.botSettings),
-    includeExperimental: user.botSettings.includeExperimental ?? false,
+    settings: botSettings,
+    ...resolveStrategyLists(botSettings),
+    includeExperimental: botSettings.includeExperimental ?? false,
     equity,
     pnlToday: await db.realizedPnlToday(clerkId),
-    timeframes: user.botSettings.timeframes as Timeframe[],
+    timeframes: botSettings.timeframes as Timeframe[],
     watchlist: user.watchlist.map(({ symbol, exchange }) => ({ symbol, exchange })),
   };
+}
+
+export interface ScanCycleResult {
+  ok: boolean;
+  reason?: string;
+  symbolsScanned: number;
+  stockSymbols: number;
+  cryptoSymbols: number;
+  skippedMarketClosed: number;
 }
 
 export async function evaluateSymbolEntry(
@@ -296,9 +313,28 @@ export async function evaluateSymbolEntry(
   }
 }
 
-export async function runCycleForUser(clerkId: string): Promise<void> {
-  const ctx = await loadUserBotContext(clerkId);
-  if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) return;
+export async function runCycleForUser(
+  clerkId: string,
+  options?: { manualScan?: boolean },
+): Promise<ScanCycleResult> {
+  const empty: ScanCycleResult = {
+    ok: false,
+    symbolsScanned: 0,
+    stockSymbols: 0,
+    cryptoSymbols: 0,
+    skippedMarketClosed: 0,
+  };
+
+  const ctx = await loadUserBotContext(clerkId, options);
+  if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) {
+    return { ...empty, reason: 'bot_stopped' };
+  }
+
+  if (ctx.watchlist.length === 0) {
+    return { ...empty, ok: true, reason: 'empty_watchlist' };
+  }
+
+  const marketOpen = await stockMarketOpenForUser(clerkId);
 
   const broker = await loadUserBroker(clerkId);
   let md;
@@ -306,7 +342,7 @@ export async function runCycleForUser(clerkId: string): Promise<void> {
     md = await getMarketDataForUser(clerkId);
   } catch (err) {
     console.error(`market data unavailable for user ${clerkId}`, err);
-    return;
+    return { ...empty, reason: 'market_data_unavailable' };
   }
 
   try {
@@ -321,13 +357,28 @@ export async function runCycleForUser(clerkId: string): Promise<void> {
     console.error(`monitor failed for user ${clerkId}`, err);
   }
 
+  const result: ScanCycleResult = { ...empty, ok: true };
+
   for (const watched of ctx.watchlist) {
+    const crypto = isCryptoSymbol(watched.symbol);
+    if (crypto) {
+      result.cryptoSymbols++;
+    } else {
+      result.stockSymbols++;
+      if (!marketOpen) {
+        result.skippedMarketClosed++;
+        continue;
+      }
+    }
+    result.symbolsScanned++;
     try {
       await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange, md);
     } catch (err) {
       console.error(`scan failed for ${watched.symbol} (user ${clerkId})`, err);
     }
   }
+
+  return { ...result, ok: true };
 }
 
 export async function runScanCycle(): Promise<void> {

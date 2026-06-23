@@ -37,10 +37,12 @@ export async function POST(req: NextRequest) {
   }
 
   let clerkId: string;
+  let manualScan = false;
   try {
-    const body = (await req.json()) as { clerkId?: string };
+    const body = (await req.json()) as { clerkId?: string; manual?: boolean };
     if (!body.clerkId) throw new Error('Missing clerkId');
     clerkId = body.clerkId;
+    manualScan = body.manual === true;
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
   const cycleStartedMs = Date.now();
 
   try {
-    await runCycleForUser(clerkId);
+    const cycle = await runCycleForUser(clerkId, { manualScan });
 
     let signalsGenerated = 0;
     let tradesOpened = 0;
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
       // Counts are best-effort; cycle already ran.
     }
 
-    return NextResponse.json({ ok: true, signalsGenerated, tradesOpened });
+    return NextResponse.json({ ...cycle, signalsGenerated, tradesOpened });
   } catch (err) {
     return handleError(err, { route: '/api/internal/bot/run-user' });
   }

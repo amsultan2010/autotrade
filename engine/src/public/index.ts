@@ -45,7 +45,7 @@ export { createCheckoutSession, getStatus } from '../services/subscription.servi
 export { getStripe, isStripeConfigured, isBillingEnabled } from '../lib/stripe';
 
 // Bot cycle (cron / internal routes)
-export { runCycleForUser } from '../workers/scanLoop';
+export { runCycleForUser, type ScanCycleResult } from '../workers/scanLoop';
 
 // Strategy catalog (settings UI)
 export {

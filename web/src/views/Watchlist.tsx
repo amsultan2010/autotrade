@@ -117,16 +117,17 @@ export function Watchlist() {
   });
 
   const showPopular = focused && query.trim().length === 0 && popular.length > 0;
-  const showSearch  = query.trim().length > 0 && (results.length > 0 || searching);
+  const showSearch  = query.trim().length > 0;
+  const dropdownOpen = showPopular || showSearch;
 
   return (
     <div className="page">
       <header className="page-head">
         <h1>Watchlist</h1>
-        <span className="muted">{rows.length} symbols · live prices · no limit</span>
+        <span className="muted">{rows.length} symbols · stocks trade US hours · crypto (BTC/USD) 24/7</span>
       </header>
 
-      <div className="search-wrap">
+      <div className={`search-wrap${dropdownOpen ? ' search-wrap--open' : ''}`}>
         <input
           className="search"
           placeholder="Click to browse, or search any symbol (AAPL, SPY, BTC/USD)…"
@@ -139,26 +140,36 @@ export function Watchlist() {
         />
 
         {showSearch && (
-          <div className="search-results">
-            {searching && <div className="muted pad">Searching…</div>}
+          <div className="search-dropdown" role="listbox" aria-label="Symbol search results">
+            {searching && <div className="search-dropdown-status">Searching…</div>}
+            {!searching && results.length === 0 && (
+              <div className="search-dropdown-status">No symbols found — try BTC/USD for crypto</div>
+            )}
             {results.map((r) => (
               <button
                 key={`${r.symbol}-${r.exchange}`}
+                type="button"
                 className="search-item"
+                role="option"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void add(r.symbol, r.exchange)}
               >
-                <span className="mono">{r.symbol}</span>
-                <span className="muted truncate">{r.name}</span>
-                <span className="tag">{r.exchange}</span>
+                <div className="search-item-primary">
+                  <span className="search-symbol mono">{r.symbol}</span>
+                  <span className="search-name">{r.name}</span>
+                </div>
+                <div className="search-item-meta">
+                  <span className="tag">{r.exchange}</span>
+                  <span className="search-action">+ add</span>
+                </div>
               </button>
             ))}
           </div>
         )}
 
         {showPopular && (
-          <div className="search-results">
-            <div className="pop-head">
+          <div className="search-dropdown" role="listbox" aria-label="Popular symbols">
+            <div className="search-dropdown-head">
               Popular tickers
               <span className="muted">
                 {' · '}US market {marketOpen ? 'open' : 'closed'} · crypto 24/7
@@ -169,23 +180,29 @@ export function Watchlist() {
               return (
                 <button
                   key={p.symbol}
+                  type="button"
                   className="search-item"
+                  role="option"
                   disabled={already}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => void add(p.symbol, p.exchange)}
                 >
-                  <span className="mono">{p.symbol}</span>
-                  <span className="muted truncate">{p.name}</span>
-                  <span className="mono muted">{p.price != null ? money(p.price) : ''}</span>
-                  <span className={p.changePct == null ? 'muted' : p.changePct >= 0 ? 'pos' : 'neg'}>
-                    {p.changePct == null ? '' : `${p.changePct >= 0 ? '+' : ''}${p.changePct}%`}
-                  </span>
-                  {p.kind === 'crypto' ? (
-                    <span className="dot-badge open">24/7</span>
-                  ) : (
-                    <span className={`dot-badge ${p.open ? 'open' : 'closed'}`}>{p.open ? 'Open' : 'Closed'}</span>
-                  )}
-                  <span className="add-hint">{already ? 'added' : '+ add'}</span>
+                  <div className="search-item-primary">
+                    <span className="search-symbol mono">{p.symbol}</span>
+                    <span className="search-name">{p.name}</span>
+                  </div>
+                  <div className="search-item-meta">
+                    <span className="search-quote mono">{p.price != null ? money(p.price) : '—'}</span>
+                    <span className={p.changePct == null ? 'search-change muted' : p.changePct >= 0 ? 'search-change pos' : 'search-change neg'}>
+                      {p.changePct == null ? '—' : `${p.changePct >= 0 ? '+' : ''}${p.changePct}%`}
+                    </span>
+                    {p.kind === 'crypto' ? (
+                      <span className="dot-badge open">24/7</span>
+                    ) : (
+                      <span className={`dot-badge ${p.open ? 'open' : 'closed'}`}>{p.open ? 'Open' : 'Closed'}</span>
+                    )}
+                    <span className="search-action">{already ? 'added' : '+ add'}</span>
+                  </div>
                 </button>
               );
             })}

@@ -364,6 +364,7 @@ export function Dashboard() {
   const [busy, setBusy]     = useState(false);
   const [error, setError]   = useState<string | null>(null);
   const [brokerError, setBrokerError] = useState<string | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [tab, setTab]       = useState<'1D' | '1W' | '1M' | '3M' | '1Y'>('1D');
 
   // Fetch live prices for watchlist symbols
@@ -427,8 +428,49 @@ export function Dashboard() {
     }
     setBusy(true);
     setError(null);
+    setScanMessage(null);
     try {
-      await runNow({});
+      const result = (await runNow({})) as {
+        ok?: boolean;
+        reason?: string;
+        symbolsScanned?: number;
+        stockSymbols?: number;
+        cryptoSymbols?: number;
+        skippedMarketClosed?: number;
+        signalsGenerated?: number;
+        tradesOpened?: number;
+      };
+
+      if (result.reason === 'bot_stopped') {
+        setScanMessage('Scan skipped — could not load bot settings.');
+        return;
+      }
+      if (result.reason === 'empty_watchlist') {
+        setScanMessage('Nothing to scan — add symbols to your Watchlist first.');
+        return;
+      }
+      if (result.reason === 'market_data_unavailable') {
+        setScanMessage('Could not load market data. Reconnect Alpaca in Settings.');
+        return;
+      }
+
+      const scanned = result.symbolsScanned ?? 0;
+      const signals = result.signalsGenerated ?? 0;
+      const trades = result.tradesOpened ?? 0;
+      const skipped = result.skippedMarketClosed ?? 0;
+      const crypto = result.cryptoSymbols ?? 0;
+
+      let msg = `Scanned ${scanned} symbol${scanned === 1 ? '' : 's'} · ${signals} signal${signals === 1 ? '' : 's'} · ${trades} trade${trades === 1 ? '' : 's'} opened`;
+      if (skipped > 0) {
+        msg += ` · ${skipped} stock${skipped === 1 ? '' : 's'} skipped (US market closed)`;
+      }
+      if (crypto > 0) {
+        msg += ` · ${crypto} crypto (24/7)`;
+      }
+      if (signals === 0 && trades === 0 && scanned > 0) {
+        msg += ' — no buy signal strong enough yet; check AI Signal Feed';
+      }
+      setScanMessage(msg);
     } catch (err) {
       reportTrackedError(ErrorCodes.BOT, err, { route: '/dashboard', action: 'scanNow' });
       setError(formatUserError(err, 'Scan failed — check that the bot is configured'));
@@ -547,9 +589,14 @@ export function Dashboard() {
       {dataLoading && (
         <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>Loading your account data…</p>
       )}
+      {scanMessage && (
+        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(0,200,150,0.1)', borderColor: 'rgba(0,200,150,0.35)' }}>
+          {scanMessage}
+        </div>
+      )}
       {!dataLoading && botStatus?.mode === 'DISABLED' && (
         <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
-          Bot is stopped. Tap <strong>Start Bot</strong> to scan your watchlist for trades.
+          Bot is stopped. Tap <strong>Start Bot</strong> for automatic scans, or use <strong>Scan Now</strong> for a one-off run.
         </div>
       )}
       {!dataLoading && !brokerConnected && (

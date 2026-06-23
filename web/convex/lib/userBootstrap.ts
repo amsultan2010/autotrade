@@ -8,6 +8,7 @@ const DEFAULT_WATCHLIST: Array<{ symbol: string; exchange: string }> = [
   { symbol: 'NVDA', exchange: 'US' },
   { symbol: 'SPY', exchange: 'US' },
   { symbol: 'QQQ', exchange: 'US' },
+  { symbol: 'BTC/USD', exchange: 'CRYPTO' },
 ];
 
 async function seedDefaultWatchlist(ctx: MutationCtx, clerkId: string): Promise<void> {

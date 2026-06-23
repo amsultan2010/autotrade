@@ -40,7 +40,7 @@ export const runNow = action({
     const res = await fetch(`${baseUrl}/api/internal/bot/run-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal-secret': botSecret },
-      body: JSON.stringify({ clerkId: identity.subject }),
+      body: JSON.stringify({ clerkId: identity.subject, manual: true }),
     });
 
     if (!res.ok) {
@@ -48,7 +48,16 @@ export const runNow = action({
       throw new ConvexError(formatInternalApiError(res.status, text));
     }
 
-    return res.json() as Promise<{ signalsGenerated?: number; tradesOpened?: number }>;
+    return res.json() as Promise<{
+      ok?: boolean;
+      reason?: string;
+      symbolsScanned?: number;
+      stockSymbols?: number;
+      cryptoSymbols?: number;
+      skippedMarketClosed?: number;
+      signalsGenerated?: number;
+      tradesOpened?: number;
+    }>;
   },
 });
 
