@@ -117,3 +117,12 @@ export function isErrorPayload(value: unknown): value is ErrorPayload {
     && typeof (value as ErrorPayload).message === 'string'
   );
 }
+
+/** Duck-type check for engine AppError without importing @autotrade/engine in client bundles. */
+export function isAppError(err: unknown): err is Error & { statusCode: number; code: string; details?: unknown } {
+  return (
+    err instanceof Error
+    && typeof (err as { statusCode?: unknown }).statusCode === 'number'
+    && typeof (err as { code?: unknown }).code === 'string'
+  );
+}

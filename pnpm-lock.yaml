@@ -147,6 +147,9 @@ importers:
       resend:
         specifier: ^6.12.4
         version: 6.12.4
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       svix:
         specifier: ^1.95.2
         version: 1.95.2

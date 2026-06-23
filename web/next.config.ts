@@ -47,6 +47,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@autotrade/engine', '@autotrade/shared'],
+  outputFileTracingRoot: join(__dirname, '..'),
   serverExternalPackages: ['argon2', '@prisma/client', 'prisma'],
   outputFileTracingIncludes: prismaTracingIncludes.length
     ? {

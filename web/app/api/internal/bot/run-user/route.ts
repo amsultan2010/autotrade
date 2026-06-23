@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { ErrorCodes } from '@autotrade/shared';
-import { captureAppError } from '@/lib/error-tracking';
+import { captureAppErrorServer } from '@/lib/error-tracking-server';
 import { createClerkClient } from '@clerk/backend';
 import { prisma, runCycleForUser, env, DEFAULT_WATCHLIST } from '@autotrade/engine/public';
 import { capture } from '@/lib/analytics';
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (err) {
-      captureAppError(ErrorCodes.BOT_USER_CREATE, err, { route: '/api/internal/bot/run-user', clerkId });
+      captureAppErrorServer(ErrorCodes.BOT_USER_CREATE, err, { route: '/api/internal/bot/run-user', clerkId });
       return NextResponse.json({ error: 'User not found and could not be auto-created' }, { status: 404 });
     }
   }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (err) {
-    captureAppError(ErrorCodes.BOT_CONFIG_SYNC, err, { route: '/api/internal/bot/run-user', clerkId });
+    captureAppErrorServer(ErrorCodes.BOT_CONFIG_SYNC, err, { route: '/api/internal/bot/run-user', clerkId });
   }
 
   const settings = await prisma.botSettings.findUnique({
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
   try {
     await runCycleForUser(user.id);
   } catch (err) {
-    captureAppError(ErrorCodes.BOT_CYCLE, err, {
+    captureAppErrorServer(ErrorCodes.BOT_CYCLE, err, {
       route: '/api/internal/bot/run-user',
       clerkId,
       userId: user.id,

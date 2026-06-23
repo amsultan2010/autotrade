@@ -1,5 +1,5 @@
 import { ErrorCodes } from '@autotrade/shared';
-import { captureAppError } from '@/lib/error-tracking';
+import { captureAppErrorServer } from '@/lib/error-tracking-server';
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
@@ -15,7 +15,7 @@ export const onRequestError = async (
 ) => {
   const [err, request, context] = args;
   const digest = context && 'digest' in context ? String(context.digest) : undefined;
-  captureAppError(ErrorCodes.INTERNAL, err, {
+  captureAppErrorServer(ErrorCodes.INTERNAL, err, {
     route: request.path,
     method: request.method,
     digest,

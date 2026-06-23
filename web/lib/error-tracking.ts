@@ -4,12 +4,12 @@ import {
   ErrorCodes,
   extractErrorRefId,
   generateErrorRefId,
+  isAppError,
   toTrackedError,
   TrackedError,
   type ErrorPayload,
 } from '@autotrade/shared';
-import { AppError } from '@autotrade/engine/public';
-import { isSentryEnabled } from '@/lib/sentry-options';
+import { isSentryEnabled } from '@/lib/sentry-env';
 
 export interface CaptureContext {
   route?: string;
@@ -21,7 +21,7 @@ export interface CaptureContext {
 }
 
 function resolveCode(err: unknown, fallback: ErrorCode): ErrorCode {
-  if (err instanceof AppError) return err.code as ErrorCode;
+  if (isAppError(err)) return err.code as ErrorCode;
   if (err && typeof err === 'object' && 'code' in err) {
     const code = (err as { code: unknown }).code;
     if (typeof code === 'string') return code as ErrorCode;
@@ -48,21 +48,6 @@ function capturePostHog(code: ErrorCode, refId: string, context?: CaptureContext
         component: context?.component,
         digest: context?.digest,
         posthog_session_id: sessionId,
-      });
-    })
-    .catch(() => undefined);
-}
-
-function captureServerError(code: ErrorCode, refId: string, context?: CaptureContext): void {
-  if (typeof window !== 'undefined') return;
-  void import('@/lib/analytics')
-    .then(({ captureError }) => {
-      captureError(typeof context?.userId === 'string' ? context.userId : undefined, {
-        errorCode: code,
-        refId,
-        route: context?.route,
-        message: typeof context?.message === 'string' ? context.message : undefined,
-        component: context?.component,
       });
     })
     .catch(() => undefined);
@@ -115,7 +100,6 @@ export function captureAppError(
   }
 
   capturePostHog(resolvedCode, refId, context);
-  captureServerError(resolvedCode, refId, context);
   return refId;
 }
 
@@ -149,48 +133,6 @@ export function formatUserError(err: unknown, fallback = 'Something went wrong')
   }
   if (err instanceof Error) return err.message || fallback;
   return fallback;
-}
-
-export function enrichSentryEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
-  const ctx = event.contexts?.error as {
-    code?: string;
-    refId?: string;
-    message?: string;
-    route?: string;
-    component?: string;
-    digest?: string;
-  } | undefined;
-  const code = event.tags?.error_code ?? ctx?.code;
-  if (typeof code === 'string' && !event.tags?.error_code) {
-    event.tags = { ...event.tags, error_code: code };
-  }
-  if (ctx?.refId && !event.tags?.error_ref_id) {
-    event.tags = { ...event.tags, error_ref_id: ctx.refId };
-  }
-  if (ctx?.route && !event.tags?.route) {
-    event.tags = { ...event.tags, route: ctx.route };
-  }
-  if (ctx?.component && !event.tags?.component) {
-    event.tags = { ...event.tags, component: ctx.component };
-  }
-  if (ctx?.message && event.message && !event.message.includes(ctx.message)) {
-    const codeLabel = typeof code === 'string' ? code : 'ERROR';
-    event.message = `[${codeLabel}] ${ctx.message}`;
-  }
-  if (event.exception?.values?.[0]) {
-    const top = event.exception.values[0];
-    if (ctx?.refId) {
-      top.value = `${top.value ?? 'Error'} (ref: ${ctx.refId})`;
-    }
-    if (typeof code === 'string' && top.type && !top.type.includes(code)) {
-      event.fingerprint = event.fingerprint ?? [code, ctx?.route ?? ctx?.component ?? 'app'];
-    }
-  }
-  return event;
-}
-
-export function asTrackedError(err: Error, code: ErrorCode): TrackedError {
-  return toTrackedError(err, code);
 }
 
 export { ErrorCodes };
