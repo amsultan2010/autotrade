@@ -27,7 +27,7 @@ export function handleError(err: unknown, context?: { route?: string }): NextRes
   const refId = captureAppError(ErrorCodes.INTERNAL, err, { route: context?.route });
   const payload: ErrorPayload = {
     code: ErrorCodes.INTERNAL,
-    message: 'An unexpected error occurred',
+    message: `An unexpected error occurred (ref: ${refId})`,
     refId,
   };
   return NextResponse.json({ error: payload }, { status: 500 });

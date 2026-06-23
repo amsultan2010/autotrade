@@ -72,7 +72,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     const refId = generateErrorRefId();
     req.log.error({ err, refId }, 'Unhandled error');
     return reply.code(500).send({
-      error: { code: ErrorCodes.INTERNAL, message: 'Something went wrong', refId },
+      error: {
+        code: ErrorCodes.INTERNAL,
+        message: `An unexpected error occurred (ref: ${refId})`,
+        refId,
+      },
     });
   });
 

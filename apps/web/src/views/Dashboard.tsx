@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
+import { ErrorCodes } from '@autotrade/shared';
 import { api as convexApi } from '@/convex/_generated/api';
+import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 
 // ─── Convex data shapes ───────────────────────────────────────────────────────
 interface ConvexBotStatus {
@@ -413,7 +415,8 @@ export function Dashboard() {
       }
       await setMode({ mode: nextMode });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not change bot mode');
+      reportTrackedError(ErrorCodes.BOT, err, { route: '/dashboard', action: 'toggle' });
+      setError(formatUserError(err, 'Could not change bot mode'));
     } finally {
       setBusy(false);
     }
@@ -425,7 +428,8 @@ export function Dashboard() {
     try {
       await runNow({});
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Scan failed — check that the bot is configured');
+      reportTrackedError(ErrorCodes.BOT, err, { route: '/dashboard', action: 'scanNow' });
+      setError(formatUserError(err, 'Scan failed — check that the bot is configured'));
     } finally {
       setBusy(false);
     }

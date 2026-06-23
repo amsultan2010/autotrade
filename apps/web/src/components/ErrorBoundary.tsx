@@ -1,6 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { ErrorCodes, toTrackedError, type TrackedError } from '@autotrade/shared';
-import { captureAppError } from '@/lib/error-tracking';
+import { reportTrackedError } from '@/lib/error-tracking';
 import { ErrorFallback } from '@/src/components/ErrorFallback';
 
 interface Props { children: ReactNode }
@@ -16,9 +16,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    captureAppError(ErrorCodes.UI_RENDER, error, {
+    const tracked = reportTrackedError(ErrorCodes.UI_RENDER, error, {
       componentStack: info.componentStack,
     });
+    this.setState({ error: tracked });
   }
 
   override render() {

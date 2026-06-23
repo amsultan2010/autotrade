@@ -24,7 +24,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://img.clerk.com https://tryautotrade.com",
       "font-src 'self'",
       // Convex websocket + PostHog + Sentry ingest + Clerk backend
-      "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://us.i.posthog.com https://o4511178358456320.ingest.us.sentry.io https://clerk.tryautotrade.com https://*.clerk.accounts.dev",
+      "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://us.i.posthog.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io https://clerk.tryautotrade.com https://*.clerk.accounts.dev",
       "frame-src 'self' https://challenges.cloudflare.com",
       "object-src 'none'",
       "base-uri 'self'",
@@ -57,4 +57,5 @@ export default withSentryConfig(nextConfig, {
   widenClientFileUpload: true,
   disableLogger: true,
   automaticVercelMonitors: true,
+  tunnelRoute: '/monitoring',
 });

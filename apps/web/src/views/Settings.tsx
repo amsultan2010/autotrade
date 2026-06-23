@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
-import { RISK_LEVELS, STRATEGIES, TIMEFRAMES } from '@autotrade/shared';
+import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, ErrorCodes } from '@autotrade/shared';
+import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 
 type Mode = 'DISABLED' | 'PAPER' | 'LIVE';
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -110,7 +111,8 @@ export function Settings() {
       });
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save');
+      reportTrackedError(ErrorCodes.CONFIG, err, { route: '/settings', action: 'save' });
+      setError(formatUserError(err, 'Could not save'));
     }
   }
 
@@ -133,7 +135,8 @@ export function Settings() {
       setLocal((prev) => (prev ? { ...prev, mode } : prev));
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update mode');
+      reportTrackedError(ErrorCodes.BOT, err, { route: '/settings', action: 'setMode' });
+      setError(formatUserError(err, 'Could not update mode'));
     }
   }
 
@@ -261,7 +264,8 @@ function AlpacaCard({
       setKeyId('');
       setSecret('');
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not connect — check your keys and try again.');
+      reportTrackedError(ErrorCodes.BROKER, err, { route: '/settings', action: 'connectBroker' });
+      onError(formatUserError(err, 'Could not connect — check your keys and try again.'));
     } finally {
       setLoading(false);
     }
@@ -272,8 +276,9 @@ function AlpacaCard({
     setLoading(true);
     try {
       await disconnectBroker({});
-    } catch {
-      onError('Could not disconnect. Try again.');
+    } catch (err) {
+      reportTrackedError(ErrorCodes.BROKER, err, { route: '/settings', action: 'disconnectBroker' });
+      onError(formatUserError(err, 'Could not disconnect. Try again.'));
     } finally {
       setLoading(false);
     }

@@ -36,9 +36,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
     const apiError = new ApiError(res.status, code, message, refId);
     if (res.status >= 500) {
-      captureAppError(code as ErrorCode, apiError, {
+      captureAppError(ErrorCodes.API_CLIENT, apiError, {
         route: path,
         refId,
+        status: res.status,
       });
     }
     throw apiError;

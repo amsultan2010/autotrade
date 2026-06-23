@@ -1,3 +1,6 @@
+import { ErrorCodes } from '@autotrade/shared';
+import { captureAppError } from '@/lib/error-tracking';
+
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('./sentry.server.config');
@@ -7,9 +10,19 @@ export async function register() {
   }
 }
 
-// Required by @sentry/nextjs v8+ with Next.js 15 to capture server-side
-// Route Handler errors that wouldn't otherwise reach the error boundary.
-export const onRequestError = async (...args: Parameters<typeof import('@sentry/nextjs').captureRequestError>) => {
-  const Sentry = await import('@sentry/nextjs');
-  Sentry.captureRequestError(...args);
+export const onRequestError = async (
+  ...args: Parameters<typeof import('@sentry/nextjs').captureRequestError>
+) => {
+  const [err, request, context] = args;
+  const digest = context && 'digest' in context ? String(context.digest) : undefined;
+  captureAppError(ErrorCodes.INTERNAL, err, {
+    route: request.path,
+    method: request.method,
+    digest,
+  });
+
+  if (process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN) {
+    const Sentry = await import('@sentry/nextjs');
+    Sentry.captureRequestError(...args);
+  }
 };

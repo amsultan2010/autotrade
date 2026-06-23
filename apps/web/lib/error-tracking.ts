@@ -5,9 +5,11 @@ import {
   extractErrorRefId,
   generateErrorRefId,
   toTrackedError,
-  type TrackedError,
+  TrackedError,
+  type ErrorPayload,
 } from '@autotrade/shared';
 import { AppError } from '@autotrade/engine/public';
+import { isSentryEnabled } from '@/lib/sentry-options';
 
 export interface CaptureContext {
   route?: string;
@@ -74,35 +76,85 @@ export function captureAppError(
   const resolvedCode = resolveCode(err, code);
   const message = resolveMessage(err);
 
-  Sentry.withScope((scope) => {
-    scope.setTag('error_code', resolvedCode);
-    scope.setTag('error_ref_id', refId);
-    if (context?.route) scope.setTag('route', context.route);
-    if (context?.component) scope.setTag('component', context.component);
-    if (context?.digest) scope.setTag('next_digest', context.digest);
-    if (context?.userId) scope.setUser({ id: context.userId });
+  if (isSentryEnabled()) {
+    Sentry.withScope((scope) => {
+      scope.setLevel('error');
+      scope.setTag('error_code', resolvedCode);
+      scope.setTag('error_ref_id', refId);
+      if (context?.route) scope.setTag('route', context.route);
+      if (context?.component) scope.setTag('component', context.component);
+      if (context?.digest) scope.setTag('next_digest', context.digest);
+      if (context?.userId) scope.setUser({ id: context.userId });
 
-    scope.setFingerprint([resolvedCode, context?.route ?? context?.component ?? 'app']);
-    scope.setContext('error', {
-      refId,
-      code: resolvedCode,
-      message,
-      ...context,
+      scope.setFingerprint([resolvedCode, context?.route ?? context?.component ?? 'app']);
+      scope.setContext('error', {
+        refId,
+        code: resolvedCode,
+        message,
+        ...context,
+      });
+
+      const exception = err instanceof Error ? err : new Error(`[${resolvedCode}] ${message}`);
+      Sentry.captureException(exception);
     });
-
-    const exception = err instanceof Error ? err : new Error(message);
-    Sentry.captureException(exception);
-  });
+  } else if (process.env.NODE_ENV === 'development') {
+    console.error('[error-tracking] Sentry disabled — no DSN configured', {
+      code: resolvedCode,
+      refId,
+      message,
+      context,
+    });
+  }
 
   capturePostHog(resolvedCode, refId, context);
   captureServerError(resolvedCode, refId, context);
   return refId;
 }
 
+/** Create a TrackedError, capture it, and return it for UI display. */
+export function reportTrackedError(
+  code: ErrorCode,
+  err: unknown,
+  context?: CaptureContext,
+  fallbackMessage = 'An unexpected error occurred',
+): TrackedError {
+  const tracked = toTrackedError(err, code, fallbackMessage);
+  const refId = captureAppError(code, tracked, context);
+  if (tracked.refId !== refId) {
+    return new TrackedError(tracked.code, tracked.message, {
+      cause: tracked.cause,
+      details: tracked.details,
+      refId,
+    });
+  }
+  return tracked;
+}
+
+export function formatUserError(err: unknown, fallback = 'Something went wrong'): string {
+  if (err instanceof TrackedError) {
+    return `[${err.code}] ${err.message} (ref: ${err.refId})`;
+  }
+  if (err && typeof err === 'object' && 'code' in err && 'message' in err) {
+    const payload = err as ErrorPayload;
+    const ref = payload.refId ? ` (ref: ${payload.refId})` : '';
+    return `[${payload.code}] ${payload.message}${ref}`;
+  }
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+}
+
 export function enrichSentryEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
-  const code = event.tags?.error_code ?? event.contexts?.error?.code;
+  const ctx = event.contexts?.error as { code?: string; refId?: string; message?: string } | undefined;
+  const code = event.tags?.error_code ?? ctx?.code;
   if (typeof code === 'string' && !event.tags?.error_code) {
     event.tags = { ...event.tags, error_code: code };
+  }
+  if (ctx?.refId && !event.tags?.error_ref_id) {
+    event.tags = { ...event.tags, error_ref_id: ctx.refId };
+  }
+  if (ctx?.message && event.message && !event.message.includes(ctx.message)) {
+    const codeLabel = typeof code === 'string' ? code : 'ERROR';
+    event.message = `[${codeLabel}] ${ctx.message}`;
   }
   return event;
 }

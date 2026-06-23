@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
-import { TIMEFRAMES, type Candle, type Timeframe } from '@autotrade/shared';
+import { TIMEFRAMES, type Candle, type Timeframe, ErrorCodes } from '@autotrade/shared';
 import { api } from '../api/client';
+import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 import { PriceChart, type ChartMarker } from '../components/PriceChart';
 
 function buildMarkers(trades: Array<{
@@ -68,7 +69,13 @@ export function Charts() {
     setError(null);
     api.getCandles(symbol, tf)
       .then((c) => { if (!cancelled) setCandles(c.candles); })
-      .catch(() => { if (!cancelled) { setError('Could not load chart data for this symbol/timeframe.'); setCandles([]); } })
+      .catch((err) => {
+        if (!cancelled) {
+          reportTrackedError(ErrorCodes.MARKET_DATA, err, { route: '/charts', action: 'getCandles', symbol, tf });
+          setError(formatUserError(err, 'Could not load chart data for this symbol/timeframe.'));
+          setCandles([]);
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [symbol, tf]);

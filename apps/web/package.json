@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy"
+    "convex:deploy": "convex deploy",
+    "sentry:alerts": "bash scripts/setup-sentry-alerts.sh"
   },
   "dependencies": {
     "@autotrade/engine": "workspace:*",

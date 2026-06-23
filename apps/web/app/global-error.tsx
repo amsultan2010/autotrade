@@ -1,19 +1,15 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { ErrorCodes, toTrackedError } from '@autotrade/shared';
-import { captureAppError } from '@/lib/error-tracking';
+import { useMemo } from 'react';
+import { ErrorCodes } from '@autotrade/shared';
+import { reportTrackedError } from '@/lib/error-tracking';
 import { ErrorFallback } from '@/src/components/ErrorFallback';
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   const tracked = useMemo(
-    () => toTrackedError(error, ErrorCodes.UI_GLOBAL, error.message),
+    () => reportTrackedError(ErrorCodes.UI_GLOBAL, error, { digest: error.digest }, error.message),
     [error],
   );
-
-  useEffect(() => {
-    captureAppError(ErrorCodes.UI_GLOBAL, error, { digest: error.digest });
-  }, [error]);
 
   return (
     <html lang="en">
