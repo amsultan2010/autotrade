@@ -363,7 +363,7 @@ export function Landing() {
       {/* ── Header ─── */}
       <header className="lp-header">
         <div className="lp-brand">
-          <div className="lp-brand-mark">AT</div>
+          <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
           <span className="lp-brand-name">Autotrade</span>
         </div>
         <nav className="lp-nav-links">
@@ -487,7 +487,7 @@ export function Landing() {
       {/* ── Footer ─── */}
       <footer className="lp-footer">
         <div className="lp-brand">
-          <div className="lp-brand-mark">AT</div>
+          <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
           <span className="lp-brand-name">Autotrade</span>
         </div>
         <p className="lp-footer-copy">

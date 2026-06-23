@@ -44,7 +44,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-shell">
         <aside className="sidebar">
           <div className="nav-logo">
-            <img src="/icon.svg" alt="Autotrade" width={30} height={30} style={{ borderRadius: 6, flexShrink: 0 }} />
+            <img src="/icon.png" alt="Autotrade" width={30} height={30} style={{ borderRadius: 6, flexShrink: 0 }} />
             <span className="nav-logo-text">Autotrade</span>
           </div>
           <nav>

@@ -1522,14 +1522,8 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  background: var(--teal);
-  color: #031a12;
-  font-weight: 800;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: -0.5px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .lp-brand-name {
