@@ -36,9 +36,63 @@ export const MARKET_REGIMES = [
 ] as const;
 export type MarketRegime = (typeof MARKET_REGIMES)[number];
 
+// ─────────────────────────── Crypto regimes ───────────────────────────
+// Crypto trades differently from equities (24/7, BTC-led, leverage/liquidations),
+// so crypto assets get their OWN regime set. The crypto regime is detected before
+// crypto strategies run (see crypto/regimes.ts).
+export const CRYPTO_REGIMES = [
+  'BTC_LED_UPTREND',
+  'BTC_LED_DOWNTREND',
+  'ALTCOIN_ROTATION',
+  'CRYPTO_RANGING',
+  'CRYPTO_HIGH_VOL_BREAKOUT',
+  'CRYPTO_LOW_LIQUIDITY', // unsafe to trade
+  'CRYPTO_NEWS_DRIVEN',
+  'CRYPTO_LEVERAGE_HEAVY',
+  'CRYPTO_LIQUIDATION_RISK',
+  'CRYPTO_CONFLICTING', // default no-trade
+] as const;
+export type CryptoRegime = (typeof CRYPTO_REGIMES)[number];
+
+/** Either a stock or crypto regime — strategies declare which they suit. */
+export type AnyRegime = MarketRegime | CryptoRegime;
+
+/** Human labels for every regime (stock + crypto). Falls back to the raw id. */
+export const REGIME_LABELS: Record<string, string> = {
+  STRONG_UPTREND: 'Strong uptrend',
+  STRONG_DOWNTREND: 'Strong downtrend',
+  RANGING: 'Sideways / ranging',
+  HIGH_VOLATILITY: 'High volatility',
+  LOW_VOLATILITY: 'Low volatility',
+  NEWS_EVENT: 'News / event-driven',
+  BREAKOUT_SETUP: 'Breakout setup',
+  LOW_LIQUIDITY: 'Low liquidity / unsafe',
+  RISK_OFF: 'Market-wide risk-off',
+  CONFLICTING: 'Conflicting signals / no-trade',
+  BTC_LED_UPTREND: 'BTC-led uptrend',
+  BTC_LED_DOWNTREND: 'BTC-led downtrend',
+  ALTCOIN_ROTATION: 'Altcoin rotation',
+  CRYPTO_RANGING: 'Crypto sideways / ranging',
+  CRYPTO_HIGH_VOL_BREAKOUT: 'High-volatility breakout',
+  CRYPTO_LOW_LIQUIDITY: 'Low-volume / unsafe liquidity',
+  CRYPTO_NEWS_DRIVEN: 'News / narrative-driven',
+  CRYPTO_LEVERAGE_HEAVY: 'Leverage-heavy market',
+  CRYPTO_LIQUIDATION_RISK: 'Liquidation-risk market',
+  CRYPTO_CONFLICTING: 'Conflicting signals / no-trade',
+};
+export function regimeLabel(r: AnyRegime): string {
+  return REGIME_LABELS[r] ?? String(r);
+}
+
 // ─────────────────────────── Strategy taxonomy ───────────────────────────
-/** Where a strategy came from. Lets the UI/selector treat them differently. */
-export type StrategySource = 'legacy' | 'new' | 'experimental';
+/**
+ * Where a strategy came from. `crypto_new` marks the crypto-specific set so the
+ * UI/selector can group and filter them.
+ */
+export type StrategySource = 'legacy' | 'new' | 'experimental' | 'crypto_new';
+
+/** What kind of asset a strategy is built to trade. */
+export type AssetType = 'stock' | 'crypto_spot' | 'crypto_perp' | 'crypto_futures' | 'mixed';
 
 /** The final action the selector can emit. */
 export const STRATEGY_ACTIONS = ['BUY', 'SELL', 'SHORT', 'HOLD', 'EXIT', 'NO_TRADE'] as const;
@@ -102,6 +156,51 @@ export interface PairContext {
   cointegrated?: boolean; // optional, if a cointegration test was run
 }
 
+/** Order-book / leverage / on-chain inputs used by the crypto strategies. */
+export interface FundingContext {
+  fundingRate?: number; // current funding (e.g. 0.0001 = 0.01%/8h)
+  fundingChange?: number; // recent change in funding
+  openInterest?: number; // total OI (contracts or notional)
+  openInterestChangePct?: number; // recent % change in OI
+  longShortRatio?: number; // >1 = crowded long, <1 = crowded short
+  perpBasisPct?: number; // (perp - spot) / spot * 100
+  liquidationRisk?: 'low' | 'medium' | 'high'; // precomputed if available
+}
+
+export interface OnChainContext {
+  exchangeInflowUsd?: number; // coin flowing TO exchanges (sell pressure)
+  exchangeOutflowUsd?: number; // coin leaving exchanges (accumulation)
+  stablecoinInflowUsd?: number; // buying power arriving
+  whaleNetFlowUsd?: number; // + = whales accumulating, - = distributing
+  activeAddressesChangePct?: number;
+}
+
+export interface OrderBookContext {
+  spreadPct?: number; // bid/ask spread %
+  depthUsdNearTouch?: number; // $ resting within ~0.5% of mid
+  slippageEstPct?: number; // estimated slippage for the intended size
+  volume24hUsd?: number; // 24h $ volume
+  relativeVolume?: number; // vs average
+}
+
+/**
+ * Crypto-market context, supplied by the caller. The BTC/ETH trend fields drive
+ * the market-leader filter; the rest power the funding / OI / on-chain
+ * strategies, which ABSTAIN when their data is absent.
+ */
+export interface CryptoContext {
+  btcTrend?: 'UP' | 'DOWN' | 'FLAT';
+  ethTrend?: 'UP' | 'DOWN' | 'FLAT';
+  btcDominanceTrend?: 'UP' | 'DOWN' | 'FLAT';
+  ethBtcRatioTrend?: 'UP' | 'DOWN' | 'FLAT';
+  totalMarketCapTrend?: 'UP' | 'DOWN' | 'FLAT';
+  /** This coin's strength vs BTC over the lookback (-1 … +1). */
+  strengthVsBtc?: number;
+  funding?: FundingContext;
+  onChain?: OnChainContext;
+  orderBook?: OrderBookContext;
+}
+
 // ─────────────────────────── Strategy context ───────────────────────────
 /**
  * Everything a strategy needs to make a call. Built once per symbol per cycle
@@ -117,7 +216,10 @@ export interface StrategyContext {
   analysis: MultiTimeframeAnalysis;
   biasTf: Timeframe; // higher timeframe for trend bias
   entryTf: Timeframe; // lower timeframe for the entry trigger
-  regime: MarketRegime;
+  /** Stock OR crypto regime — picked by the matching detector for this asset. */
+  regime: AnyRegime;
+  /** What kind of asset this is (default 'stock'; crypto assets set crypto_spot). */
+  assetType: AssetType;
 
   // User risk knobs (mirrored from BotSettings / resolved config).
   riskLevel: RiskLevel;
@@ -132,6 +234,7 @@ export interface StrategyContext {
   news?: NewsContext;
   liquidity?: LiquidityContext;
   pair?: PairContext;
+  crypto?: CryptoContext; // BTC/ETH trend, funding, OI, on-chain, order book
   vwap?: number | null; // session VWAP, if the caller computed it
 }
 
@@ -152,6 +255,10 @@ export interface StrategyEvaluation {
   entryPrice?: number;
   stopLoss?: number;
   takeProfit?: number;
+  trailingStop?: number; // distance or price for a trailing stop, if the strategy sets one
+  entrySignal?: string; // short description of the trigger (for the log)
+  exitSignal?: string; // short description of how it plans to exit
+  dataUsed?: string[]; // which data sources fed this read
 }
 
 /**
@@ -162,11 +269,13 @@ export interface Strategy {
   internalName: string; // machine id, e.g. 'trend_following_v2'
   displayName: string; // human label, e.g. 'Trend-Following Strategy'
   description: string;
-  source: StrategySource; // 'legacy' | 'new' | 'experimental'
-  /** Regimes this strategy is designed for. */
-  bestRegimes: MarketRegime[];
+  source: StrategySource; // 'legacy' | 'new' | 'experimental' | 'crypto_new'
+  /** What asset class this strategy trades. Crypto ones self-gate to crypto. */
+  assetType?: AssetType; // default 'stock'
+  /** Regimes this strategy is designed for (stock or crypto). */
+  bestRegimes: AnyRegime[];
   /** Regimes where it must stand down even if its pattern appears. */
-  avoidRegimes?: MarketRegime[];
+  avoidRegimes?: AnyRegime[];
   requiredInputs: string[]; // human-readable data requirements
   indicators: string[]; // indicators/signals it uses
   /**
@@ -186,6 +295,11 @@ export interface RejectedStrategy {
   source: StrategySource;
   score: number;
   reason: string;
+}
+
+/** A trailing-stop plan attached to an approved decision, if the strategy set one. */
+export interface TrailPlan {
+  trailingStop: number;
 }
 
 export interface RiskPlan {
@@ -208,16 +322,24 @@ export interface AccountState {
 export interface StrategyDecision {
   action: StrategyAction; // BUY | SELL | SHORT | HOLD | EXIT | NO_TRADE
   side: TradeSide | null;
+  directionBias: 'bullish' | 'bearish' | 'neutral'; // human-readable direction
   symbol: string;
   exchange: string;
+  assetType: AssetType;
   price: number;
-  regime: MarketRegime;
-  chosenStrategy: { internalName: string; displayName: string; source: StrategySource } | null;
+  regime: AnyRegime;
+  chosenStrategy:
+    | { internalName: string; displayName: string; source: StrategySource; assetType: AssetType }
+    | null;
   confidence: number; // 0–100 final (after agreement/conflict adjustments)
   reasoning: string; // plain-English summary
+  entrySignal?: string;
+  exitSignal?: string;
+  dataUsed?: string[];
   agreement: string[]; // display names of strategies that agreed on the side
   rejected: RejectedStrategy[]; // why the others were not chosen
   riskPlan: RiskPlan | null; // null when NO_TRADE
+  trailingStop?: number | null;
   blocked: boolean; // true when a hard rule blocked an otherwise-valid setup
   blockReasons: string[];
   timestamp: string; // ISO

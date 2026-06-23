@@ -49,8 +49,41 @@ interface Candidate {
 }
 
 function meta(s: Strategy) {
-  return { internalName: s.internalName, displayName: s.displayName, source: s.source };
+  return {
+    internalName: s.internalName,
+    displayName: s.displayName,
+    source: s.source,
+    assetType: s.assetType ?? ('stock' as const),
+  };
 }
+
+/**
+ * Per-strategy exit profile. The bot sizes each trade's stop and target to the
+ * CURRENT volatility (ATR) so calm markets get tighter stops and volatile ones
+ * get wider stops — and the multiplier/reward-to-risk fit each strategy's
+ * character:
+ *   - trend/breakout/momentum: wider stops, larger targets (let winners run)
+ *   - mean-reversion / VWAP / pairs: tighter stops, quick targets (fast revert)
+ *   - news/sentiment: wide stops (events are volatile), modest targets
+ * `stopAtr` = stop distance in ATRs; `rr` = reward:risk (target = stop × rr).
+ * A strategy may still override by returning its own stopLoss/takeProfit.
+ */
+const EXIT_PROFILE: Record<string, { stopAtr: number; rr: number }> = {
+  trend_following_v2: { stopAtr: 2.5, rr: 3.0 },
+  momentum_v2: { stopAtr: 2.0, rr: 2.5 },
+  mean_reversion_v2: { stopAtr: 1.2, rr: 1.8 },
+  breakout_v1: { stopAtr: 1.8, rr: 2.5 },
+  pullback_in_trend_v1: { stopAtr: 1.5, rr: 2.5 },
+  vwap_intraday_v1: { stopAtr: 1.2, rr: 2.0 },
+  news_event_v1: { stopAtr: 2.5, rr: 2.0 },
+  sentiment_v1: { stopAtr: 2.0, rr: 2.0 },
+  stat_arb_pairs_v1: { stopAtr: 1.5, rr: 1.5 },
+  legacy_trend_breakout: { stopAtr: 2.2, rr: 2.5 },
+  legacy_pullback_continuation: { stopAtr: 1.6, rr: 2.0 },
+  legacy_mean_reversion: { stopAtr: 1.3, rr: 1.8 },
+  legacy_crypto_momentum: { stopAtr: 2.5, rr: 2.5 },
+  // legacy_decision_engine returns its own stop/target (from the legacy engine).
+};
 
 export function selectStrategy(ctx: StrategyContext, opts: SelectOptions): StrategyDecision {
   const timestamp = new Date().toISOString();
@@ -61,8 +94,10 @@ export function selectStrategy(ctx: StrategyContext, opts: SelectOptions): Strat
   const make = (over: Partial<StrategyDecision>): StrategyDecision => ({
     action: 'NO_TRADE',
     side: null,
+    directionBias: over.side === 'LONG' ? 'bullish' : over.side === 'SHORT' ? 'bearish' : 'neutral',
     symbol: ctx.symbol,
     exchange: ctx.exchange,
+    assetType: ctx.assetType,
     price,
     regime: ctx.regime,
     chosenStrategy: null,
@@ -71,6 +106,7 @@ export function selectStrategy(ctx: StrategyContext, opts: SelectOptions): Strat
     agreement: [],
     rejected,
     riskPlan: null,
+    trailingStop: null,
     blocked: false,
     blockReasons: [],
     timestamp,
@@ -120,6 +156,11 @@ export function selectStrategy(ctx: StrategyContext, opts: SelectOptions): Strat
     }
     if (!ev.side || ev.score <= 0) {
       rejected.push({ ...meta(strat), score: ev.score, reason: ev.reasons[0] ?? 'No actionable direction' });
+      continue;
+    }
+    // Crypto is spot/long-only — never short crypto, regardless of strategy.
+    if (ctx.isCrypto && ev.side === 'SHORT') {
+      rejected.push({ ...meta(strat), score: ev.score, reason: 'Crypto is long-only — short skipped' });
       continue;
     }
     // Allowed off-regime, but weaker.
@@ -175,17 +216,21 @@ export function selectStrategy(ctx: StrategyContext, opts: SelectOptions): Strat
     });
   }
 
-  // ── 5) Stop / target: strategy hint, else ATR-based fallback. ──
+  // ── 5) Stop / target: per-strategy profile, scaled by current volatility (ATR).
+  // Each strategy sets its own stop/target sized to how the market is actually
+  // moving right now (ATR) with a reward:risk that fits the strategy. The stop is
+  // floored by a small % so near-zero ATR can't make it absurdly tight, and the
+  // R:R falls back to the user's stop/target settings for unknown strategies.
   const atr = entry.snapshot.atr14;
-  const stopPct = ctx.defaultStopPct ?? 2.0;
-  const tpPct = ctx.defaultTakeProfitPct ?? 4.0;
-  const stopDist = Math.max(atr * 1.5, (price * stopPct) / 100);
-  const rrTarget = stopPct > 0 ? tpPct / stopPct : 2;
+  const stopPctFloor = ctx.defaultStopPct ?? 2.0;
+  const fallbackRr = stopPctFloor > 0 ? (ctx.defaultTakeProfitPct ?? 4.0) / stopPctFloor : 2;
+  const profile = EXIT_PROFILE[best.strategy.internalName] ?? { stopAtr: 1.5, rr: fallbackRr };
+  const stopDist = Math.max(atr * profile.stopAtr, (price * stopPctFloor) / 100);
   const stopLoss =
     best.evaluation.stopLoss ?? (best.side === 'LONG' ? price - stopDist : price + stopDist);
   const takeProfit =
     best.evaluation.takeProfit ??
-    (best.side === 'LONG' ? price + stopDist * rrTarget : price - stopDist * rrTarget);
+    (best.side === 'LONG' ? price + stopDist * profile.rr : price - stopDist * profile.rr);
 
   // ── 6) Risk gates + sizing (delegates final sizing to the legacy engine). ──
   const risk = assessRisk({
@@ -238,5 +283,9 @@ export function selectStrategy(ctx: StrategyContext, opts: SelectOptions): Strat
     reasoning,
     agreement: agreementNames,
     riskPlan: risk.plan,
+    trailingStop: best.evaluation.trailingStop ?? null,
+    entrySignal: best.evaluation.entrySignal,
+    exitSignal: best.evaluation.exitSignal,
+    dataUsed: best.evaluation.dataUsed,
   });
 }

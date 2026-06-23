@@ -135,19 +135,5 @@ export function detectRegime(input: RegimeInput): RegimeResult {
   return { regime: 'RANGING', reasons };
 }
 
-/** Convenience: human label for a regime (UI / logs). */
-export function regimeLabel(regime: MarketRegime): string {
-  const map: Record<MarketRegime, string> = {
-    STRONG_UPTREND: 'Strong uptrend',
-    STRONG_DOWNTREND: 'Strong downtrend',
-    RANGING: 'Sideways / ranging',
-    HIGH_VOLATILITY: 'High volatility',
-    LOW_VOLATILITY: 'Low volatility',
-    NEWS_EVENT: 'News / event-driven',
-    BREAKOUT_SETUP: 'Breakout setup',
-    LOW_LIQUIDITY: 'Low liquidity / unsafe',
-    RISK_OFF: 'Market-wide risk-off',
-    CONFLICTING: 'Conflicting signals / no-trade',
-  };
-  return map[regime];
-}
+// Human regime labels are centralized in types.ts (stock + crypto).
+export { regimeLabel } from './types';

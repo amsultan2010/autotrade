@@ -23,6 +23,9 @@ import { StatArbPairs } from './strategies/statArbPairs';
 import { VwapIntraday } from './strategies/vwapIntraday';
 import { MarketRegimeOverlay } from './strategies/marketRegimeOverlay';
 
+// Crypto strategy set (self-gates to crypto assets).
+import { CRYPTO_STRATEGIES } from './crypto/registry';
+
 /** The 10 new strategy modules, in display order. */
 export const NEW_STRATEGIES: Strategy[] = [
   TrendFollowingV2,
@@ -37,8 +40,8 @@ export const NEW_STRATEGIES: Strategy[] = [
   MarketRegimeOverlay,
 ];
 
-/** Everything the engine knows about — legacy first, then new. */
-export const ALL_STRATEGIES: Strategy[] = [...LEGACY_STRATEGIES, ...NEW_STRATEGIES];
+/** Everything the engine knows about — legacy, then new stock, then crypto. */
+export const ALL_STRATEGIES: Strategy[] = [...LEGACY_STRATEGIES, ...NEW_STRATEGIES, ...CRYPTO_STRATEGIES];
 
 export const STRATEGY_BY_INTERNAL_NAME: Record<string, Strategy> = Object.fromEntries(
   ALL_STRATEGIES.map((s) => [s.internalName, s]),

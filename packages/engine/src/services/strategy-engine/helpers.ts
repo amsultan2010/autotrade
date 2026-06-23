@@ -3,10 +3,31 @@
  * real `IndicatorSnapshot` + `ExtraReads` shapes (see services/analysis) so the
  * strategy modules and the regime detector read indicators consistently.
  */
+import type { TradeSide } from '@autotrade/shared';
 import type { TimeframeAnalysis } from '../analysis/index';
 import type { StrategyEvaluation } from './types';
 
 export type TrendDir = 'UP' | 'DOWN' | 'FLAT';
+
+/**
+ * ATR-based exit plan a strategy can attach to its evaluation: a stop sized to
+ * current volatility (ATR × stopAtr, floored by a small %), a target at the
+ * given reward:risk, and a trailing-stop distance equal to the stop distance.
+ * No rounding — crypto prices can be tiny, so callers format for display.
+ */
+export function atrExit(
+  price: number,
+  atr: number,
+  side: TradeSide,
+  stopAtr: number,
+  rr: number,
+  fallbackStopPct = 2.5,
+): { entryPrice: number; stopLoss: number; takeProfit: number; trailingStop: number } {
+  const stopDist = Math.max(atr * stopAtr, (price * fallbackStopPct) / 100);
+  const stopLoss = side === 'LONG' ? price - stopDist : price + stopDist;
+  const takeProfit = side === 'LONG' ? price + stopDist * rr : price - stopDist * rr;
+  return { entryPrice: price, stopLoss, takeProfit, trailingStop: stopDist };
+}
 
 /** Standard "this strategy has nothing to say / can't act" result. */
 export function abstain(reason?: string): StrategyEvaluation {

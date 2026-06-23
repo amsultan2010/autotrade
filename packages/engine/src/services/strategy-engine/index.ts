@@ -23,15 +23,17 @@
 import type { RiskLevel, Timeframe } from '@autotrade/shared';
 import type { MultiTimeframeAnalysis } from '../analysis/index';
 import { detectRegime } from './regime';
+import { detectCryptoRegime } from './crypto/regimes';
 import { resolveConfig, DEFAULT_STRATEGY_ENGINE_CONFIG, type StrategyEngineConfig } from './config';
 import { strategiesForConfig } from './registry';
 import { selectStrategy } from './selector';
 import { buildDecisionLog, type DecisionLog } from './logging';
 import type {
   AccountState,
+  AnyRegime,
+  CryptoContext,
   LiquidityContext,
   MarketContext,
-  MarketRegime,
   NewsContext,
   PairContext,
   StrategyContext,
@@ -50,6 +52,8 @@ export * from './logging';
 export * from './backtest';
 export * from './registry';
 export * from './strategies/legacy';
+export * from './catalog';
+export * from './crypto/index';
 
 const BIAS_ORDER: Timeframe[] = ['1d', '1h', '15m', '5m', '1m'];
 const ENTRY_ORDER: Timeframe[] = ['15m', '5m', '1m', '1h', '1d'];
@@ -74,6 +78,7 @@ export interface RunStrategyEngineInput {
   news?: NewsContext;
   liquidity?: LiquidityContext;
   pair?: PairContext;
+  crypto?: CryptoContext; // BTC/ETH trend, funding, OI, on-chain, order book
   vwap?: number | null;
   defaultStopPct?: number;
   defaultTakeProfitPct?: number;
@@ -82,7 +87,7 @@ export interface RunStrategyEngineInput {
 export interface RunStrategyEngineResult {
   decision: StrategyDecision;
   log: DecisionLog;
-  regime: MarketRegime;
+  regime: AnyRegime;
   context: StrategyContext;
 }
 
@@ -98,15 +103,26 @@ export function runStrategyEngine(input: RunStrategyEngineInput): RunStrategyEng
   const entryTf = pickTf(ENTRY_ORDER, available) ?? available[0] ?? '1d';
   const isCrypto = input.symbol.includes('/');
 
-  const { regime } = detectRegime({
-    analysis: input.analysis,
-    biasTf,
-    entryTf,
-    isCrypto,
-    market: input.market,
-    news: input.news,
-    liquidity: input.liquidity,
-  });
+  // Crypto assets get crypto regimes (BTC-led, liquidation-risk, etc.); stocks
+  // get the equity regime set. The matching detector runs before strategies.
+  const regime: AnyRegime = isCrypto
+    ? detectCryptoRegime({
+        analysis: input.analysis,
+        biasTf,
+        entryTf,
+        crypto: input.crypto,
+        liquidity: input.liquidity,
+        news: input.news,
+      }).regime
+    : detectRegime({
+        analysis: input.analysis,
+        biasTf,
+        entryTf,
+        isCrypto,
+        market: input.market,
+        news: input.news,
+        liquidity: input.liquidity,
+      }).regime;
 
   const context: StrategyContext = {
     symbol: input.symbol,
@@ -117,6 +133,7 @@ export function runStrategyEngine(input: RunStrategyEngineInput): RunStrategyEng
     biasTf,
     entryTf,
     regime,
+    assetType: isCrypto ? 'crypto_spot' : 'stock',
     riskLevel: input.riskLevel,
     minConfidence: resolved.minConfidence,
     highRiskModeEnabled: resolved.highRiskMode,
@@ -126,6 +143,7 @@ export function runStrategyEngine(input: RunStrategyEngineInput): RunStrategyEng
     news: input.news,
     liquidity: input.liquidity,
     pair: input.pair,
+    crypto: input.crypto,
     vwap: input.vwap,
   };
 
