@@ -10,6 +10,7 @@ export * from './lib/validate';
 export * from './lib/audit';
 export * from './lib/jwt';
 export * from './lib/crypto';
+export * from './lib/secrets';
 export * from './lib/alpaca';
 export * from './lib/broker-credentials';
 export * from './lib/stripe';

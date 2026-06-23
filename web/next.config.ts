@@ -35,11 +35,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   transpilePackages: ['@autotrade/engine', '@autotrade/shared'],
   outputFileTracingRoot: join(__dirname, '..'),
-  serverExternalPackages: ['argon2'],
-  webpack: (config) => {
-    config.externals = [...(Array.isArray(config.externals) ? config.externals : []), 'argon2'];
-    return config;
-  },
+
   async headers() {
     return [
       {

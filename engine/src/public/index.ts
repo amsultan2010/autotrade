@@ -30,8 +30,6 @@ export { parse } from '../lib/validate';
 // Audit
 export { writeAudit } from '../lib/audit';
 
-// Secrets
-export { encryptSecret } from '../lib/crypto';
 
 // Market data
 export { getMarketData } from '../services/marketdata/index';
