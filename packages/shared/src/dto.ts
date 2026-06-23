@@ -34,8 +34,14 @@ export interface SubscriptionInfo {
   status: SubscriptionStatus;
   tier: string | null;
   currentPeriodEnd: string | null; // ISO
-  /** True if user may use gated features (active sub OR admin/dev role). */
+  /** True if user has Pro (live trading + unlimited paper). */
   entitled: boolean;
+  /** Total paper trades opened (free tier trial usage). */
+  paperTradesUsed: number;
+  /** Max paper trades for free users; Pro is unlimited. */
+  paperTradesLimit: number;
+  /** False when free trial paper trades are exhausted. */
+  canUsePaperTrading: boolean;
 }
 
 export interface Candle {

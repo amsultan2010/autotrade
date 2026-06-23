@@ -9,6 +9,10 @@ interface ConvexBotStatus {
   running: boolean;
   openTrades: number;
   paperAccount: { balance: number; equity: number } | null;
+  paperTradesUsed?: number;
+  paperTradesLimit?: number;
+  canUsePaperTrading?: boolean;
+  entitled?: boolean;
 }
 interface ConvexSignal {
   createdAt: number;
@@ -400,7 +404,14 @@ export function Dashboard() {
     setBusy(true);
     setError(null);
     try {
-      await setMode({ mode: botStatus?.running ? 'DISABLED' : 'PAPER' });
+      const nextMode = botStatus?.running ? 'DISABLED' : 'PAPER';
+      if (nextMode === 'PAPER' && botStatus?.canUsePaperTrading === false) {
+        setError(
+          `Free paper trading limit reached (${botStatus.paperTradesLimit ?? 10} trades). Upgrade to Pro to continue.`,
+        );
+        return;
+      }
+      await setMode({ mode: nextMode });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not change bot mode');
     } finally {
@@ -467,13 +478,23 @@ export function Dashboard() {
               Alpaca {brokerAccount.mode} · buying power {money(brokerAccount.buyingPower)}
             </span>
           )}
+          {!botStatus?.entitled && botStatus?.canUsePaperTrading === false && (
+            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+              Paper trial used ({botStatus.paperTradesLimit ?? 10}/{botStatus.paperTradesLimit ?? 10} trades)
+            </span>
+          )}
+          {!botStatus?.entitled && botStatus?.canUsePaperTrading !== false && (
+            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+              Paper trial: {botStatus?.paperTradesUsed ?? 0}/{botStatus?.paperTradesLimit ?? 10} trades
+            </span>
+          )}
         </div>
         <div className="db-topbar-right">
           <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy} onClick={() => void scanNow()}>Scan Now</button>
           <button
             className={botStatus?.running ? 'btn-danger' : 'btn-primary'}
             style={{ fontSize: 13, padding: '7px 16px' }}
-            disabled={busy}
+            disabled={busy || (!botStatus?.running && botStatus?.canUsePaperTrading === false)}
             onClick={() => void toggle()}
           >
             {botStatus?.running ? 'Stop Bot' : 'Start Bot'}

@@ -1,9 +1,31 @@
-import { query, mutation } from './_generated/server';
+import { query, mutation, type QueryCtx } from './_generated/server';
 import { v, ConvexError } from 'convex/values';
+import {
+  FREE_PAPER_TRADE_LIMIT,
+  canUsePaperTrading,
+  isProEntitled,
+} from '@autotrade/shared';
 
 function requireAuth(identity: { subject: string } | null): string {
   if (!identity) throw new Error('Unauthenticated');
   return identity.subject;
+}
+
+async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
+  const [user, sub, trades] = await Promise.all([
+    ctx.db.query('users').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
+    ctx.db.query('subscriptions').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
+    ctx.db.query('trades').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).collect(),
+  ]);
+  const role = user?.role ?? 'USER';
+  const paperTradesUsed = trades.filter((t) => t.mode === 'PAPER').length;
+  return {
+    role,
+    sub,
+    paperTradesUsed,
+    canUsePaperTrading: canUsePaperTrading(role, sub, paperTradesUsed),
+    entitled: isProEntitled(role, sub),
+  };
 }
 
 const modeValidator = v.union(v.literal('DISABLED'), v.literal('PAPER'), v.literal('LIVE'));
@@ -69,7 +91,7 @@ export const getStatus = query({
     if (!identity) return null;
     const clerkId = identity.subject;
 
-    const [settings, paperAccount, openTrades] = await Promise.all([
+    const [settings, paperAccount, openTrades, paperEntitlement] = await Promise.all([
       ctx.db
         .query('botSettings')
         .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
@@ -82,6 +104,7 @@ export const getStatus = query({
         .query('trades')
         .withIndex('by_clerk_result', (q) => q.eq('clerkId', clerkId).eq('result', 'OPEN'))
         .collect(),
+      getPaperEntitlement(ctx, clerkId),
     ]);
 
     const mode = settings?.mode ?? 'DISABLED';
@@ -92,6 +115,10 @@ export const getStatus = query({
       paperAccount: paperAccount
         ? { balance: paperAccount.balance, equity: paperAccount.equity }
         : null,
+      paperTradesUsed: paperEntitlement.paperTradesUsed,
+      paperTradesLimit: FREE_PAPER_TRADE_LIMIT,
+      canUsePaperTrading: paperEntitlement.canUsePaperTrading,
+      entitled: paperEntitlement.entitled,
     };
   },
 });
@@ -102,6 +129,15 @@ export const setMode = mutation({
   handler: async (ctx, { mode }) => {
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
+
+    if (mode === 'PAPER') {
+      const ent = await getPaperEntitlement(ctx, clerkId);
+      if (!ent.canUsePaperTrading) {
+        throw new ConvexError(
+          `Free paper trading limit reached (${FREE_PAPER_TRADE_LIMIT} trades). Upgrade to Pro to continue.`,
+        );
+      }
+    }
 
     if (mode === 'LIVE') {
       const user = await ctx.db

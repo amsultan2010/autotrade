@@ -22,7 +22,11 @@ import {
   type EntrySnapshot,
 } from '../services/execution/paper.engine';
 import { loadUserBroker } from '../lib/broker-credentials';
-import { isEntitled, isProEntitled } from '../middleware/subscription';
+import {
+  canUsePaperTrading,
+  countPaperTrades,
+  isProEntitled,
+} from '../middleware/subscription';
 import { isStockMarketOpen, isAlpacaConfigured } from '../lib/alpaca';
 import { isCryptoSymbol } from '../services/marketdata/alpaca.provider';
 
@@ -116,10 +120,17 @@ export async function loadUserBotContext(userId: string): Promise<UserBotContext
   });
   if (!user || user.status === 'DISABLED' || !user.botSettings) return null;
   if (user.botSettings.mode === 'DISABLED') return null;
-  // Paper trading is free; live trading requires a Pro subscription.
   const isLiveMode = user.botSettings.mode === 'LIVE';
   if (isLiveMode && !isProEntitled(user.role, user.subscription)) return null;
-  if (!isLiveMode && !isEntitled(user.role, user.subscription, 'free')) return null;
+  if (!isLiveMode) {
+    const [paperTradeCount, openPaperTrades] = await Promise.all([
+      countPaperTrades(userId),
+      prisma.trade.count({ where: { userId, mode: 'PAPER', result: 'OPEN' } }),
+    ]);
+    const canPaper =
+      canUsePaperTrading(user.role, user.subscription, paperTradeCount) || openPaperTrades > 0;
+    if (!canPaper) return null;
+  }
 
   return {
     userId,
@@ -246,6 +257,17 @@ export async function evaluateSymbolEntry(
     }
     await openLiveTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot, broker });
   } else {
+    const [user, paperTradeCount] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          role: true,
+          subscription: { select: { status: true, currentPeriodEnd: true } },
+        },
+      }),
+      countPaperTrades(userId),
+    ]);
+    if (!user || !canUsePaperTrading(user.role, user.subscription, paperTradeCount)) return;
     await openPaperTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot });
   }
 }

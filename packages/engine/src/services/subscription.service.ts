@@ -8,7 +8,8 @@ import { prisma } from '../lib/prisma';
 import { env } from '../config/env';
 import { getStripe } from '../lib/stripe';
 import { AppError, BadRequestError } from '../lib/errors';
-import { isEntitled } from '../middleware/subscription';
+import { countPaperTrades, isProEntitled } from '../middleware/subscription';
+import { FREE_PAPER_TRADE_LIMIT, canUsePaperTrading } from '@autotrade/shared';
 import type { SubscriptionInfo, SubscriptionStatus } from '@autotrade/shared';
 
 /** Map Stripe subscription status → our enum. */
@@ -140,14 +141,21 @@ async function upsertFromStripe(
 }
 
 export async function getStatus(userId: string, role: string): Promise<SubscriptionInfo> {
-  const sub = await prisma.subscription.findUnique({
-    where: { userId },
-    select: { status: true, tier: true, currentPeriodEnd: true },
-  });
+  const [sub, paperTradesUsed] = await Promise.all([
+    prisma.subscription.findUnique({
+      where: { userId },
+      select: { status: true, tier: true, currentPeriodEnd: true },
+    }),
+    countPaperTrades(userId),
+  ]);
+  const snapshot = sub ?? null;
   return {
     status: sub?.status ?? 'NONE',
     tier: sub?.tier ?? null,
     currentPeriodEnd: sub?.currentPeriodEnd?.toISOString() ?? null,
-    entitled: isEntitled(role, sub ?? null),
+    entitled: isProEntitled(role, snapshot),
+    paperTradesUsed,
+    paperTradesLimit: FREE_PAPER_TRADE_LIMIT,
+    canUsePaperTrading: canUsePaperTrading(role, snapshot, paperTradesUsed),
   };
 }

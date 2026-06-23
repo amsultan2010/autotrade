@@ -9,24 +9,42 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { PaymentRequiredError, UnauthorizedError } from '../lib/errors.js';
 import { isProd } from '../config/env.js';
+import {
+  FREE_PAPER_TRADE_LIMIT,
+  canUsePaperTrading as sharedCanUsePaperTrading,
+  isProEntitled as sharedIsProEntitled,
+  type SubscriptionSnapshot,
+} from '@autotrade/shared';
 
+export { FREE_PAPER_TRADE_LIMIT };
+
+export function isProEntitled(
+  role: string,
+  sub: SubscriptionSnapshot | { status: string; currentPeriodEnd: Date | null } | null,
+): boolean {
+  return sharedIsProEntitled(role, sub);
+}
+
+export function canUsePaperTrading(
+  role: string,
+  sub: SubscriptionSnapshot | { status: string; currentPeriodEnd: Date | null } | null,
+  paperTradeCount: number,
+): boolean {
+  return sharedCanUsePaperTrading(role, sub, paperTradeCount);
+}
+
+export async function countPaperTrades(userId: string): Promise<number> {
+  return prisma.trade.count({ where: { userId, mode: 'PAPER' } });
+}
+
+/** @deprecated Use isProEntitled for live features. */
 export function isEntitled(
   role: string,
   sub: { status: string; currentPeriodEnd: Date | null } | null,
   requiredTier: 'free' | 'pro' = 'free',
 ): boolean {
-  if (role === 'ADMIN' || role === 'DEVELOPER') return true;
-  if (requiredTier === 'free') return true;
-  if (!sub) return false;
-  const periodOk = !sub.currentPeriodEnd || sub.currentPeriodEnd.getTime() > Date.now();
-  return (sub.status === 'ACTIVE' || sub.status === 'TRIALING') && periodOk;
-}
-
-export function isProEntitled(
-  role: string,
-  sub: { status: string; currentPeriodEnd: Date | null } | null,
-): boolean {
-  return isEntitled(role, sub, 'pro');
+  if (requiredTier === 'pro') return sharedIsProEntitled(role, sub);
+  return canUsePaperTrading(role, sub, 0);
 }
 
 export async function subscriptionGuard(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
@@ -40,7 +58,7 @@ export async function subscriptionGuard(req: FastifyRequest, _reply: FastifyRepl
       where: { userId: user.id },
       select: { status: true, currentPeriodEnd: true },
     });
-    if (!isEntitled(user.role, sub)) throw new PaymentRequiredError();
+    if (!isProEntitled(user.role, sub)) throw new PaymentRequiredError();
     return;
   }
   // Dev/test: paywall bypassed so the app can be used without Stripe configured.

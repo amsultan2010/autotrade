@@ -30,6 +30,7 @@ export function Settings() {
   const brokerData   = useQuery(convexApi.brokerCredential.status);
   const subData      = useQuery(convexApi.subscription.get);
   const entitled     = useQuery(convexApi.subscription.isEntitled);
+  const paperTrial   = useQuery(convexApi.subscription.getPaperTrial);
 
   const updateSettings = useMutation(convexApi.botSettings.update);
   const setModeMut     = useMutation(convexApi.botSettings.setMode);
@@ -62,6 +63,9 @@ export function Settings() {
   const sub = {
     entitled: entitled ?? false,
     tier: subData?.tier ?? null,
+    canUsePaperTrading: paperTrial?.canUsePaperTrading ?? true,
+    paperTradesUsed: paperTrial?.paperTradesUsed ?? 0,
+    paperTradesLimit: paperTrial?.paperTradesLimit ?? 10,
   };
 
   if (settingsData === undefined) {
@@ -119,6 +123,10 @@ export function Settings() {
       setError('Connect an Alpaca account first before enabling live trading.');
       return;
     }
+    if (mode === 'PAPER' && !sub.canUsePaperTrading) {
+      setError(`Free paper trading limit reached (${sub.paperTradesLimit} trades). Upgrade to Pro to continue.`);
+      return;
+    }
     setError(null);
     try {
       await setModeMut({ mode });
@@ -151,28 +159,33 @@ export function Settings() {
           </span>
           <span className="muted" style={{ fontSize: '0.85em' }}>
             {sub.entitled
-              ? 'Live trading enabled'
-              : 'Paper trading is free · upgrade to Pro for live trading'}
+              ? 'Live trading enabled · unlimited paper trading'
+              : sub.canUsePaperTrading
+                ? `Paper trial: ${sub.paperTradesUsed}/${sub.paperTradesLimit} trades used · upgrade to Pro for live trading`
+                : `Paper trial used (${sub.paperTradesLimit}/${sub.paperTradesLimit} trades) · upgrade to Pro to continue`}
           </span>
         </div>
         <div className="chips">
           {(['PAPER', 'LIVE', 'DISABLED'] as const).map((m) => {
             const needsPro = m === 'LIVE';
-            const locked = needsPro && (!broker?.connected || !sub.entitled);
+            const paperLocked = m === 'PAPER' && !sub.canUsePaperTrading;
+            const locked = (needsPro && (!broker?.connected || !sub.entitled)) || paperLocked;
             return (
               <button
                 key={m}
                 className={`chip ${local.mode === m ? 'on' : ''} ${locked ? 'disabled' : ''}`}
                 onClick={() => void setMode(m)}
                 title={
-                  m === 'LIVE' && !broker?.connected
+                  paperLocked
+                    ? 'Free paper trading limit reached'
+                    : m === 'LIVE' && !broker?.connected
                     ? 'Connect Alpaca first'
                     : m === 'LIVE' && !sub.entitled
                     ? 'Requires Pro subscription'
                     : undefined
                 }
               >
-                {m}{needsPro && !sub.entitled ? ' 🔒' : ''}
+                {m}{(needsPro && !sub.entitled) || paperLocked ? ' 🔒' : ''}
               </button>
             );
           })}

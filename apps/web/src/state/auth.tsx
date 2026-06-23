@@ -34,11 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [isSignedIn, email, ensureExists]);
 
-  const subData  = useQuery(convexApi.subscription.get);
-  const entitled = useQuery(convexApi.subscription.isEntitled);
+  const subData    = useQuery(convexApi.subscription.get);
+  const entitled   = useQuery(convexApi.subscription.isEntitled);
+  const paperTrial = useQuery(convexApi.subscription.getPaperTrial);
 
   const subscription: SubscriptionInfo | null =
-    subData !== undefined || entitled !== undefined
+    subData !== undefined || entitled !== undefined || paperTrial !== undefined
       ? {
           status: (subData?.status ?? 'NONE') as SubscriptionInfo['status'],
           tier: subData?.tier ?? null,
@@ -46,10 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? new Date(subData.currentPeriodEnd).toISOString()
             : null,
           entitled: entitled ?? false,
+          paperTradesUsed: paperTrial?.paperTradesUsed ?? 0,
+          paperTradesLimit: paperTrial?.paperTradesLimit ?? 10,
+          canUsePaperTrading: paperTrial?.canUsePaperTrading ?? true,
         }
       : null;
 
-  const loading = !isLoaded || (isSignedIn && subData === undefined);
+  const loading = !isLoaded || (isSignedIn && (subData === undefined || paperTrial === undefined));
 
   async function refreshSubscription(): Promise<void> {
     // Convex queries refresh automatically; this is a no-op kept for API compat.
