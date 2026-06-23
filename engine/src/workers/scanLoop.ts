@@ -23,7 +23,7 @@ import {
   countPaperTrades,
   isProEntitled,
 } from '../middleware/subscription';
-import { isStockMarketOpen, isAlpacaConfigured } from '../lib/alpaca';
+import { isStockMarketOpen } from '../lib/alpaca';
 import { isCryptoSymbol } from '../services/marketdata/alpaca.provider';
 import { getMarketDataForUser } from '../services/marketdata/index';
 
@@ -32,6 +32,18 @@ let running = false;
 
 const lastSignal = new Map<string, { action: string; ts: number }>();
 const SIGNAL_DEDUP_MS = 60_000;
+
+async function stockMarketOpenForUser(clerkId: string): Promise<boolean> {
+  try {
+    const cred = await db.getDecryptedBrokerKeys(clerkId);
+    if (cred?.provider === 'alpaca') {
+      return isStockMarketOpen({ keyId: cred.keyId, secret: cred.secret, paper: cred.paper });
+    }
+  } catch {
+    /* use server clock fallback */
+  }
+  return isStockMarketOpen();
+}
 
 async function persistSignal(clerkId: string, signal: TradeSignal): Promise<string> {
   return db.createSignal({
@@ -168,7 +180,7 @@ export async function evaluateSymbolEntry(
   const { clerkId, settings } = ctx;
   const isLive = settings.mode === 'LIVE';
 
-  if (isAlpacaConfigured() && !isCryptoSymbol(symbol) && !(await isStockMarketOpen())) return;
+  if (!isCryptoSymbol(symbol) && !(await stockMarketOpenForUser(clerkId))) return;
 
   const tradeMode = isLive ? 'LIVE' : 'PAPER';
   const openCount = await db.countOpenTrades(clerkId, tradeMode);

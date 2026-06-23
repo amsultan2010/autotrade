@@ -29,18 +29,36 @@ export function isAlpacaConfigured(): boolean {
 }
 
 /** Whether the US stock market is currently open (Alpaca clock, cached 30s).
- * Returns true when Alpaca isn't configured — we can't check, so don't block. */
+ * Returns true when credentials are missing or the clock API fails — never block trading on auth errors. */
 let clockCache: { open: boolean; ts: number } | null = null;
-export async function isStockMarketOpen(): Promise<boolean> {
-  if (!isAlpacaConfigured()) return true;
-  if (clockCache && Date.now() - clockCache.ts < 30_000) return clockCache.open;
-  try {
-    const res = await fetch(`${alpacaTradingBase()}/v2/clock`, { headers: alpacaHeaders() });
-    if (!res.ok) return clockCache?.open ?? false;
-    const d = (await res.json()) as { is_open?: boolean };
-    clockCache = { open: Boolean(d.is_open), ts: Date.now() };
+
+export async function isStockMarketOpen(
+  credentials?: { keyId: string; secret: string; paper: boolean },
+): Promise<boolean> {
+  const keyId = (credentials?.keyId ?? env.ALPACA_API_KEY ?? '').trim();
+  const secret = (credentials?.secret ?? env.ALPACA_API_SECRET ?? '').trim();
+  if (!keyId || !secret) return true;
+
+  if (!credentials && clockCache && Date.now() - clockCache.ts < 30_000) {
     return clockCache.open;
+  }
+
+  const paper = credentials?.paper ?? env.ALPACA_PAPER;
+  const base = paper ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
+  const headers = {
+    'APCA-API-KEY-ID': keyId,
+    'APCA-API-SECRET-KEY': secret,
+    Accept: 'application/json',
+  };
+
+  try {
+    const res = await fetch(`${base}/v2/clock`, { headers });
+    if (!res.ok) return clockCache?.open ?? true;
+    const d = (await res.json()) as { is_open?: boolean };
+    const open = Boolean(d.is_open);
+    if (!credentials) clockCache = { open, ts: Date.now() };
+    return open;
   } catch {
-    return clockCache?.open ?? false;
+    return clockCache?.open ?? true;
   }
 }

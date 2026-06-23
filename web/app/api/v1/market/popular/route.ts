@@ -1,19 +1,19 @@
 import { requireUser } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { getMarketData, isStockMarketOpen, POPULAR_TICKERS } from '@autotrade/engine/public';
+import { isStockMarketOpen, POPULAR_TICKERS } from '@autotrade/engine/public';
+import { marketDataForUser } from '@/lib/market-data-server';
 
 export async function GET() {
   try {
-    await requireUser();
-    const marketOpen = await isStockMarketOpen().catch(() => false);
+    const user = await requireUser();
+    const marketOpen = await isStockMarketOpen().catch(() => true);
 
-    // Live price + today's % change for each recommended ticker (best-effort).
     let snaps: Record<string, { price: number; changePct: number | null }> = {};
     try {
-      const md = getMarketData();
+      const md = await marketDataForUser(user.clerkId);
       if (md.getSnapshots) snaps = await md.getSnapshots(POPULAR_TICKERS.map((t) => t.symbol));
     } catch {
-      /* degrade gracefully — the list still renders without live stats */
+      /* degrade gracefully */
     }
 
     return ok({

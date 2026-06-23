@@ -438,11 +438,16 @@ export function Dashboard() {
   }
 
   // ── Account value ────────────────────────────────────────────────────────────
-  // Priority: Alpaca snapshot → Convex paper account simulator
   const pa = botStatus?.paperAccount;
   const snap = brokerSnapshot;
-  const equity = snap?.equity ?? pa?.equity ?? 0;
-  const balance = snap?.cash ?? pa?.balance ?? equity;
+  const hasAlpacaEquity = brokerConnected && snap != null && !snap.syncError;
+  const equity = hasAlpacaEquity ? snap!.equity : (pa?.equity ?? 0);
+  const balance = hasAlpacaEquity ? snap!.cash : (pa?.balance ?? equity);
+  const portfolioLabel = hasAlpacaEquity
+    ? `Alpaca ${snap!.mode}`
+    : brokerConnected
+      ? 'Alpaca (syncing…)'
+      : 'Simulator';
   const alpacaDayGain = snap?.lastEquity != null ? snap.equity - snap.lastEquity : null;
   const dayGain = alpacaDayGain ?? perfData?.dailyPnl ?? 0;
   const dayGainPct = snap?.lastEquity != null && snap.lastEquity > 0
@@ -542,6 +547,21 @@ export function Dashboard() {
       {dataLoading && (
         <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>Loading your account data…</p>
       )}
+      {!dataLoading && botStatus?.mode === 'DISABLED' && (
+        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
+          Bot is stopped. Tap <strong>Start Bot</strong> to scan your watchlist for trades.
+        </div>
+      )}
+      {!dataLoading && !brokerConnected && (
+        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
+          Portfolio shows the <strong>$100,000 simulator</strong>. Connect Alpaca in Settings to trade with your paper account balance.
+        </div>
+      )}
+      {!dataLoading && brokerConnected && snap?.syncError && (
+        <div className="error-banner" style={{ margin: '0 0 12px' }}>
+          Alpaca sync failed: {snap.syncError}. Disconnect and reconnect your paper keys in Settings.
+        </div>
+      )}
 
       {/* ── Row 1 ── */}
       <div className="db-grid-top">
@@ -587,6 +607,7 @@ export function Dashboard() {
             </div>
           </div>
           <div className="db-portfolio-value">{equity > 0 ? money(equity) : '--'}</div>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{portfolioLabel}</div>
           <div className={`db-portfolio-change ${dayGain >= 0 ? 'pos' : 'neg'}`}>
             {dayGain >= 0 ? '▲' : '▼'} {Math.abs(dayGainPct).toFixed(2)}% (Today)
             <span style={{ marginLeft: 8, opacity: 0.7 }}>{dayGain >= 0 ? '+' : ''}{money(dayGain)}</span>

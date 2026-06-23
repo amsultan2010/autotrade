@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getMarketData, getMarketDataForUser, liveEngine } from '@autotrade/engine/public';
+import { getMarketData, liveEngine } from '@autotrade/engine/public';
+import { marketDataForUser } from '@/lib/market-data-server';
 import { ok, handleError } from '@/lib/api-response';
 
 export async function GET(req: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     let snapshots: Record<string, { price: number; changePct: number | null }> = {};
     try {
-      const md = await getMarketDataForUser(userId);
+      const md = await marketDataForUser(userId);
       if (md.getSnapshots) snapshots = await md.getSnapshots(symbols);
     } catch {
       try {
