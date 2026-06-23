@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation, useAction, useConvexAuth } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import { RISK_LEVELS, STRATEGIES, TIMEFRAMES, ErrorCodes } from '@autotrade/shared';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
@@ -27,6 +27,7 @@ interface LocalSettings {
 type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
 
 export function Settings() {
+  const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const settingsData = useQuery(convexApi.botSettings.get);
   const brokerData   = useQuery(convexApi.brokerCredential.status);
   const billingStatus = useQuery(convexApi.subscription.getBillingStatus);
@@ -92,6 +93,10 @@ export function Settings() {
 
   async function save() {
     if (!local) return;
+    if (convexAuthLoading || !isAuthenticated) {
+      setError('Connecting your session — try again in a moment.');
+      return;
+    }
     setError(null);
     try {
       await updateSettings({
@@ -116,6 +121,10 @@ export function Settings() {
   }
 
   async function setMode(mode: Mode) {
+    if (convexAuthLoading || !isAuthenticated) {
+      setError('Connecting your session — try again in a moment.');
+      return;
+    }
     if (mode === 'LIVE' && !sub.entitled) {
       setError(
         billingEnabled

@@ -1,28 +1,9 @@
-import { mutation, query, internalQuery, type MutationCtx } from './_generated/server';
+import { mutation, query, internalQuery } from './_generated/server';
 import { v } from 'convex/values';
 import { requireAuth } from './lib/adminAuth';
-import { FOUNDER_TIER, isFounderEmail } from './lib/billing';
-
-async function ensureFounderSubscription(
-  ctx: MutationCtx,
-  clerkId: string,
-  email: string,
-): Promise<void> {
-  if (!isFounderEmail(email)) return;
-  const existing = await ctx.db
-    .query('subscriptions')
-    .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
-    .unique();
-  if (existing) {
-    await ctx.db.patch(existing._id, { status: 'ACTIVE', tier: FOUNDER_TIER });
-    return;
-  }
-  await ctx.db.insert('subscriptions', {
-    clerkId,
-    status: 'ACTIVE',
-    tier: FOUNDER_TIER,
-  });
-}
+import { DEFAULT_BOT_SETTINGS } from './lib/defaultBotSettings';
+import { ensureFounderSubscription } from './lib/founderSubscription';
+import { ensureUserRecords } from './lib/userBootstrap';
 
 /** Called from the Clerk webhook (user.created) to sync a new user into Convex. */
 export const syncFromClerk = mutation({
@@ -58,22 +39,7 @@ export const syncFromClerk = mutation({
       equity: 100_000,
     });
 
-    await ctx.db.insert('botSettings', {
-      clerkId,
-      mode: 'PAPER',
-      riskLevel: 'MEDIUM',
-      maxActiveTrades: 5,
-      maxTradeSize: 10_000,
-      riskPerTradePct: 1.0,
-      defaultStopPct: 2.0,
-      defaultTakeProfitPct: 4.0,
-      maxDailyLoss: 2_000,
-      tradingHoursStart: '09:30',
-      tradingHoursEnd: '16:00',
-      minConfidence: 60,
-      timeframes: ['5m', '15m', '1h', '1d'],
-      strategies: ['TrendBreakout', 'PullbackContinuation', 'MeanReversion', 'CryptoMomentum'],
-    });
+    await ctx.db.insert('botSettings', { clerkId, ...DEFAULT_BOT_SETTINGS });
 
     await ctx.db.insert('subscriptions', {
       clerkId,
@@ -128,7 +94,7 @@ export const ensureExists = mutation({
       .unique();
 
     if (existing) {
-      await ensureFounderSubscription(ctx, clerkId, email);
+      await ensureUserRecords(ctx, clerkId, email);
       return existing._id;
     }
 
@@ -140,25 +106,7 @@ export const ensureExists = mutation({
       alpacaGuideCompleted: false,
     });
 
-    await ctx.db.insert('paperAccounts', { clerkId, balance: 100_000, equity: 100_000 });
-    await ctx.db.insert('botSettings', {
-      clerkId,
-      mode: 'PAPER',
-      riskLevel: 'MEDIUM',
-      maxActiveTrades: 5,
-      maxTradeSize: 10_000,
-      riskPerTradePct: 1.0,
-      defaultStopPct: 2.0,
-      defaultTakeProfitPct: 4.0,
-      maxDailyLoss: 2_000,
-      tradingHoursStart: '09:30',
-      tradingHoursEnd: '16:00',
-      minConfidence: 60,
-      timeframes: ['5m', '15m', '1h', '1d'],
-      strategies: ['TrendBreakout', 'PullbackContinuation', 'MeanReversion', 'CryptoMomentum'],
-    });
-    await ctx.db.insert('subscriptions', { clerkId, status: 'NONE' });
-    await ensureFounderSubscription(ctx, clerkId, email);
+    await ensureUserRecords(ctx, clerkId, email);
 
     return userId;
   },

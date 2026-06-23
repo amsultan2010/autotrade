@@ -10,6 +10,7 @@ import {
   type ErrorPayload,
 } from '@autotrade/shared';
 import { isSentryEnabled } from '@/lib/sentry-env';
+import { parseConvexErrorMessage } from '@/lib/convex-errors';
 
 export interface CaptureContext {
   route?: string;
@@ -123,6 +124,9 @@ export function reportTrackedError(
 }
 
 export function formatUserError(err: unknown, fallback = 'Something went wrong'): string {
+  const convexMessage = parseConvexErrorMessage(err);
+  if (convexMessage) return convexMessage;
+
   if (err instanceof TrackedError) {
     return `[${err.code}] ${err.message} (ref: ${err.refId})`;
   }

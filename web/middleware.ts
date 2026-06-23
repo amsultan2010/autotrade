@@ -6,6 +6,9 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/v1/webhooks(.*)',
+  // Convex cron + server-side callers authenticate via x-internal-secret in the route handler.
+  '/api/internal(.*)',
+  '/api/email(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

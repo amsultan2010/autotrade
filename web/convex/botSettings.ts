@@ -3,6 +3,7 @@ import { v, ConvexError } from 'convex/values';
 import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
 import { isBillingEnabled } from './lib/billing';
 import { requireAuth } from './lib/adminAuth';
+import { DEFAULT_BOT_SETTINGS } from './lib/defaultBotSettings';
 
 async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
   const [user, sub, trades] = await Promise.all([
@@ -24,6 +25,25 @@ async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
 const modeValidator = v.union(v.literal('DISABLED'), v.literal('PAPER'), v.literal('LIVE'));
 const riskLevelValidator = v.union(v.literal('LOW'), v.literal('MEDIUM'), v.literal('HIGH'));
 const hhmm = v.string(); // validated as HH:MM
+
+const botSettingsDocValidator = v.object({
+  _id: v.id('botSettings'),
+  _creationTime: v.number(),
+  clerkId: v.string(),
+  mode: modeValidator,
+  riskLevel: riskLevelValidator,
+  maxActiveTrades: v.number(),
+  maxTradeSize: v.number(),
+  riskPerTradePct: v.number(),
+  defaultStopPct: v.number(),
+  defaultTakeProfitPct: v.number(),
+  maxDailyLoss: v.number(),
+  tradingHoursStart: v.string(),
+  tradingHoursEnd: v.string(),
+  minConfidence: v.number(),
+  timeframes: v.array(v.string()),
+  strategies: v.array(v.string()),
+});
 
 /** Get bot settings for the current user. */
 export const get = query({
@@ -71,8 +91,8 @@ export const update = mutation({
       Object.entries(args).filter(([, v]) => v !== undefined),
     );
 
-    await ctx.db.patch(settings._id, patch);
-    return ctx.db.get(settings._id);
+    await ctx.db.patch('botSettings', settings._id, patch);
+    return ctx.db.get('botSettings', settings._id);
   },
 });
 
@@ -118,6 +138,7 @@ export const getStatus = query({
 /** Force-set bot mode (used by bot start/stop controls). */
 export const setMode = mutation({
   args: { mode: modeValidator },
+  returns: botSettingsDocValidator,
   handler: async (ctx, { mode }) => {
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
@@ -157,27 +178,15 @@ export const setMode = mutation({
       .unique();
 
     if (!settings) {
-      // Self-heal: create default settings if missing (e.g. webhook missed on sign-up).
-      const id = await ctx.db.insert('botSettings', {
-        clerkId,
-        mode,
-        riskLevel: 'MEDIUM',
-        maxActiveTrades: 5,
-        maxTradeSize: 10_000,
-        riskPerTradePct: 1.0,
-        defaultStopPct: 2.0,
-        defaultTakeProfitPct: 4.0,
-        maxDailyLoss: 2_000,
-        tradingHoursStart: '09:30',
-        tradingHoursEnd: '16:00',
-        minConfidence: 60,
-        timeframes: ['5m', '15m', '1h', '1d'],
-        strategies: ['TrendBreakout', 'PullbackContinuation', 'MeanReversion', 'CryptoMomentum'],
-      });
-      return ctx.db.get(id);
+      const id = await ctx.db.insert('botSettings', { clerkId, ...DEFAULT_BOT_SETTINGS, mode });
+      const created = await ctx.db.get('botSettings', id);
+      if (!created) throw new ConvexError('Failed to create bot settings');
+      return created;
     }
 
-    await ctx.db.patch(settings._id, { mode });
-    return ctx.db.get(settings._id);
+    await ctx.db.patch('botSettings', settings._id, { mode });
+    const updated = await ctx.db.get('botSettings', settings._id);
+    if (!updated) throw new ConvexError('Bot settings not found after update');
+    return updated;
   },
 });

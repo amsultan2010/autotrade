@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation, useAction, useConvexAuth } from 'convex/react';
 import { ErrorCodes } from '@autotrade/shared';
 import { api as convexApi } from '@/convex/_generated/api';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
@@ -348,6 +348,7 @@ const HEATMAP_FALLBACK = [
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export function Dashboard() {
+  const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const botStatus  = useQuery(convexApi.botSettings.getStatus) as ConvexBotStatus | undefined;
   const perfData   = useQuery(convexApi.performance.summary) as ConvexPerf | undefined;
   const signalData = useQuery(convexApi.signals.list, { limit: 10 }) as ConvexSignal[] | undefined;
@@ -403,11 +404,15 @@ export function Dashboard() {
   }, []);
 
   async function toggle() {
+    if (convexAuthLoading || !isAuthenticated) {
+      setError('Connecting your session — try again in a moment.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const nextMode = botStatus?.running ? 'DISABLED' : 'PAPER';
-await setMode({ mode: nextMode });
+      await setMode({ mode: nextMode });
     } catch (err) {
       reportTrackedError(ErrorCodes.BOT, err, { route: '/dashboard', action: 'toggle' });
       setError(formatUserError(err, 'Could not change bot mode'));
@@ -417,6 +422,10 @@ await setMode({ mode: nextMode });
   }
 
   async function scanNow() {
+    if (convexAuthLoading || !isAuthenticated) {
+      setError('Connecting your session — try again in a moment.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -460,7 +469,11 @@ await setMode({ mode: nextMode });
     ? botStatus.running
       ? `LIVE · ${botStatus.mode}`
       : botStatus.mode
-    : '…';
+    : convexAuthLoading
+      ? 'Connecting…'
+      : '…';
+
+  const botControlsReady = !convexAuthLoading && isAuthenticated;
 
   return (
     <div className="db-root">
@@ -478,11 +491,11 @@ await setMode({ mode: nextMode });
           )}
         </div>
         <div className="db-topbar-right">
-          <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy} onClick={() => void scanNow()}>Scan Now</button>
+          <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy || !botControlsReady} onClick={() => void scanNow()}>Scan Now</button>
           <button
             className={botStatus?.running ? 'btn-danger' : 'btn-primary'}
             style={{ fontSize: 13, padding: '7px 16px' }}
-            disabled={busy}
+            disabled={busy || !botControlsReady}
             onClick={() => void toggle()}
           >
             {botStatus?.running ? 'Stop Bot' : 'Start Bot'}
