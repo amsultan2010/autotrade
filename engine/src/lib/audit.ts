@@ -1,22 +1,20 @@
 /** Append an audit-log entry for sensitive/admin actions (req #7, #15). */
-import { prisma } from './prisma';
+import * as db from './convex-db';
 
 export async function writeAudit(params: {
-  actorId?: string | null;
+  actorClerkId?: string | null;
   action: string;
   target?: string | null;
   meta?: unknown;
   ip?: string | null;
 }): Promise<void> {
   try {
-    await prisma.auditLog.create({
-      data: {
-        actorId: params.actorId ?? null,
-        action: params.action,
-        target: params.target ?? null,
-        meta: (params.meta ?? undefined) as object | undefined,
-        ip: params.ip ?? null,
-      },
+    await db.writeAuditLog({
+      actorClerkId: params.actorClerkId ?? undefined,
+      action: params.action,
+      target: params.target ?? undefined,
+      meta: params.meta,
+      ip: params.ip ?? undefined,
     });
   } catch {
     // Auditing must never break the request path; failures are non-fatal.

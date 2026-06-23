@@ -6,10 +6,10 @@ Two developers work in parallel on separate feature branches. Each person owns a
 
 ```
 web/       Abdullah — Next.js website + Convex
-engine/    Preston — trading algorithm + Prisma
+engine/    Preston — trading algorithm + Convex client
 worker/    Preston — background scan loop (deploys separately)
 shared/    Both — types, DTOs, error codes (coordinate changes)
-legacy/    Archived backend + desktop (not in workspace)
+legacy/    Archived desktop client (not in workspace)
 ```
 
 ## Branch workflow
@@ -60,7 +60,7 @@ GitHub CODEOWNERS auto-requests the right reviewer on PRs.
 
 ### `engine/` (trading algorithm)
 
-- All strategy, market data, Prisma, execution logic lives here.
+- All strategy, market data, Convex persistence, execution logic lives here.
 - Export web-facing APIs through `src/public/index.ts`.
 - Refactor freely inside `src/` outside `public/`.
 

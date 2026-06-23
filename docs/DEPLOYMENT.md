@@ -26,9 +26,11 @@ Required (the app will not work without these):
 - `BROKER_ENCRYPTION_KEY` (64 hex chars — `openssl rand -hex 32`)
 - `BOT_INTERNAL_SECRET` (`openssl rand -hex 32`)
 - `NEXT_PUBLIC_APP_URL` (this deployment's URL, e.g. `https://tryautotrade.com`)
-- `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (engine/Postgres — required until the Convex migration completes)
+- `CONVEX_URL` (same deployment as `NEXT_PUBLIC_CONVEX_URL`), `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (engine runtime)
+- `BILLING_ENABLED=false` (default — no Stripe required)
+- `FOUNDER_LIVE_EMAIL=abdullahmsultan1@gmail.com` (founder live-trading bypass)
 
-Optional: `STRIPE_*`, `RESEND_*`, `NEXT_PUBLIC_POSTHOG_*`, `*_SENTRY_*`.
+Optional: `STRIPE_*` (only when `BILLING_ENABLED=true`), `RESEND_*`, `NEXT_PUBLIC_POSTHOG_*`, `*_SENTRY_*`.
 
 ## 2. Convex dashboard checklist
 
@@ -38,6 +40,8 @@ Optional: `STRIPE_*`, `RESEND_*`, `NEXT_PUBLIC_POSTHOG_*`, `*_SENTRY_*`.
 - `BOT_INTERNAL_SECRET` — **identical** to the Vercel value.
 - `NEXT_PUBLIC_APP_URL` — same deployed URL as Vercel.
 - `BROKER_ENCRYPTION_KEY` — **identical** to the Vercel value (so creds encrypted in one place decrypt in the other).
+- `BILLING_ENABLED` — `false` until Stripe is configured.
+- `FOUNDER_LIVE_EMAIL` — same as Vercel (founder live-trading access).
 
 ## 3. Clerk dashboard checklist
 
@@ -55,9 +59,9 @@ Optional: `STRIPE_*`, `RESEND_*`, `NEXT_PUBLIC_POSTHOG_*`, `*_SENTRY_*`.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | **Settings page stuck on "Loading…"** | User has no `botSettings` row in Convex (webhook never fired) **or** Convex can't verify the Clerk JWT | The app now self-heals via `ensureExists` on sign-in; if it persists, check `CLERK_JWT_ISSUER_DOMAIN` (Convex) + the `convex` JWT template (Clerk) |
-| **Watchlist search returns nothing / can't add symbols** | `MARKET_DATA_PROVIDER` not set to `alpaca`, or `ALPACA_API_KEY/SECRET` missing, or the engine env is invalid (DB/JWT) so the route 500s | Set `MARKET_DATA_PROVIDER=alpaca` + Alpaca keys; ensure `DATABASE_URL`/`JWT_*` are set |
+| **Watchlist search returns nothing / can't add symbols** | `MARKET_DATA_PROVIDER` not set to `alpaca`, or `ALPACA_API_KEY/SECRET` missing, or engine env invalid | Set `MARKET_DATA_PROVIDER=alpaca` + Alpaca keys; ensure `CONVEX_URL` and `JWT_*` are set |
 | **"Start Bot" does nothing** | Missing Convex records (see settings) — the mutation threw `Bot settings not found` and the error is now surfaced in the UI | Self-heal handles it; otherwise verify the Convex/Clerk auth bridge |
-| **"Scan Now" errors** | `BOT_INTERNAL_SECRET` / `NEXT_PUBLIC_APP_URL` not set in **Convex**, or the Postgres user doesn't exist | Set those Convex vars; confirm the user has hit the app (lazy-creates the Postgres row) |
+| **"Scan Now" errors** | `BOT_INTERNAL_SECRET` / `NEXT_PUBLIC_APP_URL` not set in **Convex**, or user missing in Convex | Set those Convex vars; sign in once so Clerk webhook creates the user row |
 | **Dashboard shows no Alpaca account/positions** | Broker not connected, or (fixed) the client was reading the wrong response shape | Connect Alpaca in Settings; ensure broker-cred sync env is set |
 
 ---

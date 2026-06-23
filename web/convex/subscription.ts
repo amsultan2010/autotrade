@@ -1,6 +1,7 @@
 import { query, type QueryCtx } from './_generated/server';
 import { v } from 'convex/values';
 import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
+import { isBillingEnabled } from './lib/billing';
 
 async function paperTradeCount(ctx: QueryCtx, clerkId: string): Promise<number> {
   const trades = await ctx.db
@@ -36,6 +37,8 @@ const subscriptionReturn = v.union(
       v.literal('TRIALING'),
     ),
     currentPeriodEnd: v.optional(v.number()),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
   }),
   v.null(),
 );
@@ -63,7 +66,25 @@ export const isEntitled = query({
     if (!identity) return false;
 
     const { user, sub } = await getUserAndSub(ctx, identity.subject);
-    return isLiveEntitled(user?.role ?? 'USER', sub);
+    return isLiveEntitled(user?.role ?? 'USER', sub, user?.email);
+  },
+});
+
+/** Whether Stripe billing UI should be shown. */
+export const getBillingStatus = query({
+  args: {},
+  returns: v.object({
+    billingEnabled: v.boolean(),
+    liveEntitled: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { billingEnabled: isBillingEnabled(), liveEntitled: false };
+    const { user, sub } = await getUserAndSub(ctx, identity.subject);
+    return {
+      billingEnabled: isBillingEnabled(),
+      liveEntitled: isLiveEntitled(user?.role ?? 'USER', sub, user?.email),
+    };
   },
 });
 
@@ -75,6 +96,7 @@ export const getPaperTrial = query({
       paperTradesUsed: v.number(),
       canUsePaperTrading: v.boolean(),
       entitled: v.boolean(),
+      billingEnabled: v.boolean(),
     }),
     v.null(),
   ),
@@ -88,7 +110,8 @@ export const getPaperTrial = query({
     return {
       paperTradesUsed: used,
       canUsePaperTrading: canUsePaperTrading(),
-      entitled: isLiveEntitled(role, sub),
+      entitled: isLiveEntitled(role, sub, user?.email),
+      billingEnabled: isBillingEnabled(),
     };
   },
 });

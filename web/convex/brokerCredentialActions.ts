@@ -6,6 +6,8 @@ import { action } from './_generated/server';
 import { internal } from './_generated/api';
 import { v } from 'convex/values';
 import crypto from 'node:crypto';
+import { requireInternalSecret } from './lib/internalSecret';
+import { hasLiveTradingAccess } from './lib/entitlements';
 
 const ALGORITHM = 'aes-256-gcm';
 
@@ -58,35 +60,6 @@ async function verifyAlpacaKeys(
   }
 }
 
-async function syncCredentialToPostgres(
-  clerkId: string,
-  keyId: string,
-  secret: string,
-  paper: boolean,
-): Promise<void> {
-  const botSecret = process.env.BOT_INTERNAL_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
-  if (!botSecret || !appUrl) throw new Error('Server misconfiguration: BOT_INTERNAL_SECRET or APP_URL not set — broker credential cannot be synced to the trading engine');
-  const base = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
-  await fetch(`${base}/api/internal/broker/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': botSecret },
-    body: JSON.stringify({ clerkId, keyId, secret, paper }),
-  });
-}
-
-async function removeCredentialFromPostgres(clerkId: string): Promise<void> {
-  const botSecret = process.env.BOT_INTERNAL_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
-  if (!botSecret || !appUrl) return;
-  const base = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
-  await fetch(`${base}/api/internal/broker/sync`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': botSecret },
-    body: JSON.stringify({ clerkId }),
-  });
-}
-
 /** Validate Alpaca keys with the live API, then store AES-256-GCM encrypted. */
 export const connect = action({
   args: {
@@ -101,15 +74,25 @@ export const connect = action({
     const check = await verifyAlpacaKeys(keyId, secret, paper);
     if (!check.ok) throw new Error(check.error ?? 'Invalid Alpaca keys');
 
+    if (!paper) {
+      const user = await ctx.runQuery(internal.users._getByClerkId, {
+        clerkId: identity.subject,
+      });
+      if (!user) throw new Error('User not found');
+      const sub = await ctx.runQuery(internal.subscriptionInternal._getByClerkId, {
+        clerkId: identity.subject,
+      });
+      if (!hasLiveTradingAccess(user.role, sub, user.email)) {
+        throw new Error('Live Alpaca keys require live trading access.');
+      }
+    }
+
     await ctx.runMutation(internal.brokerCredential._upsertCredential, {
       clerkId: identity.subject,
       encryptedKeyId: encrypt(keyId),
       encryptedSecret: encrypt(secret),
       paper,
     });
-
-    // Sync plaintext keys (over HTTPS) to Postgres so the bot engine can use them.
-    await syncCredentialToPostgres(identity.subject, keyId, secret, paper);
 
     return { connected: true, provider: 'alpaca', paper };
   },
@@ -124,7 +107,6 @@ export const disconnect = action({
     await ctx.runMutation(internal.brokerCredential._deleteCredential, {
       clerkId: identity.subject,
     });
-    await removeCredentialFromPostgres(identity.subject);
     return { connected: false };
   },
 });
@@ -153,10 +135,48 @@ export const getDecryptedKeys = action({
   },
 });
 
+/** Bot engine: decrypt broker keys after validating BOT_INTERNAL_SECRET. */
+export const getDecryptedKeysInternal = action({
+  args: {
+    clerkId: v.string(),
+    secret: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      keyId: v.string(),
+      secret: v.string(),
+      paper: v.boolean(),
+      provider: v.string(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, { clerkId, secret }) => {
+    requireInternalSecret(secret);
+
+    const cred = (await ctx.runQuery(internal.brokerCredential._getRaw, {
+      clerkId,
+    })) as {
+      encryptedKeyId: string;
+      encryptedSecret: string;
+      paper: boolean;
+      provider: string;
+    } | null;
+    if (!cred) return null;
+
+    return {
+      keyId: decrypt(cred.encryptedKeyId),
+      secret: decrypt(cred.encryptedSecret),
+      paper: cred.paper,
+      provider: cred.provider,
+    };
+  },
+});
+
 /** Internal version — called by bot actions using a service clerkId. */
 export const getDecryptedKeysForUser = action({
-  args: { clerkId: v.string() },
-  handler: async (ctx, { clerkId }) => {
+  args: { clerkId: v.string(), secret: v.string() },
+  handler: async (ctx, { clerkId, secret }) => {
+    requireInternalSecret(secret);
     const cred = (await ctx.runQuery(internal.brokerCredential._getRaw, { clerkId })) as { encryptedKeyId: string; encryptedSecret: string; paper: boolean; provider: string } | null;
     if (!cred) return null;
     return {

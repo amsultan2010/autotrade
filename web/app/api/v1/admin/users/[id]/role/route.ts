@@ -1,18 +1,20 @@
 import { type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { fetchMutation } from 'convex/nextjs';
+import { api } from '@/convex/_generated/api';
 import { ROLES } from '@autotrade/shared';
 import { requireAdmin } from '@/lib/auth';
 import { ok, handleError } from '@/lib/api-response';
-import { prisma, parse, writeAudit } from '@autotrade/engine/public';
+import { convexToken } from '@/lib/convex-auth-token';
+import { parse } from '@autotrade/engine/public';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireAdmin();
+    await requireAdmin();
+    const token = await convexToken();
     const { id } = await params;
     const { role } = parse(z.object({ role: z.enum(ROLES) }), await req.json() as unknown);
-    const updated = await prisma.user.update({ where: { id }, data: { role } });
-    await writeAudit({ actorId: actor.id, action: 'USER_ROLE_CHANGE', target: id, meta: { role } });
-    return ok({ id: updated.id, role: updated.role });
+    return ok(await fetchMutation(api.admin.setUserRole, { clerkId: id, role }, { token }));
   } catch (err) {
     return handleError(err);
   }

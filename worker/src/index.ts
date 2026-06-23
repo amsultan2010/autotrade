@@ -1,14 +1,17 @@
 import 'dotenv/config';
-import { startScanLoop, prisma } from '@autotrade/engine';
+import { startScanLoop, liveEngine, env } from '@autotrade/engine';
 
 async function main() {
   console.log('🤖 Autotrade worker starting…');
+  if (env.ALPACA_STREAMING) {
+    await liveEngine.start();
+    console.log('✅ Live engine streaming started');
+  }
   startScanLoop(60_000);
   console.log('✅ Scan loop running (60s interval)');
 
   const shutdown = async () => {
     console.log('Shutting down…');
-    await prisma.$disconnect();
     process.exit(0);
   };
 

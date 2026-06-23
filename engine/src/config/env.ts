@@ -13,7 +13,8 @@ const schema = z.object({
     .default('http://localhost:5173')
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  CONVEX_URL: z.string().optional(),
+  BOT_INTERNAL_SECRET: z.string().optional(),
 
   CLERK_SECRET_KEY: z.string().optional(),
 
@@ -25,11 +26,20 @@ const schema = z.object({
   ACCESS_TOKEN_TTL_MIN: z.coerce.number().int().positive().default(15),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
-  // Stripe is required in production but optional in dev so the app can boot
-  // without billing configured. Subscription routes guard their own presence.
+  // Billing — disabled until Stripe is configured (see BILLING_ENABLED).
+  BILLING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  FOUNDER_LIVE_EMAIL: z.string().default('abdullahmsultan1@gmail.com'),
+
+  // Stripe — optional unless BILLING_ENABLED=true.
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_ID: z.string().optional(),
+  STRIPE_PRICE_STARTER: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
+  STRIPE_PRICE_ELITE: z.string().optional(),
   CHECKOUT_SUCCESS_URL: z.string().default('app://autotrade/billing/success'),
   CHECKOUT_CANCEL_URL: z.string().default('app://autotrade/billing/cancel'),
 

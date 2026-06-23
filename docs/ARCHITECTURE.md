@@ -49,7 +49,7 @@
 └───────┬───────────────────────────┬───────────────────────┬─────────┘
         │                           │                       │
         ▼                           ▼                       ▼
-  PostgreSQL (Prisma)        Market Data Provider      Stripe
+  Convex (database)          Market Data Provider      Stripe
   users, subs, trades,       (Finnhub default;         (checkout +
   watchlists, signals,        Polygon/Alpaca/...)       webhooks)
   strategy_stats, audit                                      │
@@ -78,8 +78,8 @@
   `electron-builder` → NSIS `.exe`. Secure local store via `safeStorage`
   (OS-level encryption) for the refresh token only.
 - **Backend:** Node 20+, TypeScript, **Fastify**, Zod for validation,
-  Prisma ORM, BullMQ (Redis) or a simple interval scheduler for the scan loop.
-- **DB:** PostgreSQL 15+.
+  Convex for persistence; interval scheduler / Convex cron for the scan loop.
+- **DB:** Convex (reactive document store).
 - **Auth:** Argon2id password hashing, JWT access (15 min) + rotating refresh
   token (httpOnly / encrypted store), per-route guards.
 - **Payments:** Stripe Checkout + Billing, webhook-driven subscription state.
@@ -101,11 +101,11 @@ autotrade/
 │     └─ src/{enums,dto,index}.ts
 └─ apps/
    ├─ backend/
-   │  ├─ prisma/schema.prisma
+   │  ├─ convex/schema.ts
    │  └─ src/
    │     ├─ index.ts           # server bootstrap
    │     ├─ config/env.ts      # validated env (no hardcoded secrets)
-   │     ├─ lib/{prisma,logger,errors,crypto}.ts
+   │     ├─ lib/{logger,errors,crypto}.ts
    │     ├─ middleware/{auth,subscription,role,rateLimit}.ts
    │     ├─ modules/
    │     │  ├─ auth/           # register, login, refresh, logout
@@ -130,7 +130,7 @@ autotrade/
 
 ---
 
-## 4. Database schema (summary; canonical form in `prisma/schema.prisma`)
+## 4. Database schema (summary; canonical form in `web/convex/schema.ts`)
 
 - **User** — `id, email, passwordHash, role(USER|ADMIN|DEVELOPER), status(ACTIVE|DISABLED), createdAt`
 - **Subscription** — `userId, stripeCustomerId, stripeSubscriptionId, tier, status(ACTIVE|PAST_DUE|CANCELED|NONE), currentPeriodEnd`

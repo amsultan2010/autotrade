@@ -7,7 +7,7 @@
  *
  * ADMIN and DEVELOPER bypass all checks.
  */
-import { prisma } from '../lib/prisma';
+import { countPaperTrades as countPaperTradesDb } from '../lib/convex-db';
 import {
   FREE_PAPER_TRADE_LIMIT,
   canUsePaperTrading as sharedCanUsePaperTrading,
@@ -19,22 +19,33 @@ export { FREE_PAPER_TRADE_LIMIT };
 
 export function isProEntitled(
   role: string,
-  sub: SubscriptionSnapshot | { status: string; currentPeriodEnd: Date | null } | null,
+  sub: SubscriptionSnapshot | { status: string; tier?: string | null; currentPeriodEnd: Date | number | null } | null,
+  email?: string | null,
 ): boolean {
-  return sharedIsProEntitled(role, sub);
+  return sharedIsProEntitled(role, sub, email);
+}
+
+export { hasLiveTradingAccess } from '@autotrade/shared';
+
+export function hasLiveAccess(
+  role: string,
+  sub: SubscriptionSnapshot | { status: string; tier?: string | null; currentPeriodEnd: Date | number | null } | null,
+  email?: string | null,
+): boolean {
+  return sharedIsProEntitled(role, sub, email);
 }
 
 export function canUsePaperTrading(
   role: string,
-  sub: SubscriptionSnapshot | { status: string; currentPeriodEnd: Date | null } | null,
+  sub: SubscriptionSnapshot | { status: string; currentPeriodEnd: Date | number | null } | null,
   paperTradeCount: number,
 ): boolean {
   return sharedCanUsePaperTrading(role, sub, paperTradeCount);
 }
 
 /** Count all paper trades ever opened for a user (open + closed). */
-export async function countPaperTrades(userId: string): Promise<number> {
-  return prisma.trade.count({ where: { userId, mode: 'PAPER' } });
+export async function countPaperTrades(clerkId: string): Promise<number> {
+  return countPaperTradesDb(clerkId);
 }
 
 /** @deprecated Use isProEntitled for live features or canUsePaperTrading for paper. */

@@ -20,11 +20,6 @@ apps/desktop/dist-electron/
 .env.*
 !.env.example
 
-# Prisma
-legacy/backend/prisma/*.db
-legacy/backend/prisma/migrations/dev.db*
-apps/backend/prisma/*.db
-apps/backend/prisma/migrations/dev.db*
 
 # Local embedded Postgres data dir
 legacy/backend/.pgdata/

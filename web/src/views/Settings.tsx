@@ -29,9 +29,8 @@ type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
 export function Settings() {
   const settingsData = useQuery(convexApi.botSettings.get);
   const brokerData   = useQuery(convexApi.brokerCredential.status);
-  const subData      = useQuery(convexApi.subscription.get);
-  const entitled     = useQuery(convexApi.subscription.isEntitled);
-  const paperTrial   = useQuery(convexApi.subscription.getPaperTrial);
+  const billingStatus = useQuery(convexApi.subscription.getBillingStatus);
+  const paperTrial    = useQuery(convexApi.subscription.getPaperTrial);
 
   const updateSettings = useMutation(convexApi.botSettings.update);
   const setModeMut     = useMutation(convexApi.botSettings.setMode);
@@ -61,9 +60,9 @@ export function Settings() {
   }, [settingsData, local]);
 
   const broker: BrokerStatus | null = brokerData ?? null;
+  const billingEnabled = billingStatus?.billingEnabled ?? false;
   const sub = {
-    entitled: entitled ?? false,
-    tier: subData?.tier ?? null,
+    entitled: billingStatus?.liveEntitled ?? paperTrial?.entitled ?? false,
     canUsePaperTrading: paperTrial?.canUsePaperTrading ?? true,
     paperTradesUsed: paperTrial?.paperTradesUsed ?? 0,
     paperTradesLimit: 0,
@@ -118,7 +117,11 @@ export function Settings() {
 
   async function setMode(mode: Mode) {
     if (mode === 'LIVE' && !sub.entitled) {
-      setError('Live trading requires an active subscription. Upgrade to enable real money trading.');
+      setError(
+        billingEnabled
+          ? 'Live trading requires an active subscription.'
+          : 'Live trading is not available yet.',
+      );
       return;
     }
     if (mode === 'LIVE' && !broker?.connected) {
@@ -153,13 +156,12 @@ export function Settings() {
       <section className="panel">
         <h2>Execution mode</h2>
         <div style={{ marginBottom: '0.75rem' }}>
-          <span className={`chip ${sub.entitled ? 'on' : ''}`} style={{ marginRight: '0.5rem' }}>
-            {sub.entitled ? `Pro${sub.tier ? ` · ${sub.tier}` : ''}` : 'Free'}
-          </span>
           <span className="muted" style={{ fontSize: '0.85em' }}>
             {sub.entitled
               ? 'Live trading enabled'
-              : 'Paper trading enabled · upgrade for live trading'}
+              : billingEnabled
+                ? 'Paper trading enabled · subscribe for live trading'
+                : 'Paper trading enabled'}
           </span>
         </div>
         <div className="chips">
@@ -175,7 +177,9 @@ export function Settings() {
                   m === 'LIVE' && !broker?.connected
                     ? 'Connect Alpaca first'
                     : m === 'LIVE' && !sub.entitled
-                    ? 'Requires an active subscription'
+                    ? billingEnabled
+                      ? 'Requires an active subscription'
+                      : 'Live trading is not available yet'
                     : undefined
                 }
               >
@@ -299,9 +303,10 @@ function AlpacaCard({
     <section className="panel">
       <h2>Connect Alpaca</h2>
       <p className="muted" style={{ marginBottom: '1rem' }}>
-        Alpaca is a free brokerage that lets the AI execute trades for you.{' '}
+        Connect Alpaca paper keys to mirror bot trades in your Alpaca paper account.
+        Without keys, the bot uses the built-in simulator.{' '}
         <a href="https://alpaca.markets" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
-          Create a free account →
+          Create a free Alpaca account →
         </a>
       </p>
       <div className="form-grid" style={{ marginBottom: '1rem' }}>

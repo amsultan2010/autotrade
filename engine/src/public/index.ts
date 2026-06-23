@@ -27,9 +27,6 @@ export {
 // Validation
 export { parse } from '../lib/validate';
 
-// Database (web API routes — migrate to Convex over time)
-export { prisma } from '../lib/prisma';
-
 // Audit
 export { writeAudit } from '../lib/audit';
 
@@ -46,7 +43,8 @@ export { AlpacaBroker } from '../services/execution/alpaca.broker';
 export type { BrokerProvider } from '../services/execution/broker.types';
 
 // Billing
-export { createCheckoutSession } from '../services/subscription.service';
+export { createCheckoutSession, getStatus } from '../services/subscription.service';
+export { getStripe, isStripeConfigured, isBillingEnabled } from '../lib/stripe';
 
 // Bot cycle (cron / internal routes)
 export { runCycleForUser } from '../workers/scanLoop';

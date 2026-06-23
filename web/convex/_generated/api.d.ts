@@ -8,18 +8,24 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as bot from "../bot.js";
 import type * as botInternal from "../botInternal.js";
 import type * as botSettings from "../botSettings.js";
 import type * as brokerCredential from "../brokerCredential.js";
 import type * as brokerCredentialActions from "../brokerCredentialActions.js";
 import type * as crons from "../crons.js";
+import type * as engineData from "../engineData.js";
 import type * as http from "../http.js";
+import type * as lib_adminAuth from "../lib/adminAuth.js";
+import type * as lib_entitlements from "../lib/entitlements.js";
+import type * as lib_internalSecret from "../lib/internalSecret.js";
 import type * as paperAccount from "../paperAccount.js";
 import type * as performance from "../performance.js";
 import type * as signals from "../signals.js";
 import type * as strategyStats from "../strategyStats.js";
 import type * as subscription from "../subscription.js";
+import type * as subscriptionInternal from "../subscriptionInternal.js";
 import type * as tradeActions from "../tradeActions.js";
 import type * as trades from "../trades.js";
 import type * as users from "../users.js";
@@ -32,18 +38,24 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   bot: typeof bot;
   botInternal: typeof botInternal;
   botSettings: typeof botSettings;
   brokerCredential: typeof brokerCredential;
   brokerCredentialActions: typeof brokerCredentialActions;
   crons: typeof crons;
+  engineData: typeof engineData;
   http: typeof http;
+  "lib/adminAuth": typeof lib_adminAuth;
+  "lib/entitlements": typeof lib_entitlements;
+  "lib/internalSecret": typeof lib_internalSecret;
   paperAccount: typeof paperAccount;
   performance: typeof performance;
   signals: typeof signals;
   strategyStats: typeof strategyStats;
   subscription: typeof subscription;
+  subscriptionInternal: typeof subscriptionInternal;
   tradeActions: typeof tradeActions;
   trades: typeof trades;
   users: typeof users;

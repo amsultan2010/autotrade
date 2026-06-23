@@ -7,7 +7,6 @@ export * from './config/defaults';
 export * from './config/popular';
 export * from './lib/errors';
 export * from './lib/validate';
-export * from './lib/prisma';
 export * from './lib/audit';
 export * from './lib/jwt';
 export * from './lib/crypto';

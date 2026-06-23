@@ -25,7 +25,11 @@ export default defineSchema({
       v.literal('TRIALING'),
     ),
     currentPeriodEnd: v.optional(v.number()), // epoch ms
-  }).index('by_clerk_id', ['clerkId']),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+  })
+    .index('by_clerk_id', ['clerkId'])
+    .index('by_stripe_customer_id', ['stripeCustomerId']),
 
   // ── Watchlist ─────────────────────────────────────────────────────────────
   watchedSymbols: defineTable({

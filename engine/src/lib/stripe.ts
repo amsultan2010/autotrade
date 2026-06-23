@@ -20,5 +20,10 @@ export function getStripe(): Stripe {
 }
 
 export function isStripeConfigured(): boolean {
+  if (!env.BILLING_ENABLED) return false;
   return Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.STRIPE_PRICE_ID);
+}
+
+export function isBillingEnabled(): boolean {
+  return env.BILLING_ENABLED;
 }

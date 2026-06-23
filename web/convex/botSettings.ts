@@ -1,6 +1,7 @@
 import { query, mutation, type QueryCtx } from './_generated/server';
 import { v, ConvexError } from 'convex/values';
 import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
+import { isBillingEnabled } from './lib/billing';
 
 function requireAuth(identity: { subject: string } | null): string {
   if (!identity) throw new Error('Unauthenticated');
@@ -20,7 +21,7 @@ async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
     sub,
     paperTradesUsed,
     canUsePaperTrading: canUsePaperTrading(),
-    entitled: isLiveEntitled(role, sub),
+    entitled: isLiveEntitled(role, sub, user?.email),
   };
 }
 
@@ -137,8 +138,12 @@ export const setMode = mutation({
           .query('subscriptions')
           .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
           .unique();
-        if (!isLiveEntitled(user?.role ?? 'USER', sub)) {
-          throw new ConvexError('Live trading requires an active subscription.');
+        if (!isLiveEntitled(user?.role ?? 'USER', sub, user?.email)) {
+          throw new ConvexError(
+            isBillingEnabled()
+              ? 'Live trading requires an active subscription.'
+              : 'Live trading is not available yet.',
+          );
         }
       }
 

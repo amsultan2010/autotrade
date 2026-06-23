@@ -10,23 +10,23 @@ Personalized, subscription-gated AI trading bot. **Web app** (Next.js + Convex) 
 
 ```
 web/       Next.js website + Convex (Abdullah)
-engine/    Trading algorithm + Prisma (Preston)
+engine/    Trading algorithm + Convex client (Preston)
 worker/    Background scan loop (Preston)
 shared/    Cross-boundary types and DTOs (both)
-legacy/    Archived backend + desktop (reference only)
+legacy/    Archived desktop client (reference only)
 ```
 
 ## Prerequisites
 
 - Node 20+ and pnpm 9+
-- PostgreSQL (`DATABASE_URL` in env)
+- Convex deployment URL and Clerk keys (see `web/.env.example`)
 - Clerk, Convex, and market-data API keys (see `web/.env.example`)
 
 ## Quick start
 
 ```bash
 pnpm install
-pnpm setup          # build shared + generate Prisma client
+pnpm setup          # build shared package
 pnpm dev:web        # Next.js at http://localhost:3000
 ```
 
@@ -56,7 +56,7 @@ See [docs/COWORKING.md](docs/COWORKING.md) for the full guide.
 | `pnpm typecheck:web` | Typecheck web only |
 | `pnpm typecheck:engine` | Typecheck engine + worker |
 | `pnpm check:boundaries` | Verify web/engine import rules |
-| `pnpm setup` | Build shared + Prisma generate |
+| `pnpm setup` | Build shared package |
 
 ## Deploy
 

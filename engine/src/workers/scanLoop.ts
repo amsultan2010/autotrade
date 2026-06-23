@@ -1,23 +1,18 @@
 /**
  * Scan loop — the bot's polling heartbeat (fallback when streaming is off).
- * On each cycle, for every active user: monitor open trades, then evaluate each
- * watched symbol (analyze → decide → risk → paper execute).
- *
- * The per-user context loader and per-symbol evaluator are exported so the
- * real-time LiveEngine (Alpaca WebSocket) can reuse the exact same pipeline on
- * stream events — keeping one decision/risk/execution path (req #7).
  */
-import type { BotSettings } from '@prisma/client';
+import type { BotSettingsRecord } from '../types/db';
 import type { RiskLevel, StrategyId, Timeframe } from '@autotrade/shared';
-import { prisma } from '../lib/prisma';
+import * as db from '../lib/convex-db';
 import { analyzeSymbol } from '../services/analysis/index';
 import { decide } from '../services/decision/index';
 import { evaluateRisk } from '../services/risk/index';
 import { getStrategyWeights } from '../services/learning/index';
 import {
   monitorUserOpenTrades,
-  monitorUserLiveTrades,
+  monitorUserBrokerTrades,
   openPaperTrade,
+  openBrokerTrade,
   openLiveTrade,
   type EntrySnapshot,
 } from '../services/execution/paper.engine';
@@ -33,47 +28,31 @@ import { isCryptoSymbol } from '../services/marketdata/alpaca.provider';
 let timer: NodeJS.Timeout | null = null;
 let running = false;
 
-// In-memory dedupe so we don't write a Signal row on every tick-driven scan.
-// Persist only when the decision changes or after a cooldown.
 const lastSignal = new Map<string, { action: string; ts: number }>();
 const SIGNAL_DEDUP_MS = 60_000;
 
-async function persistSignal(userId: string, signal: ReturnType<typeof decide>): Promise<string> {
-  const row = await prisma.signal.create({
-    data: {
-      userId,
-      ticker: signal.ticker,
-      exchange: signal.exchange,
-      price: signal.price,
-      timeframe: signal.timeframe,
-      strategy: signal.strategy,
-      action: signal.action,
-      confidence: signal.confidence,
-      riskLevel: signal.riskLevel,
-      entryReason: signal.entryReason,
-      stopLoss: signal.stopLoss,
-      takeProfit: signal.takeProfit,
-      rrRatio: signal.rrRatio,
-      explanation: signal.explanation,
-    },
+async function persistSignal(clerkId: string, signal: ReturnType<typeof decide>): Promise<string> {
+  return db.createSignal({
+    clerkId,
+    ticker: signal.ticker,
+    exchange: signal.exchange,
+    price: signal.price,
+    timeframe: signal.timeframe,
+    strategy: signal.strategy,
+    action: signal.action,
+    confidence: signal.confidence,
+    riskLevel: signal.riskLevel,
+    entryReason: signal.entryReason,
+    stopLoss: signal.stopLoss ?? undefined,
+    takeProfit: signal.takeProfit ?? undefined,
+    rrRatio: signal.rrRatio ?? undefined,
+    explanation: signal.explanation,
   });
-  return row.id;
-}
-
-async function realizedPnlToday(userId: string): Promise<number> {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const rows = await prisma.trade.aggregate({
-    where: { userId, closedAt: { gte: start }, result: { not: 'OPEN' } },
-    _sum: { pnl: true },
-  });
-  return rows._sum.pnl ?? 0;
 }
 
 export interface UserBotContext {
-  userId: string;
-  settings: BotSettings;
-  // Separate learned weights per asset class — crypto tunes independently.
+  clerkId: string;
+  settings: BotSettingsRecord;
   weights: { stock: Record<string, number>; crypto: Record<string, number> };
   equity: number;
   pnlToday: number;
@@ -82,11 +61,6 @@ export interface UserBotContext {
   watchlist: Array<{ symbol: string; exchange: string }>;
 }
 
-/**
- * Turn the user's risk level into real aggressiveness: HIGH lowers the
- * confidence bar and sizes up; LOW is conservative. Crypto gets a small extra
- * nudge because it's a more reactive market.
- */
 function aggressiveness(
   riskLevel: RiskLevel,
   isCrypto: boolean,
@@ -101,77 +75,68 @@ function aggressiveness(
   return base;
 }
 
-/**
- * Load everything needed to run the bot for a user, or null if the user is not
- * eligible (disabled account, no active entitlement, or bot mode DISABLED).
- */
-export async function loadUserBotContext(userId: string): Promise<UserBotContext | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      role: true,
-      status: true,
-      botSettings: true,
-      paperAccount: true,
-      subscription: { select: { status: true, currentPeriodEnd: true } },
-      watchlist: { select: { symbol: true, exchange: true } },
-    },
-  });
+export async function loadUserBotContext(clerkId: string): Promise<UserBotContext | null> {
+  const user = await db.getBotContext(clerkId);
   if (!user || user.status === 'DISABLED' || !user.botSettings) return null;
   if (user.botSettings.mode === 'DISABLED') return null;
+
   const isLiveMode = user.botSettings.mode === 'LIVE';
-  if (isLiveMode && !isProEntitled(user.role, user.subscription)) return null;
+  if (isLiveMode && !user.liveEntitled) return null;
+
   if (!isLiveMode) {
     const [paperTradeCount, openPaperTrades] = await Promise.all([
-      countPaperTrades(userId),
-      prisma.trade.count({ where: { userId, mode: 'PAPER', result: 'OPEN' } }),
+      countPaperTrades(clerkId),
+      db.countOpenTrades(clerkId, 'PAPER'),
     ]);
     const canPaper =
       canUsePaperTrading(user.role, user.subscription, paperTradeCount) || openPaperTrades > 0;
     if (!canPaper) return null;
   }
 
+  let equity = user.paperAccount?.equity ?? user.paperAccount?.balance ?? 0;
+  if (!isLiveMode) {
+    const broker = await loadUserBroker(clerkId);
+    if (broker?.mode === 'paper') {
+      try {
+        const account = await broker.getAccount();
+        equity = account.equity ?? account.buyingPower ?? equity;
+      } catch {
+        /* keep internal paper equity */
+      }
+    }
+  }
+
   return {
-    userId,
+    clerkId,
     settings: user.botSettings,
     weights: {
-      stock: await getStrategyWeights(userId, 'stock'),
-      crypto: await getStrategyWeights(userId, 'crypto'),
+      stock: await getStrategyWeights(clerkId, 'stock'),
+      crypto: await getStrategyWeights(clerkId, 'crypto'),
     },
-    equity: user.paperAccount?.equity ?? user.paperAccount?.balance ?? 0,
-    pnlToday: await realizedPnlToday(userId),
+    equity,
+    pnlToday: await db.realizedPnlToday(clerkId),
     timeframes: user.botSettings.timeframes as Timeframe[],
     strategies: user.botSettings.strategies as StrategyId[],
-    watchlist: user.watchlist,
+    watchlist: user.watchlist.map(({ symbol, exchange }) => ({ symbol, exchange })),
   };
 }
 
-/**
- * Evaluate one symbol for one user: analyze → decide → record signal → risk →
- * open a paper trade if approved. Shared by the polling loop and the stream.
- */
 export async function evaluateSymbolEntry(
   ctx: UserBotContext,
   symbol: string,
   exchange: string,
 ): Promise<void> {
-  const { userId, settings } = ctx;
+  const { clerkId, settings } = ctx;
   const isLive = settings.mode === 'LIVE';
 
-  // Don't open new STOCK positions when the US market is closed (prices are
-  // stale). Crypto trades 24/7 and is never gated here.
   if (isAlpacaConfigured() && !isCryptoSymbol(symbol) && !(await isStockMarketOpen())) return;
 
   const tradeMode = isLive ? 'LIVE' : 'PAPER';
-  const openCount = await prisma.trade.count({
-    where: { userId, mode: tradeMode, result: 'OPEN' },
-  });
+  const openCount = await db.countOpenTrades(clerkId, tradeMode);
 
   const analysis = await analyzeSymbol(symbol, ctx.timeframes);
   if (Object.keys(analysis).length === 0) return;
 
-  // Use the asset-class learning track + risk-level aggressiveness.
   const crypto = isCryptoSymbol(symbol);
   const weights = crypto ? ctx.weights.crypto : ctx.weights.stock;
   const { thresholdDelta, sizeMult } = aggressiveness(settings.riskLevel as RiskLevel, crypto);
@@ -190,21 +155,16 @@ export async function evaluateSymbolEntry(
     learningWeights: weights,
   });
 
-  // (Crypto long-only handling now lives in the decision engine.)
-
-  // Record decisions for the activity feed, deduped: only when the decision
-  // changes or after a cooldown — otherwise tick-driven scanning spams rows.
   const isActionable = signal.action === 'BUY' || signal.action === 'SELL';
-  const sigKey = `${userId}:${symbol}`;
+  const sigKey = `${clerkId}:${symbol}`;
   const prev = lastSignal.get(sigKey);
   const decisionChanged =
     !prev || prev.action !== signal.action || Date.now() - prev.ts > SIGNAL_DEDUP_MS;
 
   let signalRowId: string | null = null;
   if (decisionChanged) {
-    signalRowId = await persistSignal(userId, signal);
+    signalRowId = await persistSignal(clerkId, signal);
     lastSignal.set(sigKey, { action: signal.action, ts: Date.now() });
-    // Prune stale entries to prevent unbounded memory growth.
     const cutoff = Date.now() - SIGNAL_DEDUP_MS * 10;
     for (const [k, v] of lastSignal) {
       if (v.ts < cutoff) lastSignal.delete(k);
@@ -213,16 +173,10 @@ export async function evaluateSymbolEntry(
 
   if (!isActionable) return;
 
-  // Avoid stacking multiple open trades on the same symbol.
-  const alreadyOpen = await prisma.trade.findFirst({
-    where: { userId, symbol, mode: tradeMode, result: 'OPEN' },
-    select: { id: true },
-  });
+  const alreadyOpen = await db.findOpenTradeBySymbol(clerkId, symbol, tradeMode);
   if (alreadyOpen) return;
 
-  // Ensure there's a signal row to link the trade to (the feed entry may have
-  // been deduped away above).
-  if (!signalRowId) signalRowId = await persistSignal(userId, signal);
+  if (!signalRowId) signalRowId = await persistSignal(clerkId, signal);
 
   const risk = evaluateRisk(
     signal,
@@ -250,37 +204,44 @@ export async function evaluateSymbolEntry(
   };
 
   if (isLive) {
-    const broker = await loadUserBroker(userId);
+    const broker = await loadUserBroker(clerkId);
     if (!broker) {
-      console.warn(`LIVE mode for user ${userId} but no broker credentials — skipping`);
+      console.warn(`LIVE mode for user ${clerkId} but no broker credentials — skipping`);
       return;
     }
-    await openLiveTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot, broker });
+    await openLiveTrade({ clerkId, signalId: signalRowId, signal, risk, entrySnapshot, broker });
   } else {
-    const [user, paperTradeCount] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          role: true,
-          subscription: { select: { status: true, currentPeriodEnd: true } },
-        },
-      }),
-      countPaperTrades(userId),
-    ]);
+    const user = await db.getBotContext(clerkId);
+    const paperTradeCount = await countPaperTrades(clerkId);
     if (!user || !canUsePaperTrading(user.role, user.subscription, paperTradeCount)) return;
-    await openPaperTrade({ userId, signalId: signalRowId, signal, risk, entrySnapshot });
+    const broker = await loadUserBroker(clerkId);
+    if (broker?.mode === 'paper') {
+      await openBrokerTrade({
+        clerkId,
+        signalId: signalRowId,
+        signal,
+        risk,
+        entrySnapshot,
+        broker,
+        mode: 'PAPER',
+      });
+    } else {
+      await openPaperTrade({ clerkId, signalId: signalRowId, signal, risk, entrySnapshot });
+    }
   }
 }
 
-export async function runCycleForUser(userId: string): Promise<void> {
-  const ctx = await loadUserBotContext(userId);
+export async function runCycleForUser(clerkId: string): Promise<void> {
+  const ctx = await loadUserBotContext(clerkId);
   if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) return;
 
+  const broker = await loadUserBroker(clerkId);
   if (ctx.settings.mode === 'LIVE') {
-    const broker = await loadUserBroker(userId);
-    if (broker) await monitorUserLiveTrades(userId, broker);
+    if (broker) await monitorUserBrokerTrades(clerkId, broker);
+  } else if (broker?.mode === 'paper') {
+    await monitorUserBrokerTrades(clerkId, broker);
   } else {
-    await monitorUserOpenTrades(userId);
+    await monitorUserOpenTrades(clerkId);
   }
 
   for (const watched of ctx.watchlist) {
@@ -288,25 +249,19 @@ export async function runCycleForUser(userId: string): Promise<void> {
   }
 }
 
-/** One full polling cycle across all eligible users. Never throws. */
 export async function runScanCycle(): Promise<void> {
   if (running) return;
   running = true;
   try {
-    const users = await prisma.user.findMany({
-      where: { status: 'ACTIVE', botSettings: { mode: { not: 'DISABLED' } } },
-      select: { id: true },
-    });
+    const users = await db.getActiveBotUsers();
     for (const u of users) {
       try {
-        await runCycleForUser(u.id);
+        await runCycleForUser(u.clerkId);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`scan cycle failed for user ${u.id}`, err);
+        console.error(`scan cycle failed for user ${u.clerkId}`, err);
       }
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('scan cycle error:', err instanceof Error ? err.message : err);
   } finally {
     running = false;
@@ -316,7 +271,6 @@ export async function runScanCycle(): Promise<void> {
 export function startScanLoop(intervalMs = 60_000): void {
   if (timer) return;
   timer = setInterval(() => void runScanCycle(), intervalMs);
-  // eslint-disable-next-line no-console
   console.log(`🟢 Scan loop started (polling every ${intervalMs / 1000}s)`);
 }
 

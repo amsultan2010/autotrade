@@ -4,8 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "prisma generate --schema prisma/schema.prisma",
-    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "exports": {
@@ -15,8 +13,8 @@
   "dependencies": {
     "@autotrade/shared": "workspace:*",
     "@clerk/backend": "^3.7.0",
-    "@prisma/client": "^5.22.0",
     "argon2": "^0.41.1",
+    "convex": "^1.41.0",
     "jsonwebtoken": "^9.0.2",
     "stripe": "^17.3.1",
     "technicalindicators": "^3.1.0",
@@ -27,7 +25,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.9.0",
     "@types/ws": "^8.5.13",
-    "prisma": "^5.22.0",
     "typescript": "^5.6.3"
   }
 }

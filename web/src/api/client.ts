@@ -50,9 +50,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  // ── Subscription ──
-  checkout: () => request<{ url: string }>('/subscription/checkout', { method: 'POST' }),
-
   // ── Market data ──
   searchSymbols: (q: string) => request<SymbolSearchResult[]>(`/market/search?q=${encodeURIComponent(q)}`),
   getPopular: () =>

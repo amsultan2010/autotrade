@@ -1,17 +1,35 @@
 import { NextResponse } from 'next/server';
 import { type NextRequest } from 'next/server';
 import { sendWeeklyDigest } from '@/lib/email';
-import { prisma } from '@autotrade/engine/public';
 import { requireUser } from '@/lib/auth';
+import { convexServer } from '@/lib/convex-server';
+import { makeFunctionReference } from 'convex/server';
 
-async function sendDigestForUserId(userId: string, email: string) {
+const listActiveUsers = makeFunctionReference<
+  'query',
+  { secret: string },
+  Array<{ clerkId: string; email: string }>
+>('engineData:listActiveUsers');
+
+const getDigestTrades = makeFunctionReference<
+  'query',
+  { secret: string; clerkId: string; sinceMs: number },
+  Array<{ symbol: string; pnl?: number; result: string }>
+>('engineData:getDigestTrades');
+
+function internalSecret(): string | null {
+  return process.env.BOT_INTERNAL_SECRET ?? null;
+}
+
+async function sendDigestForClerkId(clerkId: string, email: string, secret: string) {
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   weekAgo.setHours(0, 0, 0, 0);
 
-  const trades = await prisma.trade.findMany({
-    where: { userId, closedAt: { gte: weekAgo }, result: { not: undefined } },
-    select: { symbol: true, pnl: true, result: true },
+  const trades = await convexServer.query(getDigestTrades, {
+    secret,
+    clerkId,
+    sinceMs: weekAgo.getTime(),
   });
 
   if (trades.length === 0) return { sent: false, reason: 'no_trades_this_week' };
@@ -34,18 +52,14 @@ async function sendDigestForUserId(userId: string, email: string) {
 // Can also be triggered by an authenticated user to send their own digest.
 export async function POST(req: NextRequest) {
   const incomingSecret = req.headers.get('x-internal-secret');
-  const configuredSecret = process.env.BOT_INTERNAL_SECRET;
+  const configuredSecret = internalSecret();
 
   if (incomingSecret && configuredSecret && incomingSecret === configuredSecret) {
-    // Cron path: send digest to every active user who has trades this week.
     try {
-      const users = await prisma.user.findMany({
-        where: { status: 'ACTIVE' },
-        select: { id: true, email: true },
-      });
+      const users = await convexServer.query(listActiveUsers, { secret: configuredSecret });
 
       const results = await Promise.allSettled(
-        users.map((u) => sendDigestForUserId(u.id, u.email)),
+        users.map((u) => sendDigestForClerkId(u.clerkId, u.email, configuredSecret)),
       );
 
       const sent = results.filter(
@@ -58,10 +72,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // User-authenticated path: send digest for the current user only.
   try {
     const user = await requireUser();
-    const result = await sendDigestForUserId(user.id, user.email);
+    const secret = configuredSecret;
+    if (!secret) {
+      return NextResponse.json({ error: 'BOT_INTERNAL_SECRET not configured' }, { status: 500 });
+    }
+    const result = await sendDigestForClerkId(user.clerkId, user.email, secret);
     return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

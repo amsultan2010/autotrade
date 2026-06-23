@@ -1,5 +1,27 @@
-import { mutation, query } from './_generated/server';
+import { mutation, query, internalQuery, type MutationCtx } from './_generated/server';
 import { v } from 'convex/values';
+import { FOUNDER_TIER, isFounderEmail } from './lib/billing';
+
+async function ensureFounderSubscription(
+  ctx: MutationCtx,
+  clerkId: string,
+  email: string,
+): Promise<void> {
+  if (!isFounderEmail(email)) return;
+  const existing = await ctx.db
+    .query('subscriptions')
+    .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+    .unique();
+  if (existing) {
+    await ctx.db.patch(existing._id, { status: 'ACTIVE', tier: FOUNDER_TIER });
+    return;
+  }
+  await ctx.db.insert('subscriptions', {
+    clerkId,
+    status: 'ACTIVE',
+    tier: FOUNDER_TIER,
+  });
+}
 
 /** Called from the Clerk webhook (user.created) to sync a new user into Convex. */
 export const syncFromClerk = mutation({
@@ -16,6 +38,7 @@ export const syncFromClerk = mutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, { email });
+      await ensureFounderSubscription(ctx, clerkId, email);
       return existing._id;
     }
 
@@ -55,6 +78,7 @@ export const syncFromClerk = mutation({
       status: 'NONE',
     });
 
+    await ensureFounderSubscription(ctx, clerkId, email);
     return userId;
   },
 });
@@ -102,7 +126,10 @@ export const ensureExists = mutation({
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
 
-    if (existing) return existing._id;
+    if (existing) {
+      await ensureFounderSubscription(ctx, clerkId, email);
+      return existing._id;
+    }
 
     const userId = await ctx.db.insert('users', {
       clerkId,
@@ -129,7 +156,29 @@ export const ensureExists = mutation({
       strategies: ['TrendBreakout', 'PullbackContinuation', 'MeanReversion', 'CryptoMomentum'],
     });
     await ctx.db.insert('subscriptions', { clerkId, status: 'NONE' });
+    await ensureFounderSubscription(ctx, clerkId, email);
 
     return userId;
+  },
+});
+
+
+/** Internal: load role + email for broker connect entitlement checks. */
+export const _getByClerkId = internalQuery({
+  args: { clerkId: v.string() },
+  returns: v.union(
+    v.object({
+      role: v.union(v.literal('USER'), v.literal('ADMIN'), v.literal('DEVELOPER')),
+      email: v.string(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, { clerkId }) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+      .unique();
+    if (!user) return null;
+    return { role: user.role, email: user.email };
   },
 });

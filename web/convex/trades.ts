@@ -91,7 +91,7 @@ export const create = mutation({
         ctx.db.query('users').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
         ctx.db.query('subscriptions').withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId)).unique(),
       ]);
-      if (!isLiveEntitled(user?.role ?? 'USER', sub)) {
+      if (!isLiveEntitled(user?.role ?? 'USER', sub, user?.email)) {
         throw new Error('Live trading requires an active subscription.');
       }
     }

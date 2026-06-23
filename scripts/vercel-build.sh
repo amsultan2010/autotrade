@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build shared + Prisma client + Next.js app from the monorepo root.
+# Build shared + Next.js app from the monorepo root.
 # Invoked by web/vercel.json — same root resolution as vercel-install.sh.
 set -euo pipefail
 

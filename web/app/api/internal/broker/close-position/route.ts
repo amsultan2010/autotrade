@@ -1,12 +1,10 @@
 /**
  * Internal endpoint — closes an open Alpaca position for a user.
- * Called by the Convex tradeActions.closeAtMarket when mode === 'LIVE'.
- * Loads the user's broker credentials from Postgres, calls Alpaca's
- * close-position endpoint, and returns the exit price.
+ * Called by Convex tradeActions.closeAtMarket when mode === 'LIVE'.
  * Protected by BOT_INTERNAL_SECRET — never exposed to clients.
  */
 import { type NextRequest, NextResponse } from 'next/server';
-import { prisma, loadUserBroker } from '@autotrade/engine/public';
+import { loadBrokerForClerkId } from '@/lib/broker-server';
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.BOT_INTERNAL_SECRET;
@@ -31,12 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing clerkId or symbol' }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { clerkId }, select: { id: true } });
-  if (!user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  }
-
-  const broker = await loadUserBroker(user.id);
+  const broker = await loadBrokerForClerkId(clerkId);
   if (!broker) {
     return NextResponse.json({ error: 'No broker credentials configured' }, { status: 422 });
   }

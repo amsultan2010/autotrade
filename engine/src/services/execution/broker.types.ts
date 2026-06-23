@@ -1,9 +1,6 @@
 /**
- * BrokerProvider — the seam for FUTURE live trading (req #5, #7, #10).
- * No implementation ships in the MVP; live execution must go through a real,
- * licensed broker (Alpaca, IBKR) or an officially supported TradingView webhook.
- * The engines depend on this interface, never on a concrete broker, so live
- * trading is added by writing one adapter — nothing else changes.
+ * BrokerProvider — execution seam for Alpaca (paper + live).
+ * Engine code depends on this interface, not a concrete broker implementation.
  */
 import type { TradeSide } from '@autotrade/shared';
 
