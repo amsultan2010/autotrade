@@ -1,5 +1,17 @@
+import { join } from 'path';
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+
+function getPrismaTracingIncludes(): string[] {
+  try {
+    const clientDir = join(require.resolve('@prisma/client'), '..', '..', '.prisma', 'client');
+    return [`${clientDir}/**/*`];
+  } catch {
+    return [];
+  }
+}
+
+const prismaTracingIncludes = getPrismaTracingIncludes();
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -24,7 +36,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://img.clerk.com https://tryautotrade.com",
       "font-src 'self'",
       // Convex websocket + PostHog + Sentry ingest + Clerk backend
-      "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://us.i.posthog.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io https://clerk.tryautotrade.com https://*.clerk.accounts.dev",
+      "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://us.i.posthog.com https://us.posthog.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io https://clerk.tryautotrade.com https://*.clerk.accounts.dev",
       "frame-src 'self' https://challenges.cloudflare.com",
       "object-src 'none'",
       "base-uri 'self'",
@@ -36,6 +48,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   transpilePackages: ['@autotrade/engine', '@autotrade/shared'],
   serverExternalPackages: ['argon2', '@prisma/client', 'prisma'],
+  outputFileTracingIncludes: prismaTracingIncludes.length
+    ? {
+        '/api/**/*': prismaTracingIncludes,
+        '/*': prismaTracingIncludes,
+      }
+    : undefined,
   webpack: (config) => {
     config.externals = [...(Array.isArray(config.externals) ? config.externals : []), 'argon2'];
     return config;

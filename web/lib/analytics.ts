@@ -35,13 +35,23 @@ export function capture(userId: string, payload: AnalyticsEvent) {
   client.capture({
     distinctId: userId,
     event: payload.event,
-    properties: payload.properties,
+    properties: {
+      ...payload.properties,
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
+    },
   });
 }
 
 export function captureError(
   userId: string | undefined,
-  props: { errorCode: string; refId: string; route?: string },
+  props: {
+    errorCode: string;
+    refId: string;
+    route?: string;
+    message?: string;
+    component?: string;
+    sentryEventId?: string;
+  },
 ) {
   const client = getClient();
   if (!client) return;
@@ -49,7 +59,11 @@ export function captureError(
   client.capture({
     distinctId: userId ?? 'anonymous',
     event: 'app_error',
-    properties: props,
+    properties: {
+      ...props,
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
+      release: process.env.VERCEL_GIT_COMMIT_SHA,
+    },
   });
 }
 
@@ -58,4 +72,10 @@ export function identifyUser(userId: string, traits: { email?: string; name?: st
   if (!client) return;
 
   client.identify({ distinctId: userId, properties: traits });
+}
+
+export async function shutdownAnalytics(): Promise<void> {
+  if (!_client) return;
+  await _client.shutdown();
+  _client = null;
 }

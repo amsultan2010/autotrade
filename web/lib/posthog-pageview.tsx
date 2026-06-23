@@ -29,7 +29,7 @@ function PageViewTracker() {
 
   // Capture pageview on every route change
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || !posthog?.__loaded) return;
     const url = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     posthog.capture('$pageview', { $current_url: url });
   }, [pathname, searchParams, posthog]);
