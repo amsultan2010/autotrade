@@ -4,6 +4,22 @@ import { canUsePaperTrading, isLiveEntitled } from './lib/entitlements';
 import { isBillingEnabled } from './lib/billing';
 import { requireAuth } from './lib/adminAuth';
 import { DEFAULT_BOT_SETTINGS } from './lib/defaultBotSettings';
+import { resolveStrategyLists } from './lib/strategyDefaults';
+
+function enrichSettings<T extends {
+  strategies: string[];
+  stockStrategies?: string[];
+  cryptoStrategies?: string[];
+  includeExperimental?: boolean;
+}>(doc: T) {
+  const resolved = resolveStrategyLists(doc);
+  return {
+    ...doc,
+    stockStrategies: resolved.stockStrategies,
+    cryptoStrategies: resolved.cryptoStrategies,
+    includeExperimental: doc.includeExperimental ?? false,
+  };
+}
 
 async function getPaperEntitlement(ctx: QueryCtx, clerkId: string) {
   const [user, sub, trades] = await Promise.all([
@@ -43,6 +59,9 @@ const botSettingsDocValidator = v.object({
   minConfidence: v.number(),
   timeframes: v.array(v.string()),
   strategies: v.array(v.string()),
+  stockStrategies: v.optional(v.array(v.string())),
+  cryptoStrategies: v.optional(v.array(v.string())),
+  includeExperimental: v.optional(v.boolean()),
 });
 
 /** Get bot settings for the current user. */
@@ -51,10 +70,11 @@ export const get = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
-    return ctx.db
+    const doc = await ctx.db
       .query('botSettings')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
       .unique();
+    return doc ? enrichSettings(doc) : null;
   },
 });
 
@@ -74,6 +94,9 @@ export const update = mutation({
     minConfidence: v.optional(v.number()),
     timeframes: v.optional(v.array(v.string())),
     strategies: v.optional(v.array(v.string())),
+    stockStrategies: v.optional(v.array(v.string())),
+    cryptoStrategies: v.optional(v.array(v.string())),
+    includeExperimental: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -92,7 +115,9 @@ export const update = mutation({
     );
 
     await ctx.db.patch('botSettings', settings._id, patch);
-    return ctx.db.get('botSettings', settings._id);
+    const updated = await ctx.db.get('botSettings', settings._id);
+    if (!updated) throw new ConvexError('Bot settings not found after update');
+    return enrichSettings(updated);
   },
 });
 

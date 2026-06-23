@@ -89,7 +89,7 @@ export interface TradeSignal {
   exchange: string;
   price: number;
   timeframe: Timeframe;
-  strategy: StrategyId;
+  strategy: string;
   action: TradeAction;
   confidence: number; // 0–100, already learning-weighted
   riskLevel: RiskLevel;
@@ -114,7 +114,7 @@ export interface TradeDTO {
   takeProfit: number | null;
   pnl: number | null;
   result: TradeResult;
-  strategy: StrategyId;
+  strategy: string;
   confidence: number;
   entryReason: string;
   exitReason: string | null;
@@ -156,4 +156,7 @@ export interface BotSettingsDTO {
   minConfidence: number; // 0–100
   timeframes: Timeframe[];
   strategies: StrategyId[];
+  stockStrategies?: string[];
+  cryptoStrategies?: string[];
+  includeExperimental?: boolean;
 }

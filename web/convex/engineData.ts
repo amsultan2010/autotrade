@@ -64,6 +64,9 @@ const botSettingsValidator = v.object({
   minConfidence: v.number(),
   timeframes: v.array(v.string()),
   strategies: v.array(v.string()),
+  stockStrategies: v.optional(v.array(v.string())),
+  cryptoStrategies: v.optional(v.array(v.string())),
+  includeExperimental: v.optional(v.boolean()),
 });
 
 const watchlistItemValidator = v.object({

@@ -60,6 +60,9 @@ export default defineSchema({
     minConfidence: v.number(),
     timeframes: v.array(v.string()),
     strategies: v.array(v.string()),
+    stockStrategies: v.optional(v.array(v.string())),
+    cryptoStrategies: v.optional(v.array(v.string())),
+    includeExperimental: v.optional(v.boolean()),
   }).index('by_clerk_id', ['clerkId']),
 
   // ── Signals ───────────────────────────────────────────────────────────────

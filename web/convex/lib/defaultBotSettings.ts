@@ -14,5 +14,21 @@ export const DEFAULT_BOT_SETTINGS: Omit<Doc<'botSettings'>, '_id' | '_creationTi
   tradingHoursEnd: '16:00',
   minConfidence: 60,
   timeframes: ['5m', '15m', '1h', '1d'],
-  strategies: ['TrendBreakout', 'PullbackContinuation', 'MeanReversion', 'CryptoMomentum'],
+  strategies: [],
+  stockStrategies: [
+    'trend_following_v2',
+    'momentum_v2',
+    'mean_reversion_v2',
+    'breakout_v1',
+    'pullback_in_trend_v1',
+    'vwap_intraday_v1',
+    'stat_arb_pairs_v1',
+  ],
+  cryptoStrategies: [
+    'crypto_trend_following',
+    'crypto_momentum',
+    'crypto_mean_reversion',
+    'crypto_breakout',
+  ],
+  includeExperimental: false,
 };

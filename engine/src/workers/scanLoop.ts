@@ -2,12 +2,13 @@
  * Scan loop — the bot's polling heartbeat (fallback when streaming is off).
  */
 import type { BotSettingsRecord } from '../types/db';
-import type { RiskLevel, StrategyId, Timeframe } from '@autotrade/shared';
+import type { RiskLevel, Timeframe, TradeAction, TradeSignal } from '@autotrade/shared';
+import { resolveStrategyLists } from '@autotrade/shared';
 import * as db from '../lib/convex-db';
 import { analyzeSymbol } from '../services/analysis/index';
-import { decide } from '../services/decision/index';
-import { evaluateRisk } from '../services/risk/index';
-import { getStrategyWeights } from '../services/learning/index';
+import type { RiskDecision } from '../services/risk/index';
+import { runStrategyEngine } from '../services/strategy-engine';
+import type { StrategyDecision } from '../services/strategy-engine/types';
 import {
   monitorUserOpenTrades,
   monitorUserBrokerTrades,
@@ -31,7 +32,7 @@ let running = false;
 const lastSignal = new Map<string, { action: string; ts: number }>();
 const SIGNAL_DEDUP_MS = 60_000;
 
-async function persistSignal(clerkId: string, signal: ReturnType<typeof decide>): Promise<string> {
+async function persistSignal(clerkId: string, signal: TradeSignal): Promise<string> {
   return db.createSignal({
     clerkId,
     ticker: signal.ticker,
@@ -50,29 +51,65 @@ async function persistSignal(clerkId: string, signal: ReturnType<typeof decide>)
   });
 }
 
+function riskLevelFor(atrPct: number): RiskLevel {
+  if (atrPct >= 4) return 'HIGH';
+  if (atrPct >= 1.5) return 'MEDIUM';
+  return 'LOW';
+}
+
+function decisionToTradeSignal(decision: StrategyDecision, entryTf: Timeframe): TradeSignal {
+  const action: TradeAction =
+    decision.action === 'BUY'
+      ? 'BUY'
+      : decision.action === 'SHORT'
+        ? 'SELL'
+        : decision.action === 'HOLD'
+          ? 'HOLD'
+          : decision.chosenStrategy && decision.confidence > 0
+            ? 'AVOID'
+            : 'HOLD';
+
+  const entry = decision.riskPlan;
+  const strategyLabel =
+    decision.chosenStrategy?.internalName ??
+    decision.chosenStrategy?.displayName ??
+    'strategy_engine';
+
+  return {
+    ticker: decision.symbol,
+    exchange: decision.exchange,
+    createdAt: decision.timestamp,
+    price: decision.price,
+    timeframe: entryTf,
+    strategy: strategyLabel,
+    action,
+    confidence: decision.confidence,
+    riskLevel: riskLevelFor(0),
+    entryReason: decision.entrySignal ?? decision.reasoning.slice(0, 280),
+    stopLoss: entry?.stopLoss ?? null,
+    takeProfit: entry?.takeProfit ?? null,
+    rrRatio: entry?.rrRatio ?? null,
+    explanation: decision.reasoning,
+  };
+}
+
 export interface UserBotContext {
   clerkId: string;
   settings: BotSettingsRecord;
-  weights: { stock: Record<string, number>; crypto: Record<string, number> };
+  stockStrategies: string[];
+  cryptoStrategies: string[];
+  includeExperimental: boolean;
   equity: number;
   pnlToday: number;
   timeframes: Timeframe[];
-  strategies: StrategyId[];
   watchlist: Array<{ symbol: string; exchange: string }>;
 }
 
-function aggressiveness(
-  riskLevel: RiskLevel,
-  isCrypto: boolean,
-): { thresholdDelta: number; sizeMult: number } {
-  const base =
-    riskLevel === 'HIGH'
-      ? { thresholdDelta: -15, sizeMult: 1.5 }
-      : riskLevel === 'LOW'
-        ? { thresholdDelta: 10, sizeMult: 0.6 }
-        : { thresholdDelta: 0, sizeMult: 1.0 };
-  if (isCrypto) base.thresholdDelta -= 5;
-  return base;
+function riskLevelFromAnalysis(analysis: Awaited<ReturnType<typeof analyzeSymbol>>, entryTf: Timeframe): RiskLevel {
+  const price = analysis[entryTf]?.snapshot.price ?? 0;
+  const atr = analysis[entryTf]?.snapshot.atr14 ?? 0;
+  const atrPct = price > 0 ? (atr / price) * 100 : 0;
+  return riskLevelFor(atrPct);
 }
 
 export async function loadUserBotContext(clerkId: string): Promise<UserBotContext | null> {
@@ -109,14 +146,11 @@ export async function loadUserBotContext(clerkId: string): Promise<UserBotContex
   return {
     clerkId,
     settings: user.botSettings,
-    weights: {
-      stock: await getStrategyWeights(clerkId, 'stock'),
-      crypto: await getStrategyWeights(clerkId, 'crypto'),
-    },
+    ...resolveStrategyLists(user.botSettings),
+    includeExperimental: user.botSettings.includeExperimental ?? false,
     equity,
     pnlToday: await db.realizedPnlToday(clerkId),
     timeframes: user.botSettings.timeframes as Timeframe[],
-    strategies: user.botSettings.strategies as StrategyId[],
     watchlist: user.watchlist.map(({ symbol, exchange }) => ({ symbol, exchange })),
   };
 }
@@ -138,24 +172,41 @@ export async function evaluateSymbolEntry(
   if (Object.keys(analysis).length === 0) return;
 
   const crypto = isCryptoSymbol(symbol);
-  const weights = crypto ? ctx.weights.crypto : ctx.weights.stock;
-  const { thresholdDelta, sizeMult } = aggressiveness(settings.riskLevel as RiskLevel, crypto);
-  const effMinConfidence = Math.max(0, Math.min(100, settings.minConfidence + thresholdDelta));
-  const effRiskPerTradePct = settings.riskPerTradePct * sizeMult;
+  const enabled = crypto ? ctx.cryptoStrategies : ctx.stockStrategies;
 
-  const signal = decide({
+  const { decision, context: stratCtx } = runStrategyEngine({
     symbol,
     exchange,
     analysis,
-    timeframes: ctx.timeframes,
-    enabledStrategies: ctx.strategies,
-    minConfidence: effMinConfidence,
+    config: {
+      mode: 'balanced',
+      minConfidence: settings.minConfidence,
+      enabledStrategies: enabled.length > 0 ? enabled : 'all',
+      includeExperimental: ctx.includeExperimental,
+    },
+    account: {
+      equity: ctx.equity,
+      openTradeCount: openCount,
+      realizedPnlToday: ctx.pnlToday,
+    },
+    riskSettings: {
+      mode: settings.mode,
+      maxActiveTrades: settings.maxActiveTrades,
+      maxTradeSize: settings.maxTradeSize,
+      riskPerTradePct: settings.riskPerTradePct,
+      maxDailyLoss: settings.maxDailyLoss,
+      tradingHoursStart: settings.tradingHoursStart,
+      tradingHoursEnd: settings.tradingHoursEnd,
+    },
+    riskLevel: settings.riskLevel as RiskLevel,
     defaultStopPct: settings.defaultStopPct,
     defaultTakeProfitPct: settings.defaultTakeProfitPct,
-    learningWeights: weights,
   });
 
-  const isActionable = signal.action === 'BUY' || signal.action === 'SELL';
+  const signal = decisionToTradeSignal(decision, stratCtx.entryTf);
+  signal.riskLevel = riskLevelFromAnalysis(analysis, stratCtx.entryTf);
+
+  const isActionable = decision.action === 'BUY' || decision.action === 'SHORT';
   const sigKey = `${clerkId}:${symbol}`;
   const prev = lastSignal.get(sigKey);
   const decisionChanged =
@@ -171,29 +222,22 @@ export async function evaluateSymbolEntry(
     }
   }
 
-  if (!isActionable) return;
+  if (!isActionable || !decision.riskPlan || decision.blocked || !decision.side) return;
 
   const alreadyOpen = await db.findOpenTradeBySymbol(clerkId, symbol, tradeMode);
   if (alreadyOpen) return;
 
   if (!signalRowId) signalRowId = await persistSignal(clerkId, signal);
 
-  const risk = evaluateRisk(
-    signal,
-    {
-      mode: settings.mode,
-      maxActiveTrades: settings.maxActiveTrades,
-      maxTradeSize: settings.maxTradeSize,
-      riskPerTradePct: effRiskPerTradePct,
-      maxDailyLoss: settings.maxDailyLoss,
-      tradingHoursStart: settings.tradingHoursStart,
-      tradingHoursEnd: settings.tradingHoursEnd,
-    },
-    { equity: ctx.equity, openTradeCount: openCount, realizedPnlToday: ctx.pnlToday },
-  );
-  if (!risk.approved) return;
+  const risk: Extract<RiskDecision, { approved: true }> = {
+    approved: true,
+    qty: decision.riskPlan.qty,
+    side: decision.side,
+    stopLoss: decision.riskPlan.stopLoss,
+    takeProfit: decision.riskPlan.takeProfit,
+  };
 
-  const snap = analysis[signal.timeframe]?.snapshot;
+  const snap = analysis[stratCtx.entryTf]?.snapshot;
   const entrySnapshot: EntrySnapshot = {
     price: signal.price,
     atr14: snap?.atr14 ?? 0,

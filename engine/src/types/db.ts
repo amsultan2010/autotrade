@@ -24,6 +24,9 @@ export interface BotSettingsRecord {
   minConfidence: number;
   timeframes: string[];
   strategies: string[];
+  stockStrategies?: string[];
+  cryptoStrategies?: string[];
+  includeExperimental?: boolean;
 }
 
 export interface TradeRecord {

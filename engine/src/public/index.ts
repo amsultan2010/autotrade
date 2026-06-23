@@ -47,5 +47,13 @@ export { getStripe, isStripeConfigured, isBillingEnabled } from '../lib/stripe';
 // Bot cycle (cron / internal routes)
 export { runCycleForUser } from '../workers/scanLoop';
 
+// Strategy catalog (settings UI)
+export {
+  getGroupedCatalog,
+  getStrategyCatalog,
+  type StrategyCatalogEntry,
+} from '../services/strategy-engine/catalog';
+export { runStrategyEngine } from '../services/strategy-engine';
+
 // Live quote streaming
 export { liveEngine } from '../workers/liveEngine';
