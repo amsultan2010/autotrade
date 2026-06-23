@@ -1,7 +1,7 @@
 'use node';
 import { action } from './_generated/server';
 import { api } from './_generated/api';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 /** Close an open trade at the current market price.
  * For LIVE trades, also closes the position in Alpaca before recording in Convex. */
@@ -9,14 +9,14 @@ export const closeAtMarket = action({
   args: { id: v.id('trades') },
   handler: async (ctx, { id }): Promise<unknown> => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error('Unauthenticated');
+    if (!identity) throw new ConvexError('Unauthenticated');
 
     const trade = (await ctx.runQuery(api.trades.get, { id })) as {
       entryPrice: number;
       symbol: string;
       mode?: string;
     } | null;
-    if (!trade) throw new Error('Trade not found');
+    if (!trade) throw new ConvexError('Trade not found');
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
     const botSecret = process.env.BOT_INTERNAL_SECRET;

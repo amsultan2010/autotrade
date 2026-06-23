@@ -1,17 +1,15 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { requireAuth } from './lib/adminAuth';
 
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
 
 /** Get all strategy stats for the current user. */
 export const list = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = requireAuth(identity);
+    if (!identity) return [];
+    const clerkId = identity.subject;
     return ctx.db
       .query('strategyStats')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))

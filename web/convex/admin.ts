@@ -1,5 +1,5 @@
 import { mutation, query } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import { requireAdmin } from './lib/adminAuth';
@@ -191,7 +191,7 @@ export const setUserStatus = mutation({
       .query('users')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     await ctx.db.patch(user._id, { status });
     await writeAudit(ctx, {
@@ -218,7 +218,7 @@ export const setUserRole = mutation({
       .query('users')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     await ctx.db.patch(user._id, { role });
     await writeAudit(ctx, {

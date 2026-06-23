@@ -1,10 +1,7 @@
 import { query, mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
+import { requireAuth } from './lib/adminAuth';
 
-function requireAuth(identity: { subject: string } | null): string {
-  if (!identity) throw new Error('Unauthenticated');
-  return identity.subject;
-}
 
 /** List all watched symbols for the current user (ordered by add time asc). */
 export const list = query({
@@ -61,7 +58,7 @@ export const remove = mutation({
     const clerkId = requireAuth(identity);
 
     const item = await ctx.db.get(id);
-    if (!item || item.clerkId !== clerkId) throw new Error('Not found');
+    if (!item || item.clerkId !== clerkId) throw new ConvexError('Not found');
     await ctx.db.delete(id);
   },
 });
