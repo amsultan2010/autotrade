@@ -6,7 +6,7 @@
  */
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { env } from '../../config/env';
-import { ALPACA_DATA_BASE, alpacaHeaders, alpacaTradingBase } from '../../lib/alpaca';
+import { ALPACA_DATA_BASE } from '../../lib/alpaca';
 import { MarketDataError, type MarketDataProvider, type SymbolSnapshot } from './types';
 
 const TIMEFRAME: Record<Timeframe, string> = {
@@ -45,15 +45,28 @@ export class AlpacaProvider implements MarketDataProvider {
   readonly name = 'alpaca';
   private assetsCache: AlpacaAsset[] | null = null;
   private assetsFetchedAt = 0;
+  private readonly headers: Record<string, string>;
+  private readonly tradingBase: string;
 
-  constructor() {
-    if (!env.ALPACA_API_KEY || !env.ALPACA_API_SECRET) {
+  constructor(credentials?: { keyId: string; secret: string; paper?: boolean }) {
+    const keyId = (credentials?.keyId ?? env.ALPACA_API_KEY ?? '').trim();
+    const secret = (credentials?.secret ?? env.ALPACA_API_SECRET ?? '').trim();
+    if (!keyId || !secret) {
       throw new MarketDataError('ALPACA_API_KEY / ALPACA_API_SECRET are not set', 'alpaca');
     }
+    this.headers = {
+      'APCA-API-KEY-ID': keyId,
+      'APCA-API-SECRET-KEY': secret,
+      Accept: 'application/json',
+    };
+    const paper = credentials?.paper ?? env.ALPACA_PAPER;
+    this.tradingBase = paper
+      ? 'https://paper-api.alpaca.markets'
+      : 'https://api.alpaca.markets';
   }
 
   private async getJson<T>(url: string): Promise<T> {
-    const res = await fetch(url, { headers: alpacaHeaders(), signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(url, { headers: this.headers, signal: AbortSignal.timeout(10_000) });
     if (res.status === 429) throw new MarketDataError('Alpaca rate limit', 'alpaca', true);
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -65,7 +78,7 @@ export class AlpacaProvider implements MarketDataProvider {
   private async loadAssets(): Promise<AlpacaAsset[]> {
     const ONE_DAY = 86_400_000;
     if (this.assetsCache && Date.now() - this.assetsFetchedAt < ONE_DAY) return this.assetsCache;
-    const base = alpacaTradingBase();
+    const base = this.tradingBase;
     const [equities, crypto] = await Promise.all([
       this.getJson<AlpacaAsset[]>(`${base}/v2/assets?status=active&asset_class=us_equity`),
       this.getJson<AlpacaAsset[]>(`${base}/v2/assets?status=active&asset_class=crypto`).catch(() => []),

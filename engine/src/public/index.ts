@@ -32,7 +32,7 @@ export { writeAudit } from '../lib/audit';
 
 
 // Market data
-export { getMarketData } from '../services/marketdata/index';
+export { getMarketData, getMarketDataForUser } from '../services/marketdata/index';
 export { isStockMarketOpen } from '../lib/alpaca';
 
 // Broker

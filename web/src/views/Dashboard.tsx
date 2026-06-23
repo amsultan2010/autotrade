@@ -4,6 +4,7 @@ import { useQuery, useMutation, useAction, useConvexAuth } from 'convex/react';
 import { ErrorCodes } from '@autotrade/shared';
 import { api as convexApi } from '@/convex/_generated/api';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
+import { mergeOpenPositions, type DisplayPosition } from '@/lib/positions';
 
 // ─── Convex data shapes ───────────────────────────────────────────────────────
 interface ConvexBotStatus {
@@ -35,17 +36,6 @@ interface ConvexPerf {
 }
 
 // ─── API data shapes ──────────────────────────────────────────────────────────
-interface BrokerPosition {
-  symbol: string;
-  qty: number;
-  avgEntryPrice: number;
-  side: 'LONG' | 'SHORT';
-  currentPrice?: number;
-  marketValue?: number;
-  unrealizedPnl?: number;
-  unrealizedPnlPct?: number;
-}
-
 interface Quote {
   symbol: string;
   changePct: number | null;
@@ -339,7 +329,7 @@ function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: bo
   );
 }
 
-// ─── Fallback heatmap when no watchlist quotes ─────────────────────────────────
+// ─── Fallback heatmap tiles (only when watchlist is empty) ───────────────────
 const HEATMAP_FALLBACK = [
   { sym: 'AAPL', pct: 0, large: true },
   { sym: 'MSFT', pct: 0, large: true },
@@ -361,6 +351,9 @@ export function Dashboard() {
   const signalData    = useQuery(convexApi.signals.list, { limit: 10 }) as ConvexSignal[] | undefined;
   const watchlist     = useQuery(convexApi.watchlist.list) as Array<{ symbol: string }> | undefined;
   const tradeData     = useQuery(convexApi.trades.list, { limit: 200 }) as { items: Array<{ closedAt?: number; pnl?: number }> } | undefined;
+  const openTrades    = useQuery(convexApi.trades.list, { result: 'OPEN', limit: 100 }) as {
+    items: Array<{ _id: string; symbol: string; qty: number; entryPrice: number; side: string; brokerOrderId?: string }>;
+  } | undefined;
   const brokerStatus  = useQuery(convexApi.brokerCredential.status);
   const brokerSnapshot = useQuery(convexApi.brokerSync.getSnapshot);
   const setMode       = useMutation(convexApi.botSettings.setMode);
@@ -465,14 +458,22 @@ export function Dashboard() {
   // ── Signals ──────────────────────────────────────────────────────────────────
   const signals: ConvexSignal[] = signalData ?? [];
 
-  // ── Heatmap from watchlist quotes ────────────────────────────────────────────
-  const heatmapData = quotes.length >= 4
-    ? quotes.slice(0, 10).map((q) => ({ sym: q.symbol, pct: q.changePct ?? 0, large: true }))
-    : HEATMAP_FALLBACK;
+  // ── Heatmap from watchlist (always show user's symbols) ─────────────────────
+  const watchlistSymbols = watchlist?.map((w) => w.symbol) ?? [];
+  const quoteBySymbol = new Map(quotes.map((q) => [q.symbol.toUpperCase(), q.changePct ?? 0]));
+  const heatmapData =
+    watchlistSymbols.length > 0
+      ? watchlistSymbols.slice(0, 10).map((sym, i) => ({
+          sym,
+          pct: quoteBySymbol.get(sym.toUpperCase()) ?? 0,
+          large: i < 7,
+        }))
+      : HEATMAP_FALLBACK;
 
-  // ── Real positions (from Alpaca snapshot) or empty ───────────────────────────
-  const livePositions: BrokerPosition[] = snap?.positions ?? [];
-  const positionsLoading = brokerConnected && brokerSnapshot === undefined;
+  // ── Positions: broker snapshot + simulator open trades (same source as history)
+  const livePositions: DisplayPosition[] = mergeOpenPositions(snap?.positions ?? [], openTrades?.items ?? []);
+  const openTradeCount = openTrades?.items.length ?? perfData?.openTrades ?? 0;
+  const positionsLoading = brokerConnected && brokerSnapshot === undefined && openTrades === undefined;
 
   // ── Real equity curve from trade history ─────────────────────────────────────
   const equityCurve = buildRealCurve(balance, tradeData?.items ?? [], tab);
@@ -531,6 +532,11 @@ export function Dashboard() {
       {brokerError && (
         <div className="error-banner" style={{ margin: '0 0 12px' }}>
           Alpaca sync: {brokerError}
+          {/unauthorized|401|403/i.test(brokerError) && (
+            <span>
+              {' '}— Reconnect your paper API keys in Settings (generate new keys at app.alpaca.markets if needed).
+            </span>
+          )}
         </div>
       )}
       {dataLoading && (
@@ -625,21 +631,26 @@ export function Dashboard() {
             <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>Loading positions…</p>
           ) : livePositions.length === 0 ? (
             <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
-              No open positions.{!brokerConnected && ' Connect Alpaca in Settings to see live positions.'}
+              No open positions.
+              {!brokerConnected
+                ? ' Connect Alpaca in Settings for broker-backed paper trading, or start the bot to open simulator trades.'
+                : ' Start the bot or tap Scan Now to open trades on your watchlist.'}
             </p>
           ) : (
             <table className="db-pos-table">
               <tbody>
-                {livePositions.map((p, i) => {
+                {livePositions.map((p) => {
                   const pnl = p.unrealizedPnl ?? 0;
                   const pnlPct = p.unrealizedPnlPct ?? 0;
                   return (
-                    <tr key={i} className="db-pos-row">
+                    <tr key={p.tradeId ?? p.symbol} className="db-pos-row">
                       <td className="db-pos-ticker">{p.symbol}</td>
                       <td className={`db-pos-side ${p.side === 'LONG' ? 'buy' : 'sell'}`}>{p.side === 'LONG' ? 'Long' : 'Short'}</td>
-                      <td className="db-pos-value">{p.marketValue != null ? money(p.marketValue) : `${p.qty} shares`}</td>
-                      <td className={`db-pos-pnl ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl >= 0 ? '+' : ''}{money(pnl)}</td>
-                      <td className={`db-pos-pct ${pnlPct >= 0 ? 'pos' : 'neg'}`}>{pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%</td>
+                      <td className="db-pos-value">
+                        {p.marketValue != null ? money(p.marketValue) : `${p.qty} @ ${money(p.avgEntryPrice)}`}
+                      </td>
+                      <td className={`db-pos-pnl ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl !== 0 ? `${pnl >= 0 ? '+' : ''}${money(pnl)}` : '--'}</td>
+                      <td className={`db-pos-pct ${pnlPct >= 0 ? 'pos' : 'neg'}`}>{pnlPct !== 0 ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : '--'}</td>
                     </tr>
                   );
                 })}
@@ -711,9 +722,7 @@ export function Dashboard() {
             </div>
             <div className="db-perf-stat">
               <span className="db-perf-stat-label">Open</span>
-              <span className="db-perf-stat-value">
-                {brokerConnected ? livePositions.length : (perfData?.openTrades ?? '--')}
-              </span>
+              <span className="db-perf-stat-value">{openTradeCount}</span>
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@
 import type { MistakeTag, TradeSignal } from '@autotrade/shared';
 import * as db from '../../lib/convex-db';
 import type { TradeRecord } from '../../types/db';
-import { getMarketData } from '../marketdata/index';
+import { getMarketData, getMarketDataForUser } from '../marketdata/index';
 import { recordOutcome } from '../learning/index';
 import type { RiskDecision } from '../risk/index';
 import type { BrokerProvider, BrokerOrder } from './broker.types';
@@ -161,7 +161,7 @@ export async function monitorUserOpenTrades(clerkId: string): Promise<number> {
 
   let md;
   try {
-    md = getMarketData();
+    md = await getMarketDataForUser(clerkId);
   } catch (err) {
     console.error(`market data unavailable for monitor (user ${clerkId})`, err);
     return 0;
@@ -207,6 +207,13 @@ export async function monitorUserBrokerTrades(
     return;
   }
 
+  let md;
+  try {
+    md = await getMarketDataForUser(clerkId);
+  } catch {
+    return;
+  }
+
   const openSymbols = new Set(alpacaPositions.map((p) => p.symbol.toUpperCase()));
 
   for (const trade of withBroker) {
@@ -214,7 +221,7 @@ export async function monitorUserBrokerTrades(
       // Position still open at broker — check stop/target and close if hit.
       let price: number;
       try {
-        price = (await getMarketData().getQuote(trade.symbol)).price;
+        price = (await md.getQuote(trade.symbol)).price;
       } catch {
         continue;
       }
@@ -231,7 +238,7 @@ export async function monitorUserBrokerTrades(
 
     let exitPrice = trade.entryPrice;
     try {
-      exitPrice = (await getMarketData().getQuote(trade.symbol)).price;
+      exitPrice = (await md.getQuote(trade.symbol)).price;
     } catch {
       /* use entry price as fallback */
     }
@@ -285,7 +292,8 @@ export async function closeTradeAtMarket(
 
   let price: number;
   try {
-    price = (await getMarketData().getQuote(trade.symbol)).price;
+    const md = await getMarketDataForUser(clerkId);
+    price = (await md.getQuote(trade.symbol)).price;
   } catch {
     return { closed: false, reason: 'Could not get a current price' };
   }

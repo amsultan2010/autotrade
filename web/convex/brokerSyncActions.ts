@@ -46,15 +46,46 @@ async function syncAlpacaForClerk(ctx: ActionCtx, clerkId: string) {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Alpaca sync failed';
-    await ctx.runMutation(internal.brokerSync._upsertSnapshot, {
-      clerkId,
-      equity: 0,
-      cash: 0,
-      buyingPower: 0,
-      mode: cred.paper ? 'paper' : 'live',
-      positions: [],
-      syncError: message,
-    });
+    const existing = (await ctx.runQuery(internal.brokerSync._getSnapshot, { clerkId })) as {
+      equity: number;
+      cash: number;
+      buyingPower: number;
+      lastEquity?: number;
+      mode: 'paper' | 'live';
+      positions: Array<{
+        symbol: string;
+        qty: number;
+        avgEntryPrice: number;
+        side: 'LONG' | 'SHORT';
+        currentPrice?: number;
+        marketValue?: number;
+        unrealizedPnl?: number;
+        unrealizedPnlPct?: number;
+      }>;
+    } | null;
+
+    if (existing) {
+      await ctx.runMutation(internal.brokerSync._upsertSnapshot, {
+        clerkId,
+        equity: existing.equity,
+        cash: existing.cash,
+        buyingPower: existing.buyingPower,
+        lastEquity: existing.lastEquity,
+        mode: existing.mode,
+        positions: existing.positions,
+        syncError: message,
+      });
+    } else {
+      await ctx.runMutation(internal.brokerSync._upsertSnapshot, {
+        clerkId,
+        equity: 0,
+        cash: 0,
+        buyingPower: 0,
+        mode: cred.paper ? 'paper' : 'live',
+        positions: [],
+        syncError: message,
+      });
+    }
     return { synced: false, error: message };
   }
 }

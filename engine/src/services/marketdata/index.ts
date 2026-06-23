@@ -13,6 +13,7 @@ import { TwelveDataProvider } from './twelvedata.provider';
 import { RateLimiter, TtlCache } from './cache';
 import { isAlpacaConfigured } from '../../lib/alpaca';
 import { MarketDataError, type MarketDataProvider } from './types';
+import * as db from '../../lib/convex-db';
 
 /** Per-provider request budget (requests per minute). */
 const PROVIDER_RATE: Record<string, number> = {
@@ -88,34 +89,61 @@ class CachingMarketData implements MarketDataProvider {
 }
 
 let instance: MarketDataProvider | null = null;
+const userInstances = new Map<string, MarketDataProvider>();
 
-export function getMarketData(): MarketDataProvider {
-  if (instance) return instance;
-  let base: MarketDataProvider;
+function wrapProvider(base: MarketDataProvider): MarketDataProvider {
+  return new CachingMarketData(base);
+}
+
+function createBaseProvider(): MarketDataProvider {
   switch (env.MARKET_DATA_PROVIDER) {
     case 'alpaca':
-      base = new AlpacaProvider();
-      break;
+      return new AlpacaProvider();
     case 'twelvedata':
       if (!env.TWELVEDATA_API_KEY) {
         throw new MarketDataError('TWELVEDATA_API_KEY is required for the twelvedata provider', 'twelvedata');
       }
-      base = new TwelveDataProvider(env.TWELVEDATA_API_KEY);
-      break;
+      return new TwelveDataProvider(env.TWELVEDATA_API_KEY);
     case 'finnhub':
       if (!env.FINNHUB_API_KEY) {
         throw new MarketDataError('FINNHUB_API_KEY is required for the finnhub provider', 'finnhub');
       }
-      base = new FinnhubProvider(env.FINNHUB_API_KEY);
-      break;
+      return new FinnhubProvider(env.FINNHUB_API_KEY);
     case 'stooq':
-      base = new StooqProvider();
-      break;
+      return new StooqProvider();
     default:
       throw new MarketDataError(`Unknown provider: ${env.MARKET_DATA_PROVIDER}`, 'unknown');
   }
-  instance = new CachingMarketData(base);
+}
+
+export function getMarketData(): MarketDataProvider {
+  if (instance) return instance;
+  instance = wrapProvider(createBaseProvider());
   return instance;
+}
+
+/**
+ * Market data for a specific user. When Alpaca broker credentials are connected,
+ * uses those keys so trading works even if server env keys are missing or stale.
+ */
+export async function getMarketDataForUser(clerkId: string): Promise<MarketDataProvider> {
+  const cached = userInstances.get(clerkId);
+  if (cached) return cached;
+
+  try {
+    const cred = await db.getDecryptedBrokerKeys(clerkId);
+    if (cred?.provider === 'alpaca') {
+      const md = wrapProvider(
+        new AlpacaProvider({ keyId: cred.keyId, secret: cred.secret, paper: cred.paper }),
+      );
+      userInstances.set(clerkId, md);
+      return md;
+    }
+  } catch {
+    /* fall back to global provider */
+  }
+
+  return getMarketData();
 }
 
 /** Whether the selected provider has what it needs to run (key, etc.). */

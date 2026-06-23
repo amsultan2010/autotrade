@@ -13,6 +13,7 @@ import {
   closeOpenTradesForSymbolAtPrice,
   markToMarketUser,
 } from '../services/execution/paper.engine';
+import { getMarketDataForUser } from '../services/marketdata/index';
 
 const EXIT_THROTTLE_MS = 250;
 const ENTRY_THROTTLE_MS = 5_000;
@@ -106,7 +107,8 @@ class LiveEngine {
       if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) continue;
       const w = ctx.watchlist.find((x) => x.symbol.toUpperCase() === symbol.toUpperCase());
       try {
-        await evaluateSymbolEntry(ctx, symbol, w?.exchange ?? 'US');
+        const md = await getMarketDataForUser(clerkId);
+        await evaluateSymbolEntry(ctx, symbol, w?.exchange ?? 'US', md);
       } catch (err) {
         logErr(err);
       }

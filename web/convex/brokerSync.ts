@@ -1,4 +1,4 @@
-import { query, internalMutation } from './_generated/server';
+import { query, internalMutation, internalQuery } from './_generated/server';
 import { v } from 'convex/values';
 
 const positionValidator = v.object({
@@ -36,6 +36,16 @@ export const getSnapshot = query({
     return ctx.db
       .query('brokerSnapshots')
       .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
+      .unique();
+  },
+});
+
+export const _getSnapshot = internalQuery({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    return ctx.db
+      .query('brokerSnapshots')
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
       .unique();
   },
 });

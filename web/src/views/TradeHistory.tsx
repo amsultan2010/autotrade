@@ -78,9 +78,10 @@ export function TradeHistory() {
 
       {brokerStatus?.connected && (
         <p className="muted" style={{ marginBottom: '0.75rem', fontSize: 13 }}>
-          Showing bot-executed trades for your account
+          {trades.filter((t) => t.result === 'OPEN').length} open position(s) ·{' '}
+          {trades.length} total trade(s) in history
           {brokerStatus.paper ? ' (Alpaca paper)' : ' (Alpaca live)'}.
-          Use Scan Now or Start Bot on the dashboard to generate new trades.
+          Dashboard positions and this list use the same Convex trade records.
         </p>
       )}
 

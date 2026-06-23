@@ -143,6 +143,20 @@ export const close = mutation({
       closedAt: Date.now(),
     });
 
+    // Simulator-only paper trades: keep paperAccounts in sync with trade history.
+    if (trade.mode === 'PAPER' && !trade.brokerOrderId) {
+      const account = await ctx.db
+        .query('paperAccounts')
+        .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+        .unique();
+      if (account) {
+        await ctx.db.patch(account._id, {
+          balance: account.balance + pnl,
+          equity: account.equity + pnl,
+        });
+      }
+    }
+
     return { pnl, result };
   },
 });

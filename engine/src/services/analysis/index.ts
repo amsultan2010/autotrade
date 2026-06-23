@@ -5,6 +5,7 @@
  */
 import type { IndicatorSnapshot, Timeframe } from '@autotrade/shared';
 import { getMarketData } from '../marketdata/index';
+import type { MarketDataProvider } from '../marketdata/types';
 import { computeSnapshot, type ExtraReads } from './indicators';
 
 const BAR_SECONDS: Record<Timeframe, number> = {
@@ -28,12 +29,15 @@ export type MultiTimeframeAnalysis = Partial<Record<Timeframe, TimeframeAnalysis
 export async function analyzeSymbol(
   symbol: string,
   timeframes: Timeframe[],
+  md?: MarketDataProvider,
 ): Promise<MultiTimeframeAnalysis> {
-  let md;
-  try {
-    md = getMarketData();
-  } catch {
-    return {};
+  let provider = md;
+  if (!provider) {
+    try {
+      provider = getMarketData();
+    } catch {
+      return {};
+    }
   }
   const now = Math.floor(Date.now() / 1000);
   const result: MultiTimeframeAnalysis = {};
@@ -42,7 +46,7 @@ export async function analyzeSymbol(
     timeframes.map(async (tf) => {
       const from = now - BAR_SECONDS[tf] * WANTED_BARS;
       try {
-        const candles = await md.getCandles(symbol, tf, from, now);
+        const candles = await provider.getCandles(symbol, tf, from, now);
         const computed = computeSnapshot(tf, candles);
         if (computed) result[tf] = computed;
       } catch {

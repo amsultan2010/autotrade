@@ -25,6 +25,7 @@ import {
 } from '../middleware/subscription';
 import { isStockMarketOpen, isAlpacaConfigured } from '../lib/alpaca';
 import { isCryptoSymbol } from '../services/marketdata/alpaca.provider';
+import { getMarketDataForUser } from '../services/marketdata/index';
 
 let timer: NodeJS.Timeout | null = null;
 let running = false;
@@ -162,6 +163,7 @@ export async function evaluateSymbolEntry(
   ctx: UserBotContext,
   symbol: string,
   exchange: string,
+  md?: Awaited<ReturnType<typeof import('../services/marketdata/index').getMarketDataForUser>>,
 ): Promise<void> {
   const { clerkId, settings } = ctx;
   const isLive = settings.mode === 'LIVE';
@@ -171,7 +173,7 @@ export async function evaluateSymbolEntry(
   const tradeMode = isLive ? 'LIVE' : 'PAPER';
   const openCount = await db.countOpenTrades(clerkId, tradeMode);
 
-  const analysis = await analyzeSymbol(symbol, ctx.timeframes);
+  const analysis = await analyzeSymbol(symbol, ctx.timeframes, md);
   if (Object.keys(analysis).length === 0) return;
 
   const crypto = isCryptoSymbol(symbol);
@@ -287,6 +289,14 @@ export async function runCycleForUser(clerkId: string): Promise<void> {
   if (!ctx || (ctx.settings.mode !== 'PAPER' && ctx.settings.mode !== 'LIVE')) return;
 
   const broker = await loadUserBroker(clerkId);
+  let md;
+  try {
+    md = await getMarketDataForUser(clerkId);
+  } catch (err) {
+    console.error(`market data unavailable for user ${clerkId}`, err);
+    return;
+  }
+
   try {
     if (ctx.settings.mode === 'LIVE') {
       if (broker) await monitorUserBrokerTrades(clerkId, broker);
@@ -301,7 +311,7 @@ export async function runCycleForUser(clerkId: string): Promise<void> {
 
   for (const watched of ctx.watchlist) {
     try {
-      await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange);
+      await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange, md);
     } catch (err) {
       console.error(`scan failed for ${watched.symbol} (user ${clerkId})`, err);
     }
