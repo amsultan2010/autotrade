@@ -6,6 +6,7 @@ import { TIMEFRAMES, type Candle, type Timeframe, ErrorCodes } from '@autotrade/
 import { api } from '../api/client';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 import { PriceChart, type ChartMarker } from '../components/PriceChart';
+import { Skeleton } from '../components/Skeleton';
 
 function buildMarkers(trades: Array<{
   openedAt: number;
@@ -102,13 +103,19 @@ export function Charts() {
 
       <section className="panel">
         {convexAuthLoading || (isAuthenticated && watchlist === undefined) ? (
-          <p className="muted">Loading your watchlist…</p>
+          <div className="chart-skeleton" aria-label="Loading" role="status">
+            <Skeleton height={28} width="40%" className="mb-4" />
+            <Skeleton height={320} width="100%" />
+          </div>
         ) : !symbol ? (
           <p className="muted">Add symbols on the Watchlist tab, then pick one here to see its chart.</p>
         ) : error ? (
           <p className="muted">{error}</p>
         ) : candles.length === 0 ? (
-          <p className="muted">{loading ? 'Loading chart…' : 'No candle data for this timeframe yet.'}</p>
+          <div className="chart-skeleton" aria-label="Loading chart" role="status">
+            <Skeleton height={28} width="35%" className="mb-4" />
+            <Skeleton height={320} width="100%" />
+          </div>
         ) : (
           <>
             <div className="chart-meta">

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useAction } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { TableSkeleton } from '../components/Skeleton';
 
 type TradeResult = 'OPEN' | 'WIN' | 'LOSS' | 'BREAKEVEN';
 
@@ -67,9 +68,9 @@ export function TradeHistory() {
     <div className="page">
       <header className="page-head">
         <h1>Trade History</h1>
-        <div className="seg small">
+        <div className="seg small" role="tablist" aria-label="Filter trades">
           {(['all', 'OPEN', 'WIN', 'LOSS'] as const).map((f) => (
-            <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
+            <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
               {f}
             </button>
           ))}
@@ -88,7 +89,7 @@ export function TradeHistory() {
       <div className="split">
         <section className="panel grow">
           {tradeData === undefined ? (
-            <p className="muted">Loading…</p>
+            <TableSkeleton rows={8} />
           ) : trades.length === 0 ? (
             <p className="muted">
               No trades match this filter yet.

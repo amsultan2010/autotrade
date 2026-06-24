@@ -5,6 +5,7 @@ import { api as convexApi } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { SymbolSearchResult } from '@autotrade/shared';
 import { api } from '../api/client';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface PriceData {
   symbol: string;
@@ -212,9 +213,13 @@ export function Watchlist() {
 
       <section className="panel">
         {convexAuthLoading || (isAuthenticated && watchlistItems === undefined) ? (
-          <p className="muted">Loading your watchlist…</p>
+          <TableSkeleton rows={6} />
         ) : rows.length === 0 ? (
-          <p className="muted">Your watchlist is empty. Click the search bar to browse popular tickers.</p>
+          <div className="watchlist-empty" role="status">
+            <div className="watchlist-empty-icon">★</div>
+            <p className="watchlist-empty-title">Your watchlist is empty</p>
+            <p className="watchlist-empty-hint typewriter">Search above to add tickers — try NVDA, AAPL, or SPY…</p>
+          </div>
         ) : (
           <table className="tbl">
             <thead>

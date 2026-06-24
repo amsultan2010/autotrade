@@ -44,6 +44,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <AlpacaOnboardingGuide />
       <ConstellationBg dim />
       <ScanlineOverlay />
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app-shell">
         <aside className="sidebar">
           <a href="/dashboard" className="brand">
@@ -56,6 +57,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
                 key={n.href}
                 href={n.href}
                 className={`nav-item${pathname === n.href ? ' active' : ''}`}
+                aria-current={pathname === n.href ? 'page' : undefined}
               >
                 <span className="nav-icon">{n.icon}</span>
                 {n.label}
@@ -73,13 +75,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <button className="btn-ghost" onClick={() => void signOut()}>Sign out</button>
           </div>
         </aside>
-        <main className="content">
+        <main className="content" id="main-content">
           <DataTicker />
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
         <nav className="mobile-nav">
           {allNav.map((n) => (
-            <a key={n.href} href={n.href} className={`mob-nav-item${pathname === n.href ? ' active' : ''}`}>
+            <a key={n.href} href={n.href} className={`mob-nav-item${pathname === n.href ? ' active' : ''}`}
+              aria-current={pathname === n.href ? 'page' : undefined}>
               <span className="mob-nav-icon">{n.icon}</span>
               {n.label}
             </a>

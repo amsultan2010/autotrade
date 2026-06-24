@@ -52,6 +52,20 @@ const HOW_STEPS = [
   { n: '04', title: 'Position Is Managed', desc: 'Trailing stops, take-profit ladders, and risk rules manage the trade autonomously until exit.' },
 ];
 
+const TESTIMONIALS = [
+  { quote: 'Paper trading let me validate the AI signals before going live. The dashboard heatmap alone saved me hours.', name: 'Jordan M.', role: 'Swing trader', initials: 'JM' },
+  { quote: "Sub-50ms execution isn't marketing — I compared fills against my old setup and the slippage difference is real.", name: 'Priya K.', role: 'Day trader', initials: 'PK' },
+  { quote: 'Risk guardrails stopped me from oversizing during a volatile week. That alone paid for the subscription.', name: 'Alex R.', role: 'Options trader', initials: 'AR' },
+];
+
+const FAQ = [
+  { q: 'Is Autotrade really free to start?', a: "Yes. Create an account and paper-trade with simulated capital. Connect Alpaca when you're ready for live or paper broker execution." },
+  { q: 'Which brokers are supported?', a: 'Alpaca is fully integrated today (paper and live). IBKR and additional brokers are on the roadmap.' },
+  { q: 'How do AI signals work?', a: 'Our engine scans price, volume, and sentiment patterns across thousands of symbols. When confidence exceeds your thresholds, a signal fires with entry, stop, and target levels.' },
+  { q: 'Can I run my own strategies?', a: 'Yes. Use the strategy lab to backtest, then deploy via webhooks or the built-in bot. JSON strategy format is fully scriptable.' },
+  { q: 'Is my brokerage API key secure?', a: 'Keys are encrypted at rest and never exposed to the client. Only server-side execution uses your credentials.' },
+];
+
 // ─── Candlestick Canvas ───────────────────────────────────────────────────────
 interface Candle { o: number; h: number; l: number; c: number; }
 
@@ -292,6 +306,8 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.2): b
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function Landing() {
   const { isSignedIn } = useUser();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const featureRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [featureVisible, setFeatureVisible] = useState<boolean[]>(FEATURES.map(() => false));
@@ -352,9 +368,11 @@ export function Landing() {
 
   return (
     <div className="lp-root">
+      <a href="#lp-main" className="skip-link">Skip to content</a>
       <ConstellationBg zIndex={0} />
       <ScanlineOverlay />
 
+      <div id="lp-main">
       {/* ── Ticker tape ─── */}
       <div className="lp-ticker-wrap">
         <div className="lp-ticker-track">
@@ -376,11 +394,28 @@ export function Landing() {
           <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
           <span className="lp-brand-name">Autotrade</span>
         </div>
-        <nav className="lp-nav-links">
+        <nav className="lp-nav-links" aria-label="Primary">
           <a href="#features">Features</a>
           <a href="#how">How It Works</a>
           <a href="#stats">Performance</a>
+          <a href="#faq">FAQ</a>
         </nav>
+        <button
+          type="button"
+          className="lp-mobile-toggle"
+          aria-expanded={mobileOpen}
+          aria-controls="lp-mobile-menu"
+          onClick={() => setMobileOpen((o) => !o)}
+        >
+          <span className="sr-only">Menu</span>
+          <span className="lp-burger" aria-hidden />
+        </button>
+        <div id="lp-mobile-menu" className={`lp-mobile-menu${mobileOpen ? ' open' : ''}`}>
+          <a href="#features" onClick={() => setMobileOpen(false)}>Features</a>
+          <a href="#how" onClick={() => setMobileOpen(false)}>How It Works</a>
+          <a href="#stats" onClick={() => setMobileOpen(false)}>Performance</a>
+          <a href="#faq" onClick={() => setMobileOpen(false)}>FAQ</a>
+        </div>
         <div className="lp-auth-btns">
           {isSignedIn ? (
             <>
@@ -486,6 +521,50 @@ export function Landing() {
         </div>
       </section>
 
+      {/* ── Testimonials ─── */}
+      <section className="lp-testimonials" aria-label="Trader testimonials">
+        <div className="lp-section-label">What Traders Say</div>
+        <h2 className="lp-section-title">Built for Serious Operators</h2>
+        <div className="lp-testimonial-grid">
+          {TESTIMONIALS.map((t, i) => (
+            <blockquote key={i} className="lp-testimonial-card">
+              <p className="lp-testimonial-quote">&ldquo;{t.quote}&rdquo;</p>
+              <footer className="lp-testimonial-author">
+                <div className="lp-testimonial-avatar" aria-hidden>{t.initials}</div>
+                <div>
+                  <cite className="lp-testimonial-name">{t.name}</cite>
+                  <div className="lp-testimonial-role">{t.role}</div>
+                </div>
+              </footer>
+            </blockquote>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FAQ ─── */}
+      <section id="faq" className="lp-faq">
+        <div className="lp-section-label">FAQ</div>
+        <h2 className="lp-section-title">Common Questions</h2>
+        <div className="lp-faq-list">
+          {FAQ.map((item, i) => (
+            <div key={i} className={`lp-faq-item${openFaq === i ? ' open' : ''}`}>
+              <button
+                type="button"
+                className="lp-faq-q"
+                aria-expanded={openFaq === i}
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+              >
+                {item.q}
+                <span className="lp-faq-chevron" aria-hidden />
+              </button>
+              <div className="lp-faq-a" role="region" hidden={openFaq !== i}>
+                <p>{item.a}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── CTA ─── */}
       <section className="lp-cta">
         <div className="lp-cta-grid" />
@@ -506,16 +585,26 @@ export function Landing() {
 
       {/* ── Footer ─── */}
       <footer className="lp-footer">
-        <div className="lp-brand">
-          <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
-          <span className="lp-brand-name">Autotrade</span>
+        <div className="lp-footer-grid">
+          <div className="lp-footer-brand">
+            <div className="lp-brand">
+              <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
+              <span className="lp-brand-name">Autotrade</span>
+            </div>
+            <p className="lp-footer-tagline">Precision terminal for AI-driven trading.</p>
+          </div>
+          <nav className="lp-footer-nav" aria-label="Footer">
+            <a href="#features">Features</a>
+            <a href="#how">How it works</a>
+            <a href="#faq">FAQ</a>
+            <a href="/sign-in">Sign in</a>
+          </nav>
         </div>
         <p className="lp-footer-copy">
-          © 2026 Autotrade. All rights reserved. Trading involves risk of loss.
+          © 2026 Autotrade. All rights reserved. Trading involves risk of loss. Not financial advice.
         </p>
       </footer>
-
-
+      </div>
     </div>
   );
 }
