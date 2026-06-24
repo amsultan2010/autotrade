@@ -647,7 +647,7 @@ export function Dashboard() {
       )}
       {!dataLoading && brokerConnected && snap && !snap.syncError && livePositions.length === 0 && botStatus?.running && (
         <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
-          Alpaca is connected but no positions yet. The bot opens trades only on approved BUY/SHORT signals — use <strong>Scan Now</strong> and check the result counts.
+          Alpaca is connected — your keys work and we can read your paper account. No open positions yet: the bot only places orders when a strategy produces an approved <strong>BUY</strong> or <strong>SHORT</strong> (not HOLD). Tap <strong>Scan Now</strong> and read the green banner: look for how many <strong>trades opened</strong>.
         </div>
       )}
       {!dataLoading && brokerConnected && snap?.syncError && (

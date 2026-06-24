@@ -84,6 +84,7 @@ Optional: `STRIPE_*` (only when `BILLING_ENABLED=true`), `RESEND_*`, `NEXT_PUBLI
 | **"Start Bot" does nothing** | Missing Convex records (see settings) — the mutation threw `Bot settings not found` and the error is now surfaced in the UI | Self-heal handles it; otherwise verify the Convex/Clerk auth bridge |
 | **"Scan Now" errors** | `BOT_INTERNAL_SECRET` / `NEXT_PUBLIC_APP_URL` not set in **Convex**, or user missing in Convex | Set those Convex vars; sign in once so Clerk webhook creates the user row |
 | **Dashboard shows no Alpaca account/positions** | Broker not connected, or (fixed) the client was reading the wrong response shape | Connect Alpaca in Settings; ensure broker-cred sync env is set |
+| **Blue banner: "Alpaca connected but no positions yet"** | Normal — connection works; bot has not opened a trade yet | Start Bot → Scan Now; look for `X trades opened` in the green banner |
 
 ---
 
