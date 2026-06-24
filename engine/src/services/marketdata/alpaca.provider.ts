@@ -7,7 +7,7 @@
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 import { env } from '../../config/env';
 import { ALPACA_DATA_BASE } from '../../lib/alpaca';
-import { MarketDataError, type MarketDataProvider, type SymbolSnapshot } from './types';
+import { MarketDataError, type MarketDataProvider, type SymbolSnapshot, type ExtendedSymbolSnapshot } from './types';
 
 const TIMEFRAME: Record<Timeframe, string> = {
   '1m': '1Min',
@@ -173,6 +173,58 @@ export class AlpacaProvider implements MarketDataProvider {
       const data = await this.getJson<{ snapshots?: Record<string, Parameters<typeof fromSnap>[0]> }>(url);
       for (const [sym, snap] of Object.entries(data.snapshots ?? {})) {
         const s = fromSnap(snap);
+        if (s) out[sym] = s;
+      }
+    }
+
+    return out;
+  }
+
+  async getExtendedSnapshots(symbols: string[]): Promise<Record<string, ExtendedSymbolSnapshot>> {
+    if (symbols.length === 0) return {};
+    const out: Record<string, ExtendedSymbolSnapshot> = {};
+    const stockSyms = symbols.filter((s) => !isCryptoSymbol(s));
+    const cryptoSyms = symbols.filter(isCryptoSymbol);
+
+    type StockSnap = {
+      latestTrade?: { p: number };
+      latestQuote?: { ap: number; bp: number; apx?: number; bpx?: number };
+      dailyBar?: { c: number; v: number };
+      prevDailyBar?: { c: number; v: number };
+    };
+
+    const fromStockSnap = (snap: StockSnap): ExtendedSymbolSnapshot | null => {
+      const price = snap.latestTrade?.p ?? snap.dailyBar?.c;
+      if (typeof price !== 'number') return null;
+      const prev = snap.prevDailyBar?.c;
+      const changePct = prev && prev > 0 ? Number((((price - prev) / prev) * 100).toFixed(2)) : null;
+      const ap = snap.latestQuote?.ap;
+      const bp = snap.latestQuote?.bp;
+      const spreadPct =
+        ap != null && bp != null && bp > 0 ? Number((((ap - bp) / bp) * 100).toFixed(3)) : undefined;
+      const volume24hUsd =
+        snap.dailyBar?.v != null && snap.dailyBar.c > 0
+          ? snap.dailyBar.v * snap.dailyBar.c
+          : undefined;
+      return { price, changePct, bid: bp, ask: ap, spreadPct, volume24hUsd };
+    };
+
+    if (stockSyms.length > 0) {
+      const url =
+        `${ALPACA_DATA_BASE}/v2/stocks/snapshots` +
+        `?symbols=${stockSyms.map(encodeURIComponent).join(',')}&feed=${env.ALPACA_FEED}`;
+      const data = await this.getJson<Record<string, StockSnap>>(url);
+      for (const [sym, snap] of Object.entries(data)) {
+        const s = fromStockSnap(snap);
+        if (s) out[sym] = s;
+      }
+    }
+
+    if (cryptoSyms.length > 0) {
+      const url = `${CRYPTO_BASE}/snapshots?symbols=${cryptoSyms.map(encodeURIComponent).join(',')}`;
+      const data = await this.getJson<{ snapshots?: Record<string, StockSnap> }>(url);
+      for (const [sym, snap] of Object.entries(data.snapshots ?? {})) {
+        const s = fromStockSnap(snap);
         if (s) out[sym] = s;
       }
     }

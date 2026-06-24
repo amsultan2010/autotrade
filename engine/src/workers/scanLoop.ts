@@ -8,6 +8,8 @@ import * as db from '../lib/convex-db';
 import { analyzeSymbol } from '../services/analysis/index';
 import type { RiskDecision } from '../services/risk/index';
 import { runStrategyEngine } from '../services/strategy-engine';
+import { loadScanOverlayContext } from '../services/strategy-engine/contextBuilder';
+import type { TradingMode } from '../services/strategy-engine/types';
 import type { StrategyDecision } from '../services/strategy-engine/types';
 import {
   monitorUserOpenTrades,
@@ -34,6 +36,14 @@ let running = false;
 
 const lastSignal = new Map<string, { action: string; ts: number }>();
 const SIGNAL_DEDUP_MS = 60_000;
+
+function engineModeFromRiskLevel(riskLevel: RiskLevel): TradingMode {
+  if (riskLevel === 'LOW') return 'conservative';
+  if (riskLevel === 'HIGH') return 'aggressive';
+  return 'balanced';
+}
+
+
 
 async function stockMarketOpenForUser(clerkId: string): Promise<boolean> {
   try {
@@ -210,14 +220,19 @@ export async function evaluateSymbolEntry(
   const crypto = isCryptoSymbol(symbol);
   const enabled = crypto ? ctx.cryptoStrategies : ctx.stockStrategies;
 
+  const overlayCtx = md
+    ? await loadScanOverlayContext(md, symbol, analysis)
+    : { market: undefined, crypto: undefined, liquidity: undefined };
+
   const { decision, context: stratCtx } = runStrategyEngine({
     symbol,
     exchange,
     analysis,
     config: {
-      mode: 'balanced',
+      mode: engineModeFromRiskLevel(settings.riskLevel as RiskLevel),
       minConfidence: settings.minConfidence,
       enabledStrategies: enabled.length > 0 ? enabled : 'all',
+      disabledStrategies: settings.disabledStrategies ?? [],
       includeExperimental: ctx.includeExperimental,
     },
     account: {
@@ -238,6 +253,9 @@ export async function evaluateSymbolEntry(
     riskLevel: settings.riskLevel as RiskLevel,
     defaultStopPct: settings.defaultStopPct,
     defaultTakeProfitPct: settings.defaultTakeProfitPct,
+    market: overlayCtx.market,
+    crypto: overlayCtx.crypto,
+    liquidity: overlayCtx.liquidity,
   });
 
   const signal = decisionToTradeSignal(decision, stratCtx.entryTf);

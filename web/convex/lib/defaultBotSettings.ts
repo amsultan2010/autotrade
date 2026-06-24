@@ -31,4 +31,5 @@ export const DEFAULT_BOT_SETTINGS: Omit<Doc<'botSettings'>, '_id' | '_creationTi
     'crypto_breakout',
   ],
   includeExperimental: false,
+  disabledStrategies: [],
 };

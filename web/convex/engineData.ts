@@ -67,6 +67,7 @@ const botSettingsValidator = v.object({
   stockStrategies: v.optional(v.array(v.string())),
   cryptoStrategies: v.optional(v.array(v.string())),
   includeExperimental: v.optional(v.boolean()),
+  disabledStrategies: v.optional(v.array(v.string())),
 });
 
 const watchlistItemValidator = v.object({

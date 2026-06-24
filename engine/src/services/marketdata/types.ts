@@ -26,11 +26,24 @@ export interface MarketDataProvider {
    * call — used to render real-time watchlist prices efficiently.
    */
   getSnapshots?(symbols: string[]): Promise<Record<string, SymbolSnapshot>>;
+
+  /** Optional richer snapshots (bid/ask spread, 24h volume) when the provider supports them. */
+  getExtendedSnapshots?(symbols: string[]): Promise<Record<string, ExtendedSymbolSnapshot>>;
 }
 
 export interface SymbolSnapshot {
   price: number;
   changePct: number | null;
+}
+/** Rich snapshot with optional microstructure fields (Alpaca crypto/stocks). */
+export interface ExtendedSymbolSnapshot extends SymbolSnapshot {
+  bid?: number;
+  ask?: number;
+  spreadPct?: number;
+  volume24hUsd?: number;
+  relativeVolume?: number;
+  depthUsdNearTouch?: number;
+  slippageEstPct?: number;
 }
 
 export class MarketDataError extends Error {

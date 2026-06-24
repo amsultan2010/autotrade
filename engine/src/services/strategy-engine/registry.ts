@@ -55,8 +55,8 @@ export const STRATEGY_BY_INTERNAL_NAME: Record<string, Strategy> = Object.fromEn
  */
 export function strategiesForConfig(config: ResolvedStrategyConfig): Strategy[] {
   return ALL_STRATEGIES.filter((s) => {
-    if (s.overlay) return true; // master filters are always available to veto
     if (!config.isStrategyEnabled(s.internalName)) return false;
+    if (s.overlay) return true;
     if (s.source === 'experimental' && !config.includeExperimental) return false;
     return true;
   });

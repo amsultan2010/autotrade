@@ -11,6 +11,7 @@ function enrichSettings<T extends {
   stockStrategies?: string[];
   cryptoStrategies?: string[];
   includeExperimental?: boolean;
+  disabledStrategies?: string[];
 }>(doc: T) {
   const resolved = resolveStrategyLists(doc);
   return {
@@ -18,6 +19,7 @@ function enrichSettings<T extends {
     stockStrategies: resolved.stockStrategies,
     cryptoStrategies: resolved.cryptoStrategies,
     includeExperimental: doc.includeExperimental ?? false,
+    disabledStrategies: doc.disabledStrategies ?? [],
   };
 }
 
@@ -62,6 +64,7 @@ const botSettingsDocValidator = v.object({
   stockStrategies: v.optional(v.array(v.string())),
   cryptoStrategies: v.optional(v.array(v.string())),
   includeExperimental: v.optional(v.boolean()),
+  disabledStrategies: v.optional(v.array(v.string())),
 });
 
 /** Get bot settings for the current user. */
@@ -97,6 +100,7 @@ export const update = mutation({
     stockStrategies: v.optional(v.array(v.string())),
     cryptoStrategies: v.optional(v.array(v.string())),
     includeExperimental: v.optional(v.boolean()),
+    disabledStrategies: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

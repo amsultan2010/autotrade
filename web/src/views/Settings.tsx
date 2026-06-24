@@ -36,6 +36,7 @@ interface LocalSettings {
   stockStrategies: string[];
   cryptoStrategies: string[];
   includeExperimental: boolean;
+  disabledStrategies: string[];
 }
 
 type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
@@ -81,6 +82,7 @@ export function Settings() {
       stockStrategies: settingsData.stockStrategies ?? [],
       cryptoStrategies: settingsData.cryptoStrategies ?? [],
       includeExperimental: settingsData.includeExperimental ?? false,
+      disabledStrategies: settingsData.disabledStrategies ?? [],
     });
   }, [settingsData, local]);
 
@@ -138,6 +140,7 @@ export function Settings() {
         stockStrategies: local.stockStrategies,
         cryptoStrategies: local.cryptoStrategies,
         includeExperimental: local.includeExperimental,
+        disabledStrategies: local.disabledStrategies,
       });
       setSaved(true);
     } catch (err) {
@@ -310,6 +313,13 @@ export function Settings() {
         onChange={(ids) => set('cryptoStrategies', ids)}
         showExperimentalToggle={false}
       />
+
+      <MasterFiltersSection
+        catalog={[...(catalog?.stock ?? []), ...(catalog?.crypto ?? [])]}
+        disabled={local.disabledStrategies}
+        onChange={(ids) => set('disabledStrategies', ids)}
+      />
+
       </div>
     </div>
   );
@@ -369,8 +379,6 @@ function StrategySection({
 }) {
   const selectable = catalog.filter((s) => !s.isOverlay);
   const visible = selectable.filter((s) => includeExperimental || !s.isExperimental);
-  const overlays = catalog.filter((s) => s.isOverlay);
-
   const legacy = visible.filter((s) => s.source === 'legacy');
   const modern = visible.filter((s) => s.source !== 'legacy');
 
@@ -423,23 +431,57 @@ function StrategySection({
           {legacy.length > 0 && (
             <StrategyGroup label="Legacy (original engine)" items={legacy} selected={selected} onToggle={toggle} />
           )}
-          {overlays.length > 0 && (
-            <div style={{ marginTop: '1rem' }}>
-              <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                Always active — master filters that can veto trades:
-              </p>
-              <div className="strategy-grid">
-                {overlays.map((s) => (
-                  <div key={s.id} className="strategy-card strategy-card-overlay">
-                    <div className="strategy-card-title">{s.displayName}</div>
-                    <p className="strategy-card-desc">{s.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
         </>
       )}
+    </section>
+  );
+}
+
+
+function MasterFiltersSection({
+  catalog,
+  disabled,
+  onChange,
+}: {
+  catalog: StrategyCatalogEntry[];
+  disabled: string[];
+  onChange: (disabledIds: string[]) => void;
+}) {
+  const overlays = Array.from(
+    new Map(catalog.filter((s) => s.isOverlay).map((s) => [s.id, s])).values(),
+  );
+  if (overlays.length === 0) return null;
+
+  function toggle(id: string) {
+    onChange(disabled.includes(id) ? disabled.filter((x) => x !== id) : [...disabled, id]);
+  }
+
+  return (
+    <section className="panel" style={{ marginTop: '1rem' }}>
+      <h2 style={{ marginBottom: 4 }}>Master filters</h2>
+      <p className="muted" style={{ fontSize: '0.85em', margin: '0 0 1rem' }}>
+        Optional safety overlays that can veto trades. Enabled filters run before entry strategies.
+      </p>
+      <div className="strategy-grid">
+        {overlays.map((s) => {
+          const on = !disabled.includes(s.id);
+          return (
+            <button
+              key={s.id}
+              type="button"
+              className={`strategy-card strategy-card-overlay ${on ? 'strategy-card-on' : ''}`}
+              onClick={() => toggle(s.id)}
+            >
+              <div className="strategy-card-head">
+                <span className="strategy-card-title">{s.displayName}</span>
+                <span className="tag">{on ? 'on' : 'off'}</span>
+              </div>
+              <p className="strategy-card-desc">{s.description}</p>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }

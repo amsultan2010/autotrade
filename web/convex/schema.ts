@@ -65,6 +65,7 @@ export default defineSchema({
     stockStrategies: v.optional(v.array(v.string())),
     cryptoStrategies: v.optional(v.array(v.string())),
     includeExperimental: v.optional(v.boolean()),
+    disabledStrategies: v.optional(v.array(v.string())),
   }).index('by_clerk_id', ['clerkId']),
 
   // ── Signals ───────────────────────────────────────────────────────────────

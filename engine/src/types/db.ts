@@ -27,6 +27,7 @@ export interface BotSettingsRecord {
   stockStrategies?: string[];
   cryptoStrategies?: string[];
   includeExperimental?: boolean;
+  disabledStrategies?: string[];
 }
 
 export interface TradeRecord {

@@ -16,7 +16,7 @@ export interface StrategyCatalogEntry {
   source: StrategySource; // legacy | new | experimental | crypto_new
   assetType: AssetType;
   category: 'stock' | 'crypto'; // top-level grouping for the UI
-  isOverlay: boolean; // overlay/filter (always on; can't be the sole entry)
+  isOverlay: boolean; // overlay/filter (on by default; disable via disabledStrategies)
   isExperimental: boolean; // needs an external data feed to do anything
   bestRegimes: string[]; // human labels
   requiredInputs: string[];
