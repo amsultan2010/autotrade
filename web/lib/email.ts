@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const FROM = 'Autotrade <noreply@tryautotrade.com>';
-const LOGO_URL = 'https://tryautotrade.com/icon.svg';
+const LOGO_URL = 'https://tryautotrade.com/icon.png';
 const DASHBOARD_URL = 'https://tryautotrade.com/dashboard';
 
 function getResend(): Resend {

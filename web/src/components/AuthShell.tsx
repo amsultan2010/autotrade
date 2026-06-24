@@ -10,7 +10,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       <a href="#auth-main" className="skip-link">Skip to sign in</a>
       <div className="auth-shell-inner" id="auth-main">
         <a href="/" className="auth-shell-brand">
-          <img src="/icon.svg" alt="" width={30} height={30} className="brand-icon" />
+          <img src="/icon.png" alt="" width={30} height={30} className="brand-icon" />
           <span className="brand-name">Autotrade</span>
         </a>
         <p className="auth-shell-tagline">

@@ -46,7 +46,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-shell">
         <aside className="sidebar">
           <a href="/dashboard" className="brand">
-            <img src="/icon.svg" alt="" width={30} height={30} className="brand-icon" />
+            <img src="/icon.png" alt="" width={30} height={30} className="brand-icon" />
             <span className="brand-name">Autotrade</span>
           </a>
           <nav>
