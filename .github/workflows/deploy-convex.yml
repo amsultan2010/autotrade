@@ -9,6 +9,7 @@ on:
       - 'web/convex/**'
       - 'web/convex.json'
       - 'pnpm-lock.yaml'
+  workflow_dispatch:
 
 concurrency:
   group: deploy-convex-production
