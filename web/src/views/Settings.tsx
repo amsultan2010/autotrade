@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useQuery, useMutation, useAction, useConvexAuth } from 'convex/react';
+import { useQuery, useMutation, useConvexAuth } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
 import { RISK_LEVELS, TIMEFRAMES, ErrorCodes } from '@autotrade/shared';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
+import { AlpacaConnectPanel } from '@/src/components/alpaca/AlpacaConnectPanel';
 
 type Mode = 'DISABLED' | 'PAPER' | 'LIVE';
 type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -185,7 +186,7 @@ export function Settings() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <AlpacaCard broker={broker} onError={setError} />
+      <AlpacaConnectPanel broker={broker} onError={setError} />
 
       <section className="panel">
         <h2>Execution mode</h2>
@@ -255,6 +256,7 @@ export function Settings() {
         </div>
       </section>
 
+      <div data-tour="strategies">
       <StrategySection
         title="Stock & ETF strategies"
         subtitle="Used for shares and ETFs on your watchlist during US market hours."
@@ -275,6 +277,7 @@ export function Settings() {
         onChange={(ids) => set('cryptoStrategies', ids)}
         showExperimentalToggle={false}
       />
+      </div>
     </div>
   );
 }
@@ -415,116 +418,6 @@ function StrategyGroup({
         })}
       </div>
     </div>
-  );
-}
-
-function AlpacaCard({
-  broker,
-  onError,
-}: {
-  broker: BrokerStatus | null;
-  onError: (msg: string) => void;
-}) {
-  const connectBroker    = useAction(convexApi.brokerCredentialActions.connect);
-  const disconnectBroker = useAction(convexApi.brokerCredentialActions.disconnect);
-  const syncBroker       = useAction(convexApi.brokerSyncActions.sync);
-
-  const [keyId, setKeyId]         = useState('');
-  const [secret, setSecret]       = useState('');
-  const [paper, setPaper]         = useState(true);
-  const [loading, setLoading]     = useState(false);
-  const [confirming, setConfirming] = useState(false);
-
-  async function connect() {
-    if (!keyId || !secret) { onError('Enter both Key ID and Secret Key.'); return; }
-    setLoading(true);
-    onError('');
-    try {
-      await connectBroker({ keyId, secret, paper });
-      setKeyId('');
-      setSecret('');
-      await syncBroker({});
-    } catch (err) {
-      reportTrackedError(ErrorCodes.BROKER, err, { route: '/settings', action: 'connectBroker' });
-      onError(formatUserError(err, 'Could not connect — check your keys and try again.'));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function disconnect() {
-    setConfirming(false);
-    setLoading(true);
-    try {
-      await disconnectBroker({});
-    } catch (err) {
-      reportTrackedError(ErrorCodes.BROKER, err, { route: '/settings', action: 'disconnectBroker' });
-      onError(formatUserError(err, 'Could not disconnect. Try again.'));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (broker?.connected) {
-    return (
-      <section className="panel">
-        <h2>Alpaca account</h2>
-        <p className="muted" style={{ marginBottom: '1rem' }}>
-          Connected · {broker.paper ? 'Paper trading' : 'Live trading'}
-        </p>
-        {confirming ? (
-          <div className="row gap">
-            <span className="muted">Remove your Alpaca connection?</span>
-            <button className="btn-danger" onClick={() => void disconnect()} disabled={loading}>Yes, disconnect</button>
-            <button className="btn-ghost" onClick={() => setConfirming(false)}>Cancel</button>
-          </div>
-        ) : (
-          <button className="btn-ghost" onClick={() => setConfirming(true)}>Disconnect</button>
-        )}
-      </section>
-    );
-  }
-
-  return (
-    <section className="panel">
-      <h2>Connect Alpaca</h2>
-      <p className="muted" style={{ marginBottom: '1rem' }}>
-        Connect Alpaca paper keys to mirror bot trades in your Alpaca paper account.
-        Without keys, the bot uses the built-in simulator.{' '}
-        <a href="https://alpaca.markets" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
-          Create a free Alpaca account →
-        </a>
-      </p>
-      <div className="form-grid" style={{ marginBottom: '1rem' }}>
-        <Field label="API Key ID">
-          <input
-            type="text"
-            placeholder="PKxxxxxxxxxxxxxxxx"
-            value={keyId}
-            onChange={(e) => setKeyId(e.target.value)}
-            autoComplete="off"
-          />
-        </Field>
-        <Field label="Secret Key">
-          <input
-            type="password"
-            placeholder="••••••••••••••••••••••••••••••••••••••••"
-            value={secret}
-            onChange={(e) => setSecret(e.target.value)}
-            autoComplete="off"
-          />
-        </Field>
-      </div>
-      <div className="row gap" style={{ marginBottom: '1rem' }}>
-        <label className="row gap" style={{ cursor: 'pointer', gap: '0.5rem' }}>
-          <input type="checkbox" checked={paper} onChange={(e) => setPaper(e.target.checked)} />
-          <span>Paper trading (safe — no real money)</span>
-        </label>
-      </div>
-      <button className="btn-primary" onClick={() => void connect()} disabled={loading || !keyId || !secret}>
-        {loading ? 'Connecting…' : 'Connect Alpaca'}
-      </button>
-    </section>
   );
 }
 

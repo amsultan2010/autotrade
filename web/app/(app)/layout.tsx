@@ -7,20 +7,19 @@ import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
 import { DataTicker } from '@/src/components/DataTicker';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
-import { AlpacaOnboardingGuide } from '@/src/components/AlpacaOnboardingGuide';
+import { OnboardingExperience } from '@/src/components/onboarding/OnboardingExperience';
+import { ProductTour } from '@/src/components/onboarding/ProductTour';
 
 const NAV = [
-  { href: '/dashboard',  label: 'Dashboard',    icon: '▦' },
-  { href: '/watchlist',  label: 'Watchlist',     icon: '★' },
-  { href: '/charts',     label: 'Charts',        icon: '◰' },
-  { href: '/history',    label: 'Trade History', icon: '≡' },
-  { href: '/settings',   label: 'Settings',      icon: '⚙' },
+  { href: '/dashboard',  label: 'Dashboard',    icon: '▦', tour: 'nav-dashboard' },
+  { href: '/watchlist',  label: 'Watchlist',     icon: '★', tour: 'nav-watchlist' },
+  { href: '/charts',     label: 'Charts',        icon: '◰', tour: undefined },
+  { href: '/history',    label: 'Trade History', icon: '≡', tour: 'nav-history' },
+  { href: '/settings',   label: 'Settings',      icon: '⚙', tour: 'nav-settings' },
 ] as const;
 
-const ADMIN_NAV = { href: '/admin', label: 'Admin', icon: '⛨' } as const;
+const ADMIN_NAV = { href: '/admin', label: 'Admin', icon: '⛨', tour: undefined } as const;
 
-// Inner layout — only rendered when Clerk is loaded and user exists.
-// Keeps all hooks at the top level unconditionally.
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
@@ -40,7 +39,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <AlpacaOnboardingGuide />
+      <OnboardingExperience />
+      <ProductTour />
       <ConstellationBg dim />
       <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app-shell">
@@ -56,6 +56,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
                 href={n.href}
                 className={`nav-item${pathname === n.href ? ' active' : ''}`}
                 aria-current={pathname === n.href ? 'page' : undefined}
+                {...(n.tour ? { 'data-tour': n.tour } : {})}
               >
                 <span className="nav-icon">{n.icon}</span>
                 {n.label}
@@ -80,7 +81,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="mobile-nav">
           {allNav.map((n) => (
             <a key={n.href} href={n.href} className={`mob-nav-item${pathname === n.href ? ' active' : ''}`}
-              aria-current={pathname === n.href ? 'page' : undefined}>
+              aria-current={pathname === n.href ? 'page' : undefined}
+              {...(n.tour ? { 'data-tour': n.tour } : {})}>
               <span className="mob-nav-icon">{n.icon}</span>
               {n.label}
             </a>

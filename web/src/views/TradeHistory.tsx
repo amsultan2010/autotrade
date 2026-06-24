@@ -65,7 +65,7 @@ export function TradeHistory() {
   }
 
   return (
-    <div className="page">
+    <div className="page" data-tour="trade-history">
       <header className="page-head">
         <h1>Trade History</h1>
         <div className="seg small" role="tablist" aria-label="Filter trades">

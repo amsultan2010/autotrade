@@ -277,9 +277,9 @@ function DataSparkline({ values, up, width = 44, height = 22 }: { values: number
 }
 
 // ─── Dashboard panel with HUD corners ───────────────────────────────────────
-function DbPanel({ className, children }: { className?: string; children: React.ReactNode }) {
+function DbPanel({ className, children, ...rest }: { className?: string; children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={className ? `db-panel ${className}` : 'db-panel'}>
+    <div className={className ? `db-panel ${className}` : 'db-panel'} {...rest}>
       <span className="hud-corners" aria-hidden="true" />
       {children}
     </div>
@@ -574,7 +574,7 @@ export function Dashboard() {
   const dataLoading = convexAuthLoading || (isAuthenticated && botStatus === undefined);
 
   return (
-    <div className="db-root">
+    <div className="db-root" data-tour="dashboard">
       {/* Top controls */}
       <div className="db-topbar">
         <div className="db-topbar-left">
@@ -596,7 +596,7 @@ export function Dashboard() {
             <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>Syncing Alpaca…</span>
           )}
         </div>
-        <div className="db-topbar-right">
+        <div className="db-topbar-right" data-tour="bot-controls">
           <button className="btn-ghost" style={{ fontSize: 13, padding: '7px 14px' }} disabled={busy || !botControlsReady} onClick={() => void scanNow()}>Scan Now</button>
           <button
             className={botStatus?.running ? 'btn-danger' : 'btn-primary'}
@@ -650,7 +650,7 @@ export function Dashboard() {
       <div className="db-grid-top">
 
         {/* AI Signal Feed */}
-        <DbPanel className="db-signal-panel">
+        <DbPanel className="db-signal-panel" data-tour="signals">
           <div className="db-panel-header">
             <span className="db-panel-title">AI SIGNAL FEED</span>
             <span className="db-live-badge"><span className="live-dot" />Live</span>
@@ -683,7 +683,7 @@ export function Dashboard() {
         </DbPanel>
 
         {/* Portfolio Value */}
-        <DbPanel className="db-portfolio-panel">
+        <DbPanel className="db-portfolio-panel" data-tour="portfolio">
           <div className="db-panel-header">
             <span className="db-panel-title">PORTFOLIO VALUE</span>
             <div className="db-tab-group">

@@ -123,7 +123,7 @@ export function Watchlist() {
 
   return (
     <div className="page">
-      <header className="page-head">
+      <header className="page-head" data-tour="watchlist-search">
         <h1>Watchlist</h1>
         <span className="muted">{rows.length} symbols · stocks trade US hours · crypto (BTC/USD) 24/7</span>
       </header>
