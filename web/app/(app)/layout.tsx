@@ -5,7 +5,9 @@ import { useUser, useClerk } from '@clerk/nextjs';
 import * as Sentry from '@sentry/nextjs';
 import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
+import { DataTicker } from '@/src/components/DataTicker';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
+import { ScanlineOverlay } from '@/src/components/ScanlineOverlay';
 import { AlpacaOnboardingGuide } from '@/src/components/AlpacaOnboardingGuide';
 
 const NAV = [
@@ -41,12 +43,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <AlpacaOnboardingGuide />
       <ConstellationBg dim />
+      <ScanlineOverlay />
       <div className="app-shell">
         <aside className="sidebar">
-          <div className="nav-logo">
-            <img src="/icon.png" alt="Autotrade" width={30} height={30} style={{ borderRadius: 6, flexShrink: 0 }} />
-            <span className="nav-logo-text">Autotrade</span>
-          </div>
+          <a href="/dashboard" className="brand">
+            <div className="brand-mark">AT</div>
+            <span className="brand-name">Autotrade</span>
+          </a>
           <nav>
             {allNav.map((n) => (
               <a
@@ -71,6 +74,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
         <main className="content">
+          <DataTicker />
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
         <nav className="mobile-nav">

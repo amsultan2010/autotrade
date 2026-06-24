@@ -1,11 +1,32 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/ui/themes';
+import { IBM_Plex_Mono, Inter, Syne } from 'next/font/google';
 import { PostHogProvider } from '@/lib/posthog';
 import { PostHogPageView } from '@/lib/posthog-pageview';
 import { SentryErrorListeners } from '@/components/SentryErrorListeners';
 import { ConvexClerkProvider } from '@/components/providers';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const syne = Syne({
+  subsets: ['latin'],
+  variable: '--font-syne',
+  weight: ['600', '700', '800'],
+  display: 'swap',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  variable: '--font-ibm-mono',
+  weight: ['400', '500', '600'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Autotrade',
@@ -28,8 +49,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${inter.variable} ${syne.variable} ${ibmPlexMono.variable}`}>
+      <body className={inter.className}>
         <ClerkProvider
           appearance={{
             theme: dark,
@@ -44,8 +65,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               colorSuccess: '#00c896',
               colorNeutral: '#a8bece',
               borderRadius: '8px',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              fontFamilyButtons: 'Inter, system-ui, sans-serif',
+              fontFamily: 'var(--font-sans)',
+              fontFamilyButtons: 'var(--font-sans)',
               fontSize: '15px',
             },
           }}

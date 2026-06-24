@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
 import { ConstellationBg } from '../components/ConstellationBg';
+import { CountUp } from '../components/CountUp';
+import { ScanlineOverlay } from '../components/ScanlineOverlay';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -34,6 +36,13 @@ const BADGES = [
   { sym: 'AAPL', action: 'SELL', qty: '100 shares',   pnl: '+$314',   delay: 1.5 },
   { sym: 'SPY',  action: 'BUY',  qty: '20 contracts', pnl: '+$2,100', delay: 3.0 },
   { sym: 'TSLA', action: 'SELL', qty: '30 shares',    pnl: '-$118',   delay: 4.5 },
+];
+
+const STATS = [
+  { value: '50ms', label: 'Avg execution' },
+  { value: '5,000+', label: 'Symbols scanned' },
+  { value: '24/7', label: 'Market coverage' },
+  { value: '99.2%', label: 'Signal uptime' },
 ];
 
 const HOW_STEPS = [
@@ -344,6 +353,7 @@ export function Landing() {
   return (
     <div className="lp-root">
       <ConstellationBg zIndex={0} />
+      <ScanlineOverlay />
 
       {/* ── Ticker tape ─── */}
       <div className="lp-ticker-wrap">
@@ -374,8 +384,8 @@ export function Landing() {
         <div className="lp-auth-btns">
           {isSignedIn ? (
             <>
-              <a className="lp-btn-ghost" href="/">Home</a>
-              <a className="lp-btn-primary" href="/">Settings</a>
+              <a className="lp-btn-ghost" href="/dashboard">Dashboard</a>
+              <a className="lp-btn-primary" href="/dashboard">Open App →</a>
             </>
           ) : (
             <>
@@ -420,6 +430,16 @@ export function Landing() {
 
         <div className="lp-hero-orb lp-hero-orb-1" />
         <div className="lp-hero-orb lp-hero-orb-2" />
+      </section>
+
+      {/* ── Stats band ─── */}
+      <section id="stats" className="lp-stats-band" aria-label="Platform stats">
+        {STATS.map((s) => (
+          <div key={s.label} className="lp-stat-card">
+            <CountUp value={s.value} cls="lp-stat-value" />
+            <div className="lp-stat-label">{s.label}</div>
+          </div>
+        ))}
       </section>
 
       {/* ── How it works ─── */}

@@ -276,6 +276,16 @@ function DataSparkline({ values, up, width = 44, height = 22 }: { values: number
   return <canvas ref={canvasRef} style={{ width, height, display: 'block' }} />;
 }
 
+// ─── Dashboard panel with HUD corners ───────────────────────────────────────
+function DbPanel({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={className ? `db-panel ${className}` : 'db-panel'}>
+      <span className="hud-corners" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
 // ─── Heatmap tile ─────────────────────────────────────────────────────────────
 function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: boolean }) {
   const abs = Math.abs(pct);
@@ -640,7 +650,7 @@ export function Dashboard() {
       <div className="db-grid-top">
 
         {/* AI Signal Feed */}
-        <div className="db-panel db-signal-panel">
+        <DbPanel className="db-signal-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">AI SIGNAL FEED</span>
             <span className="db-live-badge"><span className="live-dot" />Live</span>
@@ -669,11 +679,11 @@ export function Dashboard() {
               );})
             )}
           </div>
-          {signals.length > 0 && <a href="#" className="db-view-all">View all signals →</a>}
-        </div>
+          {signals.length > 0 && <span className="db-view-all muted" style={{ cursor: "default", opacity: 0.55 }}>Signals update live</span>}
+        </DbPanel>
 
         {/* Portfolio Value */}
-        <div className="db-panel db-portfolio-panel">
+        <DbPanel className="db-portfolio-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">PORTFOLIO VALUE</span>
             <div className="db-tab-group">
@@ -694,10 +704,10 @@ export function Dashboard() {
           <div className="db-chart-area">
             <PortfolioChart data={equityCurve} labels={chartLabels} />
           </div>
-        </div>
+        </DbPanel>
 
         {/* AI Confidence */}
-        <div className="db-panel db-confidence-panel">
+        <DbPanel className="db-confidence-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">AI CONFIDENCE</span>
           </div>
@@ -716,14 +726,14 @@ export function Dashboard() {
           <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
             Win rate {perfData ? `${winRate}%` : '—'} · {signals.length} recent signal{signals.length === 1 ? '' : 's'}
           </p>
-        </div>
+        </DbPanel>
       </div>
 
       {/* ── Row 2 ── */}
       <div className="db-grid-bottom">
 
         {/* Positions */}
-        <div className="db-panel db-positions-panel">
+        <DbPanel className="db-positions-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">
               POSITIONS ({positionsLoading ? '…' : livePositions.length})
@@ -760,10 +770,10 @@ export function Dashboard() {
             </table>
           )}
           <a href="/history" className="db-view-all">View trade history →</a>
-        </div>
+        </DbPanel>
 
         {/* Market Heatmap */}
-        <div className="db-panel db-heatmap-panel">
+        <DbPanel className="db-heatmap-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">MARKET HEATMAP</span>
           </div>
@@ -783,10 +793,10 @@ export function Dashboard() {
               </>
             )}
           </div>
-        </div>
+        </DbPanel>
 
         {/* Performance */}
-        <div className="db-panel db-perf-panel">
+        <DbPanel className="db-perf-panel">
           <div className="db-panel-header">
             <span className="db-panel-title">PERFORMANCE</span>
           </div>
@@ -835,7 +845,7 @@ export function Dashboard() {
               <span className="db-perf-stat-value">{openTradeCount}</span>
             </div>
           </div>
-        </div>
+        </DbPanel>
       </div>
     </div>
   );
