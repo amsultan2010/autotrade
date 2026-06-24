@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useConvexAuth } from 'convex/react';
 import { api as convexApi } from '@/convex/_generated/api';
-import { RISK_LEVELS, TIMEFRAMES, ErrorCodes } from '@autotrade/shared';
+import { RISK_LEVELS, TIMEFRAMES, ErrorCodes, getAllPresetOptions, detectActivePreset, applyStrategyPreset, CUSTOM_PRESET_ID } from '@autotrade/shared';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 import { AlpacaConnectPanel } from '@/src/components/alpaca/AlpacaConnectPanel';
 
@@ -256,7 +256,40 @@ export function Settings() {
         </div>
       </section>
 
-      <div data-tour="strategies">
+      <section className="panel" data-tour="strategies">
+        <h2>Strategy preset</h2>
+        <p className="muted" style={{ fontSize: '0.85em', marginTop: 0, marginBottom: '1rem' }}>
+          Start from a preset or choose Custom to pick individual strategies below.
+        </p>
+        <StrategyPresetPicker
+          activePresetId={detectActivePreset({
+            stockStrategies: local.stockStrategies,
+            cryptoStrategies: local.cryptoStrategies,
+            includeExperimental: local.includeExperimental,
+            riskLevel: local.riskLevel,
+            minConfidence: local.minConfidence,
+          })}
+          onSelect={(presetId) => {
+            const patch = applyStrategyPreset(presetId);
+            if (!patch) return;
+            setLocal((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    stockStrategies: patch.stockStrategies,
+                    cryptoStrategies: patch.cryptoStrategies,
+                    includeExperimental: patch.includeExperimental,
+                    ...(patch.riskLevel !== undefined ? { riskLevel: patch.riskLevel } : {}),
+                    ...(patch.minConfidence !== undefined ? { minConfidence: patch.minConfidence } : {}),
+                  }
+                : prev,
+            );
+            setSaved(false);
+          }}
+        />
+      </section>
+
+      <div>
       <StrategySection
         title="Stock & ETF strategies"
         subtitle="Used for shares and ETFs on your watchlist during US market hours."
@@ -278,6 +311,39 @@ export function Settings() {
         showExperimentalToggle={false}
       />
       </div>
+    </div>
+  );
+}
+
+function StrategyPresetPicker({
+  activePresetId,
+  onSelect,
+}: {
+  activePresetId: string;
+  onSelect: (presetId: string) => void;
+}) {
+  const presets = getAllPresetOptions();
+
+  return (
+    <div className="preset-grid">
+      {presets.map((preset) => {
+        const active = preset.id === activePresetId;
+        const isCustom = preset.id === CUSTOM_PRESET_ID;
+        return (
+          <button
+            key={preset.id}
+            type="button"
+            className={`preset-card ${active ? 'preset-card-on' : ''}`}
+            onClick={() => onSelect(preset.id)}
+            disabled={isCustom && active}
+            title={isCustom && active ? 'Your current mix is custom — adjust strategies below' : undefined}
+          >
+            <div className="preset-card-title">{preset.label}</div>
+            <p className="preset-card-desc">{preset.description}</p>
+            {active && <span className="preset-card-badge">Active</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

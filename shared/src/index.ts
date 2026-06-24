@@ -5,3 +5,4 @@ export * from './billing.js';
 export * from './entitlements.js';
 export * from './errors.js';
 export * from './strategies.js';
+export * from './strategyPresets.js';
