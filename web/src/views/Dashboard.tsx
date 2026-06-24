@@ -495,7 +495,9 @@ export function Dashboard() {
         msg += ` · ${crypto} crypto (24/7)`;
       }
       if (signals === 0 && trades === 0 && scanned > 0) {
-        msg += ' — no buy signal strong enough yet; check AI Signal Feed';
+        msg += ' — no actionable BUY/SHORT yet (strategies may be HOLD or blocked by risk gates)';
+      } else if (signals > 0 && trades === 0 && scanned > 0) {
+        msg += ' — signals logged but no trade passed confidence/risk gates';
       }
       setScanMessage(msg);
     } catch (err) {
@@ -512,11 +514,14 @@ export function Dashboard() {
   const hasAlpacaEquity = brokerConnected && snap != null && !snap.syncError;
   const equity = hasAlpacaEquity ? snap!.equity : (pa?.equity ?? 0);
   const balance = hasAlpacaEquity ? snap!.cash : (pa?.balance ?? equity);
+  const simulatorOpenCount = (openTrades?.items ?? []).filter((t) => !t.brokerOrderId).length;
   const portfolioLabel = hasAlpacaEquity
     ? `Alpaca ${snap!.mode}`
     : brokerConnected
       ? 'Alpaca (syncing…)'
-      : 'Simulator';
+      : simulatorOpenCount > 0
+        ? `Simulator · ${simulatorOpenCount} open position${simulatorOpenCount === 1 ? '' : 's'}`
+        : 'Simulator';
   const alpacaDayGain = snap?.lastEquity != null ? snap.equity - snap.lastEquity : null;
   const dayGain = alpacaDayGain ?? perfData?.dailyPnl ?? 0;
   const dayGainPct = snap?.lastEquity != null && snap.lastEquity > 0
@@ -638,6 +643,11 @@ export function Dashboard() {
       {!dataLoading && !brokerConnected && (
         <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
           Portfolio shows the <strong>$100,000 simulator</strong>. Connect Alpaca in Settings to trade with your paper account balance.
+        </div>
+      )}
+      {!dataLoading && brokerConnected && snap && !snap.syncError && livePositions.length === 0 && botStatus?.running && (
+        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
+          Alpaca is connected but no positions yet. The bot opens trades only on approved BUY/SHORT signals — use <strong>Scan Now</strong> and check the result counts.
         </div>
       )}
       {!dataLoading && brokerConnected && snap?.syncError && (

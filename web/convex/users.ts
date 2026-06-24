@@ -1,4 +1,5 @@
 import { mutation, query, internalQuery } from './_generated/server';
+import { PAPER_STARTING_BALANCE } from '@autotrade/shared';
 import { v } from 'convex/values';
 import { requireAuth } from './lib/adminAuth';
 import { DEFAULT_BOT_SETTINGS } from './lib/defaultBotSettings';
@@ -36,8 +37,8 @@ export const syncFromClerk = mutation({
     // Seed paper account and default bot settings for every new user.
     await ctx.db.insert('paperAccounts', {
       clerkId,
-      balance: 100_000,
-      equity: 100_000,
+      balance: PAPER_STARTING_BALANCE,
+      equity: PAPER_STARTING_BALANCE,
     });
 
     await ctx.db.insert('botSettings', { clerkId, ...DEFAULT_BOT_SETTINGS });

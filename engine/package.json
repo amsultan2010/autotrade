@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test src/services/execution/alpaca.broker.test.ts"
+    "test": "node --import tsx --test src/services/execution/alpaca.broker.test.ts src/lib/market-hours.test.ts"
   },
   "exports": {
     ".": "./src/index.ts",

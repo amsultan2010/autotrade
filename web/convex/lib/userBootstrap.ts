@@ -1,3 +1,4 @@
+import { PAPER_STARTING_BALANCE } from '@autotrade/shared';
 import type { MutationCtx } from '../_generated/server';
 import { DEFAULT_BOT_SETTINGS } from './defaultBotSettings';
 import { ensureFounderSubscription } from './founderSubscription';
@@ -42,7 +43,11 @@ export async function ensureUserRecords(
   ]);
 
   if (!paperAccount) {
-    await ctx.db.insert('paperAccounts', { clerkId, balance: 100_000, equity: 100_000 });
+    await ctx.db.insert('paperAccounts', {
+      clerkId,
+      balance: PAPER_STARTING_BALANCE,
+      equity: PAPER_STARTING_BALANCE,
+    });
   }
 
   if (!botSettings) {

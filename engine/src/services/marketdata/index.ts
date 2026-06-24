@@ -96,8 +96,16 @@ function wrapProvider(base: MarketDataProvider): MarketDataProvider {
 }
 
 function createBaseProvider(): MarketDataProvider {
+  // Stooq cannot serve intraday candles; prefer Alpaca whenever keys are configured.
+  if (isAlpacaConfigured() && env.MARKET_DATA_PROVIDER !== 'twelvedata' && env.MARKET_DATA_PROVIDER !== 'finnhub') {
+    return new AlpacaProvider();
+  }
+
   switch (env.MARKET_DATA_PROVIDER) {
     case 'alpaca':
+      if (!isAlpacaConfigured()) {
+        throw new MarketDataError('ALPACA_API_KEY and ALPACA_API_SECRET are required for the alpaca provider', 'alpaca');
+      }
       return new AlpacaProvider();
     case 'twelvedata':
       if (!env.TWELVEDATA_API_KEY) {

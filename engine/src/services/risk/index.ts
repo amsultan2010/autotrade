@@ -4,6 +4,7 @@
  * regardless of confidence, and `mode=DISABLED` is an instant kill-switch.
  */
 import type { ExecutionMode, TradeSignal, TradeSide } from '@autotrade/shared';
+import { minutesSinceMidnightEastern, parseHHMM } from '../../lib/market-hours';
 
 export interface RiskSettings {
   mode: ExecutionMode;
@@ -19,18 +20,13 @@ export interface RiskContext {
   equity: number;
   openTradeCount: number;
   realizedPnlToday: number;
-  /** Minutes since local midnight, for the trading-hours check. */
+  /** Minutes since US Eastern midnight, for the trading-hours check. */
   nowMinutes?: number;
 }
 
 export type RiskDecision =
   | { approved: true; qty: number; side: TradeSide; stopLoss: number; takeProfit: number }
   | { approved: false; reason: string };
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
-}
 
 export function evaluateRisk(
   signal: TradeSignal,
@@ -54,13 +50,16 @@ export function evaluateRisk(
     return { approved: false, reason: 'Shorting spot crypto is not supported' };
   }
 
-  // Trading hours (naive local-clock check) — stocks only; crypto is 24/7.
+  // Trading hours — US Eastern (stocks only; crypto is 24/7).
   if (!isCrypto) {
-    const nowMin = ctx.nowMinutes ?? new Date().getHours() * 60 + new Date().getMinutes();
-    const start = toMinutes(settings.tradingHoursStart);
-    const end = toMinutes(settings.tradingHoursEnd);
+    const nowMin = ctx.nowMinutes ?? minutesSinceMidnightEastern();
+    const start = parseHHMM(settings.tradingHoursStart);
+    const end = parseHHMM(settings.tradingHoursEnd);
     if (nowMin < start || nowMin > end) {
-      return { approved: false, reason: 'Outside allowed trading hours' };
+      return {
+        approved: false,
+        reason: `Outside allowed trading hours (${settings.tradingHoursStart}–${settings.tradingHoursEnd} ET)`,
+      };
     }
   }
 

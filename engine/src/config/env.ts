@@ -4,6 +4,7 @@
  * everything imports from here, so there are no hardcoded secrets.
  */
 import { z } from 'zod';
+import { PAPER_STARTING_BALANCE } from '@autotrade/shared';
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -68,7 +69,7 @@ const schema = z.object({
   // provider above. 'auto' = alpaca if configured, else finnhub if a key is set.
   STREAM_PROVIDER: z.enum(['auto', 'none', 'alpaca', 'finnhub']).default('auto'),
 
-  PAPER_STARTING_BALANCE: z.coerce.number().positive().default(100_000),
+  PAPER_STARTING_BALANCE: z.coerce.number().positive().default(PAPER_STARTING_BALANCE),
 
   // When true, the backend starts its own embedded Postgres before serving
   // (used by the packaged desktop app so it's a single self-sufficient process).

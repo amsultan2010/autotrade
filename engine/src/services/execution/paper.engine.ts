@@ -319,7 +319,7 @@ export async function closeTradeAtMarket(
   return { closed: true, pnl: rawPnl };
 }
 
-/** Recompute equity = balance + unrealized for open paper positions. */
+/** Recompute equity = balance + unrealized for open simulator paper positions. */
 export async function markToMarketUser(
   clerkId: string,
   priceOf: (symbol: string) => number | undefined,
@@ -328,10 +328,35 @@ export async function markToMarketUser(
   if (!ctx?.paperAccount) return;
 
   const open = await db.getOpenTrades(clerkId, 'PAPER');
+  const simulatorOpen = open.filter((t) => !t.brokerOrderId);
+  if (simulatorOpen.length === 0) return;
+
   let unreal = 0;
-  for (const trade of open) {
+  for (const trade of simulatorOpen) {
     const p = priceOf(trade.symbol);
     if (p != null) unreal += unrealized(trade, p);
+  }
+  await db.setPaperEquity(clerkId, ctx.paperAccount.balance + unreal);
+}
+
+/** Mark simulator positions to market using live quotes (cron / scan path). */
+export async function markToMarketUserFromQuotes(clerkId: string): Promise<void> {
+  const ctx = await db.getBotContext(clerkId);
+  if (!ctx?.paperAccount) return;
+
+  const open = await db.getOpenTrades(clerkId, 'PAPER');
+  const simulatorOpen = open.filter((t) => !t.brokerOrderId);
+  if (simulatorOpen.length === 0) return;
+
+  const md = await getMarketDataForUser(clerkId);
+  let unreal = 0;
+  for (const trade of simulatorOpen) {
+    try {
+      const p = (await md.getQuote(trade.symbol)).price;
+      unreal += unrealized(trade, p);
+    } catch {
+      /* skip symbols we cannot quote */
+    }
   }
   await db.setPaperEquity(clerkId, ctx.paperAccount.balance + unreal);
 }

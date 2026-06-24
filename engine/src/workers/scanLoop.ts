@@ -15,6 +15,7 @@ import {
   openPaperTrade,
   openBrokerTrade,
   openLiveTrade,
+  markToMarketUserFromQuotes,
   type EntrySnapshot,
 } from '../services/execution/paper.engine';
 import { loadUserBroker } from '../lib/broker-credentials';
@@ -24,6 +25,7 @@ import {
   isProEntitled,
 } from '../middleware/subscription';
 import { isStockMarketOpen } from '../lib/alpaca';
+import { minutesSinceMidnightEastern } from '../lib/market-hours';
 import { isCryptoSymbol } from '../services/marketdata/alpaca.provider';
 import { getMarketDataForUser } from '../services/marketdata/index';
 
@@ -222,6 +224,7 @@ export async function evaluateSymbolEntry(
       equity: ctx.equity,
       openTradeCount: openCount,
       realizedPnlToday: ctx.pnlToday,
+      nowMinutes: minutesSinceMidnightEastern(),
     },
     riskSettings: {
       mode: settings.mode,
@@ -375,6 +378,15 @@ export async function runCycleForUser(
       await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange, md);
     } catch (err) {
       console.error(`scan failed for ${watched.symbol} (user ${clerkId})`, err);
+    }
+  }
+
+  // Refresh simulator equity with unrealized P&L (broker-backed users use Alpaca snapshots).
+  if (ctx.settings.mode === 'PAPER' && broker?.mode !== 'paper') {
+    try {
+      await markToMarketUserFromQuotes(clerkId);
+    } catch (err) {
+      console.error(`mark-to-market failed for user ${clerkId}`, err);
     }
   }
 

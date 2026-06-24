@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server';
 import { ConvexError, v } from 'convex/values';
+import { PAPER_STARTING_BALANCE } from '@autotrade/shared';
 import { requireAuth } from './lib/adminAuth';
 
 
@@ -50,6 +51,9 @@ export const reset = mutation({
       .unique();
 
     if (!account) throw new ConvexError('Paper account not found');
-    await ctx.db.patch(account._id, { balance: 100_000, equity: 100_000 });
+    await ctx.db.patch(account._id, {
+      balance: PAPER_STARTING_BALANCE,
+      equity: PAPER_STARTING_BALANCE,
+    });
   },
 });
