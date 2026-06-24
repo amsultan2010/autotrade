@@ -7,7 +7,6 @@ import { AuthProvider } from '@/src/state/auth';
 import { ConstellationBg } from '@/src/components/ConstellationBg';
 import { DataTicker } from '@/src/components/DataTicker';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
-import { ScanlineOverlay } from '@/src/components/ScanlineOverlay';
 import { AlpacaOnboardingGuide } from '@/src/components/AlpacaOnboardingGuide';
 
 const NAV = [
@@ -43,7 +42,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <AlpacaOnboardingGuide />
       <ConstellationBg dim />
-      <ScanlineOverlay />
       <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app-shell">
         <aside className="sidebar">
