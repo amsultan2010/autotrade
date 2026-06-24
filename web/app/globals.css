@@ -369,6 +369,12 @@ input, select { font-family: inherit; }
   transition: opacity var(--fast);
 }
 .brand:hover { opacity: 0.92; }
+.brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
 .brand-mark {
   width: 32px; height: 32px;
   border-radius: var(--r-sm);
@@ -1615,7 +1621,14 @@ h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--ink-2)
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  object-fit: cover;
+  background: var(--teal);
+  color: #031a12;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -0.5px;
   flex-shrink: 0;
 }
 
@@ -2682,10 +2695,9 @@ a:focus:not(:focus-visible) {
   color: var(--ink);
   margin-bottom: 12px;
 }
-.auth-shell-brand .brand-mark {
+.auth-shell-brand .brand-icon {
   width: 40px;
   height: 40px;
-  font-size: 14px;
 }
 .auth-shell-tagline {
   color: var(--ink-3);

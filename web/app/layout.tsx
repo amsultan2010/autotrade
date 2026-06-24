@@ -32,18 +32,14 @@ export const metadata: Metadata = {
   title: 'Autotrade',
   description: 'AI-powered automated trading bot',
   icons: {
-    icon: [
-      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icon.png', sizes: '1024x1024', type: 'image/png' },
-    ],
-    shortcut: '/favicon.png',
-    apple: '/apple-touch-icon.png',
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
   openGraph: {
     title: 'Autotrade',
     description: 'AI-powered automated trading bot',
     siteName: 'Autotrade',
-    images: [{ url: '/icon.png', width: 1024, height: 1024, alt: 'Autotrade' }],
   },
 };
 

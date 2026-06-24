@@ -391,7 +391,7 @@ export function Landing() {
       {/* ── Header ─── */}
       <header className="lp-header">
         <div className="lp-brand">
-          <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
+          <div className="lp-brand-mark">AT</div>
           <span className="lp-brand-name">Autotrade</span>
         </div>
         <nav className="lp-nav-links" aria-label="Primary">
@@ -588,7 +588,7 @@ export function Landing() {
         <div className="lp-footer-grid">
           <div className="lp-footer-brand">
             <div className="lp-brand">
-              <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
+              <div className="lp-brand-mark">AT</div>
               <span className="lp-brand-name">Autotrade</span>
             </div>
             <p className="lp-footer-tagline">Precision terminal for AI-driven trading.</p>
