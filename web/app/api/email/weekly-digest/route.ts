@@ -32,19 +32,22 @@ async function sendDigestForClerkId(clerkId: string, email: string, secret: stri
     sinceMs: weekAgo.getTime(),
   });
 
-  if (trades.length === 0) return { sent: false, reason: 'no_trades_this_week' };
+  let stats = null;
+  if (trades.length > 0) {
+    const wins = trades.filter((t) => t.result === 'WIN').length;
+    const losses = trades.filter((t) => t.result === 'LOSS').length;
+    const pnl = trades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
 
-  const wins = trades.filter((t) => t.result === 'WIN').length;
-  const losses = trades.filter((t) => t.result === 'LOSS').length;
-  const pnl = trades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+    const symbolCounts: Record<string, number> = {};
+    for (const t of trades) {
+      symbolCounts[t.symbol] = (symbolCounts[t.symbol] ?? 0) + 1;
+    }
+    const topSymbol = Object.entries(symbolCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-  const symbolCounts: Record<string, number> = {};
-  for (const t of trades) {
-    symbolCounts[t.symbol] = (symbolCounts[t.symbol] ?? 0) + 1;
+    stats = { totalTrades: trades.length, wins, losses, pnl, topSymbol };
   }
-  const topSymbol = Object.entries(symbolCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-  await sendWeeklyDigest(email, { totalTrades: trades.length, wins, losses, pnl, topSymbol });
+  await sendWeeklyDigest(email, stats);
   return { sent: true };
 }
 

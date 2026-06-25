@@ -13,6 +13,7 @@ export const syncFromClerk = mutation({
     email: v.string(),
     role: v.optional(v.union(v.literal('USER'), v.literal('ADMIN'), v.literal('DEVELOPER'))),
   },
+  returns: v.object({ userId: v.id('users'), shouldSendWelcome: v.boolean() }),
   handler: async (ctx, { clerkId, email, role }) => {
     const existing = await ctx.db
       .query('users')
@@ -22,7 +23,10 @@ export const syncFromClerk = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, { email });
       await ensureFounderSubscription(ctx, clerkId, email);
-      return existing._id;
+      return {
+        userId: existing._id,
+        shouldSendWelcome: existing.welcomeEmailSentAt === undefined,
+      };
     }
 
     const userId = await ctx.db.insert('users', {
@@ -32,6 +36,7 @@ export const syncFromClerk = mutation({
       status: 'ACTIVE',
       alpacaGuideCompleted: false,
       productTourCompleted: false,
+      weeklyDigestEnabled: true,
     });
 
     // Seed paper account and default bot settings for every new user.
@@ -49,7 +54,23 @@ export const syncFromClerk = mutation({
     });
 
     await ensureFounderSubscription(ctx, clerkId, email);
-    return userId;
+    return { userId, shouldSendWelcome: true };
+  },
+});
+
+/** Marks welcome email as sent — returns false if already sent (idempotent). */
+export const claimWelcomeEmail = mutation({
+  args: { clerkId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { clerkId }) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', clerkId))
+      .unique();
+    if (!user || user.welcomeEmailSentAt !== undefined) return false;
+
+    await ctx.db.patch(user._id, { welcomeEmailSentAt: Date.now() });
+    return true;
   },
 });
 
@@ -86,6 +107,10 @@ export const me = query({
 /** Upserts the current user — safe to call on every sign-in. */
 export const ensureExists = mutation({
   args: { email: v.string() },
+  returns: v.object({
+    userId: v.id('users'),
+    shouldSendWelcome: v.boolean(),
+  }),
   handler: async (ctx, { email }) => {
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = requireAuth(identity);
@@ -97,7 +122,10 @@ export const ensureExists = mutation({
 
     if (existing) {
       await ensureUserRecords(ctx, clerkId, email);
-      return existing._id;
+      return {
+        userId: existing._id,
+        shouldSendWelcome: existing.welcomeEmailSentAt === undefined,
+      };
     }
 
     const userId = await ctx.db.insert('users', {
@@ -107,11 +135,31 @@ export const ensureExists = mutation({
       status: 'ACTIVE',
       alpacaGuideCompleted: false,
       productTourCompleted: false,
+      weeklyDigestEnabled: true,
     });
 
     await ensureUserRecords(ctx, clerkId, email);
 
-    return userId;
+    return { userId, shouldSendWelcome: true };
+  },
+});
+
+/** Toggle weekly digest emails for the current user. */
+export const setWeeklyDigestEnabled = mutation({
+  args: { enabled: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { enabled }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Not authenticated');
+
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
+      .unique();
+    if (!user) throw new Error('User not found');
+
+    await ctx.db.patch(user._id, { weeklyDigestEnabled: enabled });
+    return null;
   },
 });
 

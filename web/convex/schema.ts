@@ -13,6 +13,10 @@ export default defineSchema({
     alpacaGuideCompleted: v.optional(v.boolean()),
     /** false = show dashboard product tour after onboarding; undefined = legacy user (skip tour). */
     productTourCompleted: v.optional(v.boolean()),
+    /** Epoch ms when welcome email was sent — prevents duplicate sends. */
+    welcomeEmailSentAt: v.optional(v.number()),
+    /** false = opt out of weekly digest; undefined = subscribed (default). */
+    weeklyDigestEnabled: v.optional(v.boolean()),
   })
     .index('by_clerk_id', ['clerkId'])
     .index('by_email', ['email']),

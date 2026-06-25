@@ -44,12 +44,14 @@ type BrokerStatus = { connected: boolean; provider?: string; paper?: boolean };
 export function Settings() {
   const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const settingsData = useQuery(convexApi.botSettings.get);
+  const userProfile = useQuery(convexApi.users.me);
   const brokerData   = useQuery(convexApi.brokerCredential.status);
   const billingStatus = useQuery(convexApi.subscription.getBillingStatus);
   const paperTrial    = useQuery(convexApi.subscription.getPaperTrial);
 
   const updateSettings = useMutation(convexApi.botSettings.update);
   const setModeMut     = useMutation(convexApi.botSettings.setMode);
+  const setWeeklyDigest = useMutation(convexApi.users.setWeeklyDigestEnabled);
 
   const [local, setLocal] = useState<LocalSettings | null>(null);
   const [saved, setSaved]   = useState(false);
@@ -190,6 +192,33 @@ export function Settings() {
       {error && <div className="error-banner">{error}</div>}
 
       <AlpacaConnectPanel broker={broker} onError={setError} />
+
+      <section className="panel">
+        <h2>Email</h2>
+        <p className="muted" style={{ marginBottom: '1rem', fontSize: '0.9em', lineHeight: 1.55 }}>
+          Welcome emails send once when you create an account. Weekly digests arrive Monday mornings with Autotrade tips, feature spotlights, and optional trading stats.
+        </p>
+        <label className="row gap" style={{ alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={userProfile?.weeklyDigestEnabled !== false}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              void setWeeklyDigest({ enabled })
+                .then(() => fetch('/api/email/preferences', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ enabled }),
+                }))
+                .catch((err) => {
+                  reportTrackedError(ErrorCodes.CONFIG, err, { route: '/settings', action: 'weeklyDigest' });
+                  setError(formatUserError(err, 'Could not update email preferences'));
+                });
+            }}
+          />
+          <span>Send me the Autotrade weekly digest</span>
+        </label>
+      </section>
 
       <section className="panel">
         <h2>Execution mode</h2>

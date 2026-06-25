@@ -15,16 +15,23 @@ function UserSync() {
   const { isAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const ensureExists = useMutation(api.users.ensureExists);
   const syncedRef = useRef(false);
+  const welcomeSentRef = useRef(false);
 
   useEffect(() => {
     if (!clerkLoaded || convexAuthLoading || !isAuthenticated || !user) return;
     const email = user.primaryEmailAddress?.emailAddress;
     if (!email || syncedRef.current) return;
     syncedRef.current = true;
-    ensureExists({ email }).catch(() => {
-      // Best-effort — allow retry if Convex auth wasn't ready yet.
-      syncedRef.current = false;
-    });
+    ensureExists({ email })
+      .then((result) => {
+        if (result.shouldSendWelcome && !welcomeSentRef.current) {
+          welcomeSentRef.current = true;
+          void fetch('/api/email/welcome-onboarding', { method: 'POST' });
+        }
+      })
+      .catch(() => {
+        syncedRef.current = false;
+      });
   }, [clerkLoaded, convexAuthLoading, isAuthenticated, user?.id, ensureExists]);
 
   return null;

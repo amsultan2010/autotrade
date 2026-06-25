@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { ErrorCodes } from '@autotrade/shared';
 import { captureAppErrorServer } from '@/lib/error-tracking-server';
-import { sendWelcomeEmail } from '@/lib/email';
+import { deliverWelcomeEmail } from '@/lib/welcome-email';
 import { syncResendContact, unsubscribeResendContact } from '@/lib/resend-audience';
 import { identifyUser } from '@/lib/analytics';
 import { convexServer } from '@/lib/convex-server';
@@ -75,11 +75,22 @@ export async function POST(req: Request) {
       identifyUser(data.id, { email: primaryEmail, name });
 
       if (event.type === 'user.created') {
-        await Promise.allSettled([
-          sendWelcomeEmail(primaryEmail, name),
-          syncResendContact({ email: primaryEmail, firstName, lastName }),
-          convexServer.mutation(convexApi.users.syncFromClerk, { clerkId: data.id, email: primaryEmail }),
-        ]);
+        const syncResult = await convexServer.mutation(convexApi.users.syncFromClerk, {
+          clerkId: data.id,
+          email: primaryEmail,
+        });
+
+        if (syncResult.shouldSendWelcome) {
+          await deliverWelcomeEmail({
+            clerkId: data.id,
+            email: primaryEmail,
+            name,
+            firstName,
+            lastName,
+          });
+        } else {
+          await syncResendContact({ email: primaryEmail, firstName, lastName });
+        }
       } else {
         await Promise.allSettled([
           syncResendContact({ email: primaryEmail, firstName, lastName }),

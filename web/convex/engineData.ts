@@ -349,7 +349,7 @@ export const listActiveUsers = query({
 
     const users = await ctx.db.query('users').collect();
     return users
-      .filter((u) => u.status === 'ACTIVE')
+      .filter((u) => u.status === 'ACTIVE' && u.weeklyDigestEnabled !== false)
       .map((u) => ({ clerkId: u.clerkId, email: u.email }));
   },
 });
