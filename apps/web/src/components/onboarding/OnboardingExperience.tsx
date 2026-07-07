@@ -140,7 +140,7 @@ export function OnboardingExperience() {
           </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8" key={step}>
+        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8" key={step} data-lenis-prevent>
           {step === 0 && (
             <div className="animate-in fade-in duration-200">
               <p className="text-xs font-semibold uppercase tracking-widest text-accent">Welcome aboard</p>

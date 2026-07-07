@@ -3,7 +3,7 @@
 import { type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { forgeFadeUp, forgeStagger } from '@/src/components/forge/ScrollEngine';
+import { forgeFadeUp } from '@/src/components/forge/ScrollEngine';
 
 export function PageShell({
   children,
@@ -12,16 +12,12 @@ export function PageShell({
   children: ReactNode;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
   return (
-    <motion.div
+    <div
       className={cn('relative mx-auto w-full max-w-[1520px] px-3 pb-[calc(var(--mobile-nav-h)+16px)] pt-4 app-readable md:px-6 md:pb-8 md:pt-5', className)}
-      initial={reduce ? false : 'hidden'}
-      animate="show"
-      variants={forgeStagger}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -41,6 +37,7 @@ export function PageHeader({
   const reduce = useReducedMotion();
   return (
     <motion.header
+      initial={false}
       variants={reduce ? undefined : forgeFadeUp}
       className={cn(
         'mb-6 flex flex-col gap-4 border-b border-border pb-5 md:mb-8 md:flex-row md:items-end md:justify-between',
@@ -84,6 +81,7 @@ export function StatCard({
   const reduce = useReducedMotion();
   return (
     <motion.div
+      initial={false}
       variants={reduce ? undefined : forgeFadeUp}
       whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.18 } }}
       className={cn(
@@ -139,6 +137,7 @@ export function Panel({
   const reduce = useReducedMotion();
   return (
     <motion.section
+      initial={false}
       variants={reduce ? undefined : forgeFadeUp}
       className={cn(
         'forge-plate relative',

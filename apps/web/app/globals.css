@@ -130,7 +130,7 @@
 
 html {
   -webkit-font-smoothing: antialiased;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -149,6 +149,8 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   min-height: 100dvh;
+  overflow-x: clip;
+  overscroll-behavior-y: none;
 }
 
 /* Readable app copy — dashboard, settings, tables */
@@ -389,6 +391,8 @@ input, select, textarea { font-family: inherit; }
     0 8px 32px rgb(0 0 0 / 0.45);
   backdrop-filter: blur(20px);
   height: var(--hud-h);
+  transform: translateZ(0);
+  contain: layout style;
 }
 .cmd-rail {
   background: linear-gradient(180deg, rgb(12 12 20), rgb(5 5 10));
@@ -397,6 +401,8 @@ input, select, textarea { font-family: inherit; }
   box-shadow:
     inset -1px 0 0 rgb(0 0 0 / 0.45),
     4px 0 28px rgb(0 0 0 / 0.5);
+  transform: translateZ(0);
+  contain: layout style;
 }
 .cmd-status {
   background: rgb(4 4 10 / 0.95);
