@@ -59,4 +59,12 @@ export { runStrategyEngine } from '../services/strategy-engine';
 export { liveEngine } from '../workers/liveEngine';
 
 // Bot cron helpers
-export { getUsersDueForScan, recordScanCompleted, listActiveUsers, getDigestTrades, countTradesOpenedSince } from '../lib/supabase-db';
+export {
+  getUsersDueForScan,
+  recordScanCompleted,
+  listActiveUsers,
+  getDigestTrades,
+  countTradesOpenedSince,
+  tryAcquireScanLock,
+  releaseScanLock,
+} from '../lib/supabase-db';

@@ -20,6 +20,7 @@ export async function deliverWelcomeEmail(params: {
     sendWelcomeEmail(params.email, params.name),
     syncResendContact({
       email: params.email,
+      clerkId: params.clerkId,
       firstName: params.firstName,
       lastName: params.lastName,
     }),

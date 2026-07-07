@@ -12,6 +12,7 @@
   "dependencies": {
     "@autotrade/engine": "workspace:*",
     "@autotrade/shared": "workspace:*",
+    "@sentry/node": "^10.57.0",
     "dotenv": "^16.4.5",
     "p-limit": "^6.2.0"
   },

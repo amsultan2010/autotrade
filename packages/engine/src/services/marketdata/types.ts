@@ -5,6 +5,12 @@
  */
 import type { Candle, Quote, SymbolSearchResult, Timeframe } from '@autotrade/shared';
 
+export interface MarketDataRateLimit {
+  remaining: number;
+  capacity: number;
+  intervalMs: number;
+}
+
 export interface MarketDataProvider {
   readonly name: string;
 
@@ -26,6 +32,12 @@ export interface MarketDataProvider {
    * call — used to render real-time watchlist prices efficiently.
    */
   getSnapshots?(symbols: string[]): Promise<Record<string, SymbolSnapshot>>;
+
+  /** Optional: non-blocking budget check for scan loops (token bucket). */
+  tryAcquireBudget?(count: number): boolean;
+
+  /** Optional: current rate-limit bucket snapshot. */
+  rateLimitSnapshot?(): MarketDataRateLimit;
 
   /** Optional richer snapshots (bid/ask spread, 24h volume) when the provider supports them. */
   getExtendedSnapshots?(symbols: string[]): Promise<Record<string, ExtendedSymbolSnapshot>>;

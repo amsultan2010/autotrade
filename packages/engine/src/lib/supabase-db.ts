@@ -43,8 +43,22 @@ export type CreateSignalArgs = {
   takeProfit?: number;
   rrRatio?: number;
   explanation: string;
-  createdAt?: number;
+  createdAt?: number | string;
 };
+
+/** Normalize epoch milliseconds for BIGINT `signals.created_at` columns. */
+export function normalizeSignalCreatedAtMs(value?: number | string): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value > 1e12 ? Math.round(value) : Math.round(value * 1000);
+  }
+  if (typeof value === 'string') {
+    const asNum = Number(value);
+    if (Number.isFinite(asNum) && asNum > 1e11) return Math.round(asNum);
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Date.now();
+}
 
 export type CreateTradeArgs = {
   clerkId: string;
@@ -460,7 +474,7 @@ export async function countSignalsSince(clerkId: string, sinceMs: number): Promi
     .from('signals')
     .select('id', { count: 'exact', head: true })
     .eq('clerk_id', clerkId)
-    .gte('created_at', new Date(sinceMs).toISOString());
+    .gte('created_at', sinceMs);
 
   if (error) supabaseError('countSignalsSince', error);
   return count ?? 0;
@@ -562,7 +576,6 @@ export async function listActiveUsers(): Promise<ActiveUserRecord[]> {
 }
 
 export async function createSignal(args: CreateSignalArgs): Promise<string> {
-  const createdAt = args.createdAt ?? Date.now();
   const row = {
     clerk_id: args.clerkId,
     ticker: args.ticker,
@@ -578,7 +591,7 @@ export async function createSignal(args: CreateSignalArgs): Promise<string> {
     take_profit: args.takeProfit ?? null,
     rr_ratio: args.rrRatio ?? null,
     explanation: args.explanation,
-    created_at: new Date(createdAt).toISOString(),
+    created_at: normalizeSignalCreatedAtMs(args.createdAt),
   };
 
   const { data, error } = await getSupabase().from('signals').insert(row).select('id').single();
@@ -826,26 +839,25 @@ export async function getDecryptedBrokerKeys(
 /** Clerk IDs of active users whose scan interval has elapsed. */
 export async function getUsersDueForScan(now = Date.now()): Promise<string[]> {
   const sb = getSupabase();
-  const { data: settings, error: settingsError } = await sb
-    .from('bot_settings')
-    .select('clerk_id, scan_interval_seconds, last_scan_at, mode')
-    .neq('mode', 'DISABLED');
+  const [{ data: settings, error: settingsError }, { data: activeUsers, error: usersError }] =
+    await Promise.all([
+      sb
+        .from('bot_settings')
+        .select('clerk_id, scan_interval_seconds, last_scan_at, mode')
+        .neq('mode', 'DISABLED'),
+      sb.from('users').select('clerk_id').eq('status', 'ACTIVE'),
+    ]);
 
   if (settingsError) supabaseError('getUsersDueForScan(bot_settings)', settingsError);
+  if (usersError) supabaseError('getUsersDueForScan(users)', usersError);
 
   const { normalizeScanInterval } = await import('@autotrade/shared');
+  const activeIds = new Set((activeUsers ?? []).map((u) => u.clerk_id as string));
   const out: string[] = [];
 
   for (const row of settings ?? []) {
     const clerkId = row.clerk_id as string;
-    const { data: user, error: userError } = await sb
-      .from('users')
-      .select('status')
-      .eq('clerk_id', clerkId)
-      .maybeSingle();
-
-    if (userError) supabaseError('getUsersDueForScan(users)', userError);
-    if (!user || user.status !== 'ACTIVE') continue;
+    if (!activeIds.has(clerkId)) continue;
 
     const intervalMs = normalizeScanInterval(row.scan_interval_seconds ?? undefined) * 1000;
     const lastScan = (row.last_scan_at as number | null) ?? 0;
@@ -862,4 +874,56 @@ export async function recordScanCompleted(clerkId: string, at: number): Promise<
     .eq('clerk_id', clerkId);
 
   if (error) supabaseError('recordScanCompleted', error);
+}
+
+const DEFAULT_SCAN_LOCK_MS = 120_000;
+
+/** Acquire a short-lived distributed scan lock (multi-worker safe). */
+export async function tryAcquireScanLock(
+  clerkId: string,
+  lockedBy: string,
+  ttlMs = DEFAULT_SCAN_LOCK_MS,
+): Promise<boolean> {
+  const sb = getSupabase();
+  const expiresAt = new Date(Date.now() + ttlMs).toISOString();
+  const nowIso = new Date().toISOString();
+
+  await sb.from('scan_locks').delete().lt('expires_at', nowIso);
+
+  const { data: existing, error: readError } = await sb
+    .from('scan_locks')
+    .select('clerk_id, locked_by, expires_at')
+    .eq('clerk_id', clerkId)
+    .maybeSingle();
+  if (readError) supabaseError('tryAcquireScanLock(read)', readError);
+
+  if (existing) {
+    if (existing.locked_by === lockedBy) {
+      const { error: renewError } = await sb
+        .from('scan_locks')
+        .update({ expires_at: expiresAt, locked_at: nowIso })
+        .eq('clerk_id', clerkId);
+      if (renewError) supabaseError('tryAcquireScanLock(renew)', renewError);
+      return true;
+    }
+    return false;
+  }
+
+  const { error: insertError } = await sb.from('scan_locks').insert({
+    clerk_id: clerkId,
+    locked_by: lockedBy,
+    expires_at: expiresAt,
+  });
+  if (insertError?.code === '23505') return false;
+  if (insertError) supabaseError('tryAcquireScanLock(insert)', insertError);
+  return true;
+}
+
+export async function releaseScanLock(clerkId: string, lockedBy: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from('scan_locks')
+    .delete()
+    .eq('clerk_id', clerkId)
+    .eq('locked_by', lockedBy);
+  if (error) supabaseError('releaseScanLock', error);
 }

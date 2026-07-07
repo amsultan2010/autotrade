@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { ErrorCodes } from '@autotrade/shared';
+import { reportTrackedError } from '@/lib/error-tracking';
 
 interface UseApiQueryOptions {
   enabled?: boolean;
@@ -24,11 +26,21 @@ export function useApiQuery<T>(
       setLoading(false);
       return;
     }
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
     try {
       const res = await fetch(`/api/v1${path}`, { credentials: 'same-origin' });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-        throw new Error(body.error?.message ?? res.statusText);
+        const message = body.error?.message ?? res.statusText;
+        if (res.status >= 500) {
+          reportTrackedError(ErrorCodes.API_CLIENT, new Error(message), {
+            route: `/api/v1${path}`,
+            status: res.status,
+          });
+        }
+        throw new Error(message);
       }
       const json = (await res.json()) as T;
       if (activeRef.current) {
@@ -59,8 +71,19 @@ export function useApiQuery<T>(
 
   useEffect(() => {
     if (!intervalMs || !enabled) return;
-    const id = window.setInterval(() => void fetchData(), intervalMs);
-    return () => window.clearInterval(id);
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      void fetchData();
+    };
+    const id = window.setInterval(tick, intervalMs);
+    const onVisible = () => {
+      if (!document.hidden) void fetchData();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [fetchData, intervalMs, enabled]);
 
   return { data, loading, error, refresh };

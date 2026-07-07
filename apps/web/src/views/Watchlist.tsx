@@ -86,7 +86,7 @@ export function Watchlist() {
     };
 
     fetchPrices();
-    timer.current = window.setInterval(fetchPrices, 4000);
+    timer.current = window.setInterval(fetchPrices, 15_000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
     };

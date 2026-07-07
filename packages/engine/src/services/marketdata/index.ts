@@ -32,7 +32,18 @@ class CachingMarketData implements MarketDataProvider {
 
   constructor(private readonly provider: MarketDataProvider) {
     this.name = provider.name;
-    this.limiter = new RateLimiter(PROVIDER_RATE[env.MARKET_DATA_PROVIDER] ?? 30, 60_000);
+    this.limiter = new RateLimiter(
+      PROVIDER_RATE[provider.name] ?? PROVIDER_RATE[env.MARKET_DATA_PROVIDER] ?? 30,
+      60_000,
+    );
+  }
+
+  tryAcquireBudget(count: number): boolean {
+    return this.limiter.tryAcquire(count);
+  }
+
+  rateLimitSnapshot() {
+    return this.limiter.snapshot();
   }
 
   async searchSymbols(query: string): Promise<SymbolSearchResult[]> {
@@ -198,5 +209,5 @@ export function isMarketDataConfigured(): boolean {
   }
 }
 
-export type { MarketDataProvider } from './types';
+export type { MarketDataProvider, MarketDataRateLimit } from './types';
 export { MarketDataError } from './types';

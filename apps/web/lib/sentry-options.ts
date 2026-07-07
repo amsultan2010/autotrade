@@ -10,6 +10,9 @@ function isExpectedNoiseError(message: string): boolean {
   if (/MarketDataError: Alpaca (401|403)/.test(message)) return true;
   if (/\[CONVEX [QMA]\([^)]+\)\] Server Error/.test(message)) return true;
   if (message.includes('cannot add postgres_changes callbacks')) return true;
+  if (/next-client-pages-loader/.test(message)) return true;
+  if (/Module not found:.*next-client-pages-loader/.test(message)) return true;
+  if (/\bECONNRESET\b/.test(message) || /\baborted\b/i.test(message)) return true;
   return false;
 }
 
@@ -28,7 +31,14 @@ function shouldDropSentryEvent(event: Sentry.ErrorEvent): boolean {
     if (ex.value) parts.push(ex.value);
     if (ex.type) parts.push(ex.type);
   }
-  return parts.some((p) => isLegacyConvexError(p) || isNoisyConvexClientError(p) || isExpectedNoiseError(p));
+  if (parts.some((p) => isLegacyConvexError(p) || isNoisyConvexClientError(p) || isExpectedNoiseError(p))) {
+    return true;
+  }
+  // Next.js dev HMR noise captured via console integration.
+  if (event.environment === 'development' && parts.some((p) => /Module not found|next-client-pages-loader|Fast Refresh/i.test(p))) {
+    return true;
+  }
+  return false;
 }
 
 
@@ -66,6 +76,8 @@ export function getBaseSentryOptions(): Sentry.NodeOptions {
       /TrackedError: \[CONVEX /,
       /ConvexError: \[CONVEX /,
       /cannot add postgres_changes callbacks for realtime:/,
+      /next-client-pages-loader/,
+      /Module not found:.*next-client-pages-loader/,
     ],
   };
 }

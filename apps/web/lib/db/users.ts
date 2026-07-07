@@ -75,7 +75,23 @@ export async function syncFromClerk(args: {
     })
     .select('id')
     .single();
-  if (error || !data) throw new Error(`users.syncFromClerk failed: ${error?.message}`);
+
+  if (error) {
+    // Clerk may deliver duplicate user.created webhooks concurrently.
+    if (error.code === '23505') {
+      const raced = await me(args.clerkId);
+      if (raced) {
+        await getSupabaseServer().from('users').update({ email: args.email }).eq('clerk_id', args.clerkId);
+        await ensureUserRecords(args.clerkId, args.email);
+        return {
+          userId: raced.id,
+          shouldSendWelcome: raced.welcomeEmailSentAt === undefined,
+        };
+      }
+    }
+    throw new Error(`users.syncFromClerk failed: ${error.message}`);
+  }
+  if (!data) throw new Error('users.syncFromClerk failed: no row returned');
 
   await ensureUserRecords(args.clerkId, args.email);
   return { userId: data.id as string, shouldSendWelcome: true };
@@ -169,6 +185,29 @@ export async function getByClerkId(clerkId: string) {
     email: user.email,
     founderPlanOverride: user.founderPlanOverride,
   };
+}
+
+export async function getResendContactId(clerkId: string): Promise<string | null> {
+  const user = await me(clerkId);
+  return user?.resendContactId ?? null;
+}
+
+export async function setResendContactId(clerkId: string, contactId: string): Promise<void> {
+  const { error } = await getSupabaseServer()
+    .from('users')
+    .update({ resend_contact_id: contactId })
+    .eq('clerk_id', clerkId);
+  if (error) throw new Error(`setResendContactId failed: ${error.message}`);
+}
+
+export async function findClerkIdByEmail(email: string): Promise<string | null> {
+  const { data, error } = await getSupabaseServer()
+    .from('users')
+    .select('clerk_id')
+    .eq('email', email)
+    .maybeSingle();
+  if (error) throw new Error(`findClerkIdByEmail failed: ${error.message}`);
+  return (data?.clerk_id as string | undefined) ?? null;
 }
 
 export async function listActiveUsers(): Promise<Array<{ clerkId: string; email: string }>> {

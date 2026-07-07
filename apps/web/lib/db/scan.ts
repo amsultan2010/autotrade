@@ -4,20 +4,21 @@ import type { BotSettingsRow } from './row-mappers';
 
 export async function getUsersDueForScan(now = Date.now()): Promise<string[]> {
   const sb = getSupabaseServer();
-  const { data: settings, error } = await sb
-    .from('bot_settings')
-    .select('clerk_id, mode, scan_interval_seconds, last_scan_at')
-    .neq('mode', 'DISABLED');
-  if (error) throw new Error(error.message);
+  const [{ data: settings, error: settingsError }, { data: activeUsers, error: usersError }] =
+    await Promise.all([
+      sb
+        .from('bot_settings')
+        .select('clerk_id, mode, scan_interval_seconds, last_scan_at')
+        .neq('mode', 'DISABLED'),
+      sb.from('users').select('clerk_id').eq('status', 'ACTIVE'),
+    ]);
+  if (settingsError) throw new Error(settingsError.message);
+  if (usersError) throw new Error(usersError.message);
 
+  const activeIds = new Set((activeUsers ?? []).map((u) => u.clerk_id as string));
   const results: string[] = [];
   for (const s of (settings ?? []) as Pick<BotSettingsRow, 'clerk_id' | 'mode' | 'scan_interval_seconds' | 'last_scan_at'>[]) {
-    const { data: user } = await sb
-      .from('users')
-      .select('status')
-      .eq('clerk_id', s.clerk_id)
-      .maybeSingle();
-    if (!user || user.status !== 'ACTIVE') continue;
+    if (!activeIds.has(s.clerk_id)) continue;
 
     const intervalMs = normalizeScanInterval(s.scan_interval_seconds ?? undefined) * 1000;
     const lastScan = s.last_scan_at ?? 0;

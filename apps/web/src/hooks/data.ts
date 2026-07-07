@@ -306,3 +306,46 @@ export const dataApi = {
   setFounderPlanOverride: (plan: string | null) =>
     apiMutate('/users/founder-settings', { method: 'POST', body: JSON.stringify({ plan }) }),
 };
+
+export interface DashboardFeed {
+  botStatus: BotStatusData;
+  performance: {
+    summary: PerformanceSummary;
+    breakdowns: PerformanceBreakdowns;
+  };
+  signals: SignalRow[];
+  watchlist: WatchlistRow[];
+  trades: TradeRow[];
+  openTrades: TradeRow[];
+  closedTrades: TradeRow[];
+  brokerStatus: BrokerStatusData;
+  brokerSnapshot: BrokerSnapshotRow | null;
+  quotes: Array<{
+    symbol: string;
+    price: number | null;
+    changePct: number | null;
+    live?: boolean;
+  }>;
+}
+
+export function useDashboardFeed(opts?: {
+  intervalMs?: number;
+  signalsLimit?: number;
+  tradesLimit?: number;
+  openLimit?: number;
+  closedLimit?: number;
+}) {
+  const path = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('signalsLimit', String(opts?.signalsLimit ?? 12));
+    params.set('tradesLimit', String(opts?.tradesLimit ?? 200));
+    params.set('openLimit', String(opts?.openLimit ?? 100));
+    params.set('closedLimit', String(opts?.closedLimit ?? 200));
+    return `/dashboard/feed?${params.toString()}`;
+  }, [opts?.signalsLimit, opts?.tradesLimit, opts?.openLimit, opts?.closedLimit]);
+
+  return useApiQuery<DashboardFeed>(path, {
+    intervalMs: opts?.intervalMs ?? 15_000,
+    refreshKey: path,
+  });
+}

@@ -49,6 +49,7 @@ export interface UserRow {
   welcome_email_sent_at: number | null;
   weekly_digest_enabled: boolean | null;
   founder_plan_override: 'free' | 'essential' | 'pro' | 'unlimited' | null;
+  resend_contact_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +65,7 @@ export interface UserRecord {
   welcomeEmailSentAt?: number;
   weeklyDigestEnabled?: boolean;
   founderPlanOverride?: 'free' | 'essential' | 'pro' | 'unlimited';
+  resendContactId?: string;
   _creationTime: number;
 }
 
@@ -79,6 +81,7 @@ export function mapUser(row: UserRow): UserRecord {
     welcomeEmailSentAt: row.welcome_email_sent_at ?? undefined,
     weeklyDigestEnabled: row.weekly_digest_enabled ?? undefined,
     founderPlanOverride: row.founder_plan_override ?? undefined,
+    resendContactId: row.resend_contact_id ?? undefined,
     _creationTime: toMsFromTimestamptz(row.created_at) ?? Date.now(),
   };
 }

@@ -145,10 +145,7 @@ export async function getDigestTrades(
     }));
 }
 
-export async function performanceSummary(clerkId: string) {
-  const { data, error } = await getSupabaseServer().from('trades').select('*').eq('clerk_id', clerkId);
-  if (error) throw new Error(error.message);
-  const trades = ((data ?? []) as TradeRow[]).map(mapTrade);
+export function performanceSummaryFromTrades(trades: TradeRecord[]) {
   const closed = trades.filter((t) => t.result !== 'OPEN' && t.pnl !== undefined);
   const open = trades.filter((t) => t.result === 'OPEN');
   const wins = closed.filter((t) => t.result === 'WIN');
@@ -191,10 +188,14 @@ export async function performanceSummary(clerkId: string) {
   };
 }
 
-export async function performanceBreakdowns(clerkId: string) {
+export async function performanceSummary(clerkId: string) {
   const { data, error } = await getSupabaseServer().from('trades').select('*').eq('clerk_id', clerkId);
   if (error) throw new Error(error.message);
-  const closed = ((data ?? []) as TradeRow[]).map(mapTrade).filter((t) => t.result !== 'OPEN');
+  return performanceSummaryFromTrades(((data ?? []) as TradeRow[]).map(mapTrade));
+}
+
+export function performanceBreakdownsFromTrades(trades: TradeRecord[]) {
+  const closed = trades.filter((t) => t.result !== 'OPEN');
   const byStrategy: Record<string, { trades: number; wins: number; totalPnl: number }> = {};
   const bySymbol: Record<string, { trades: number; wins: number; totalPnl: number }> = {};
   for (const t of closed) {
@@ -215,6 +216,12 @@ export async function performanceBreakdowns(clerkId: string) {
       totalPnl: Math.round(v.totalPnl * 100) / 100,
     }));
   return { byStrategy: toArray(byStrategy), bySymbol: toArray(bySymbol) };
+}
+
+export async function performanceBreakdowns(clerkId: string) {
+  const { data, error } = await getSupabaseServer().from('trades').select('*').eq('clerk_id', clerkId);
+  if (error) throw new Error(error.message);
+  return performanceBreakdownsFromTrades(((data ?? []) as TradeRow[]).map(mapTrade));
 }
 
 export async function assertLiveEntitled(clerkId: string, mode: string): Promise<void> {

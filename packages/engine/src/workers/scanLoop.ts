@@ -81,6 +81,7 @@ async function persistSignal(clerkId: string, signal: TradeSignal): Promise<stri
     takeProfit: signal.takeProfit ?? undefined,
     rrRatio: signal.rrRatio ?? undefined,
     explanation: signal.explanation,
+    createdAt: signal.createdAt,
   });
 }
 
@@ -216,6 +217,7 @@ export interface ScanCycleResult {
   stockSymbols: number;
   cryptoSymbols: number;
   skippedMarketClosed: number;
+  skippedRateLimit?: number;
   /** BUY/SHORT decisions that reached the execution gate this cycle. */
   actionableEntries?: number;
   /** Why approved entries did not open (broker error, position already open, etc.). */
@@ -455,7 +457,15 @@ export async function runCycleForUser(
     console.error(`monitor failed for user ${clerkId}`, err);
   }
 
-  const result: ScanCycleResult = { ...empty, ok: true, actionableEntries: 0, executionFailures: [] };
+  const result: ScanCycleResult = {
+    ...empty,
+    ok: true,
+    actionableEntries: 0,
+    executionFailures: [],
+    skippedRateLimit: 0,
+  };
+
+  const candleBudgetPerSymbol = Math.max(1, ctx.timeframes.length);
 
   for (const watched of ctx.watchlist) {
     const crypto = isCryptoSymbol(watched.symbol);
@@ -469,6 +479,10 @@ export async function runCycleForUser(
       }
     }
     result.symbolsScanned++;
+    if (md?.tryAcquireBudget && !md.tryAcquireBudget(candleBudgetPerSymbol)) {
+      result.skippedRateLimit = (result.skippedRateLimit ?? 0) + 1;
+      continue;
+    }
     try {
       const entry = await evaluateSymbolEntry(ctx, watched.symbol, watched.exchange, md);
       if (entry.actionable) result.actionableEntries = (result.actionableEntries ?? 0) + 1;

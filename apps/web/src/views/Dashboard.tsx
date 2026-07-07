@@ -17,14 +17,7 @@ import { formatStrategyLabel } from '@/src/lib/formatStrategy';
 import { useSubscription, useUpgradeGate } from '@/src/components/subscription/SubscriptionProvider';
 import { useAuth } from '@clerk/nextjs';
 import {
-  useBotStatus,
-  useBrokerSnapshot,
-  useBrokerStatus,
-  useClosedTrades,
-  usePerformance,
-  useSignals,
-  useTrades,
-  useWatchlist,
+  useDashboardFeed,
   dataApi,
 } from '@/src/hooks/data';
 import {
@@ -92,11 +85,6 @@ interface TradeItem {
 }
 
 // ─── API data shapes ──────────────────────────────────────────────────────────
-interface Quote {
-  symbol: string;
-  price: number | null;
-  changePct: number | null;
-}
 
 const EQUITY_TABS = ['1D', '1W', '1M', '3M', '1Y'] as const;
 const POS_COLOR = '#34d399';
@@ -461,33 +449,30 @@ export function Dashboard() {
   const showPremium = entitlements?.limits?.premiumAnalytics ?? false;
   const { isSignedIn: isAuthenticated, isLoaded: authLoaded } = useAuth();
   const authLoading = !authLoaded;
-  const { data: botStatus, refresh: refreshBotStatus } = useBotStatus();
+  const {
+    data: feed,
+    loading: feedLoading,
+    refresh: refreshFeed,
+  } = useDashboardFeed({ intervalMs: 15_000 });
+  const botStatus = feed?.botStatus;
   const botRunning = botStatus?.running === true;
-  const widgetPollMs = botRunning ? 10_000 : 20_000;
-  const { summary: perfData, breakdowns: breakdownData, refresh: refreshPerformance } = usePerformance({
-    intervalMs: widgetPollMs,
-  });
-  const { data: signalRows, loading: signalsLoading, refresh: refreshSignals } = useSignals(12, {
-    intervalMs: widgetPollMs,
-  });
-  const { data: watchlist, loading: watchlistLoading } = useWatchlist();
-  const { data: closedTradeData, loading: closedTradesLoading, refresh: refreshClosedTrades } = useClosedTrades(
-    200,
-    { intervalMs: widgetPollMs },
-  );
-  const { data: tradeData, loading: tradesLoading, refresh: refreshTrades } = useTrades({
-    limit: 200,
-    enabled: true,
-  });
-  const { data: openTrades, loading: openTradesLoading, refresh: refreshOpenTrades } = useTrades({
-    result: 'OPEN',
-    limit: 100,
-    enabled: true,
-  });
-  const { data: brokerStatus } = useBrokerStatus();
-  const { data: brokerSnapshot, loading: snapshotLoading, refresh: refreshBrokerSnapshot } = useBrokerSnapshot();
+  const perfData = feed?.performance.summary;
+  const breakdownData = feed?.performance.breakdowns;
+  const signalRows = feed?.signals;
+  const signalsLoading = feedLoading;
+  const watchlist = feed?.watchlist;
+  const watchlistLoading = feedLoading;
+  const closedTradeData = feed?.closedTrades;
+  const closedTradesLoading = feedLoading;
+  const tradeData = feed?.trades;
+  const tradesLoading = feedLoading;
+  const openTrades = feed?.openTrades;
+  const openTradesLoading = feedLoading;
+  const brokerStatus = feed?.brokerStatus;
+  const brokerSnapshot = feed?.brokerSnapshot;
+  const snapshotLoading = feedLoading;
+  const quotes = feed?.quotes ?? [];
 
-  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [busy, setBusy]     = useState(false);
   const [error, setError]   = useState<string | null>(null);
   const [brokerError, setBrokerError] = useState<string | null>(null);
@@ -497,48 +482,12 @@ export function Dashboard() {
   const [symbolSparklines, setSymbolSparklines] = useState<Record<string, number[]>>({});
 
   const refreshPortfolioWidgets = useCallback(async () => {
-    await Promise.all([
-      refreshBrokerSnapshot(),
-      refreshOpenTrades(),
-      refreshClosedTrades(),
-      refreshTrades(),
-      refreshPerformance(),
-      refreshSignals(),
-    ]);
-  }, [
-    refreshBrokerSnapshot,
-    refreshOpenTrades,
-    refreshClosedTrades,
-    refreshTrades,
-    refreshPerformance,
-    refreshSignals,
-  ]);
+    await refreshFeed();
+  }, [refreshFeed]);
 
   const refreshPortfolioRef = useRef(refreshPortfolioWidgets);
   refreshPortfolioRef.current = refreshPortfolioWidgets;
   const alpacaBackoffUntilRef = useRef(0);
-
-  const openPositionSymbols = (openTrades ?? []).map((t) => t.symbol.toUpperCase());
-  const brokerPositionSymbols = (brokerSnapshot?.positions ?? []).map((p) => p.symbol.toUpperCase());
-  const quoteSymbolsKey = [...new Set([
-    ...(watchlist?.map((w) => w.symbol.toUpperCase()) ?? []),
-    ...openPositionSymbols,
-    ...brokerPositionSymbols,
-  ])].join(',');
-
-  // Fetch live prices for watchlist + open positions (portfolio-aware quotes).
-  useEffect(() => {
-    if (!quoteSymbolsKey) return;
-    const fetchPrices = () => {
-      fetch(`/api/v1/watchlist/quotes?symbols=${encodeURIComponent(quoteSymbolsKey)}`)
-        .then((r) => r.json())
-        .then((data: Quote[]) => setQuotes(data))
-        .catch(() => {});
-    };
-    fetchPrices();
-    const t = setInterval(fetchPrices, 15_000);
-    return () => clearInterval(t);
-  }, [quoteSymbolsKey]);
 
   // Sync Alpaca account snapshot when broker is connected (throttled; snapshot poll reads DB).
   const brokerConnected = brokerStatus?.connected === true;
@@ -559,7 +508,7 @@ export function Dashboard() {
             }
           } else {
             setBrokerError(null);
-            void refreshBrokerSnapshot();
+            void refreshFeed();
           }
         })
         .catch((err) => {
@@ -576,7 +525,7 @@ export function Dashboard() {
     runSync();
     const t = setInterval(runSync, ALPACA_SYNC_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [brokerConnected, authLoading, isAuthenticated, refreshBrokerSnapshot]);
+  }, [brokerConnected, authLoading, isAuthenticated, refreshFeed]);
 
   // Alpaca portfolio equity history for the chart (live account curve).
   useEffect(() => {
@@ -674,7 +623,7 @@ export function Dashboard() {
     try {
       const nextMode = botStatus?.running ? 'DISABLED' : 'PAPER';
       await dataApi.setBotMode(nextMode);
-      await refreshBotStatus();
+      await refreshFeed();
       await refreshPortfolioRef.current();
     } catch (err) {
       reportTrackedError(ErrorCodes.BOT, err, { route: '/dashboard', action: 'toggle' });

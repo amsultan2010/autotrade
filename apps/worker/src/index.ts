@@ -7,26 +7,42 @@ import {
   getUsersDueForScan,
   runCycleForUser,
   recordScanCompleted,
+  tryAcquireScanLock,
+  releaseScanLock,
 } from "@autotrade/engine/public";
+import { captureWorkerError, initWorkerSentry } from "./sentry.js";
 
-const TICK_MS = 250;
+const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 2_000);
 const CONCURRENCY = 25;
 const limit = pLimit(CONCURRENCY);
 const instanceId = process.env.WORKER_INSTANCE_ID ?? `worker-${process.pid}`;
+const inFlight = new Set<string>();
+
+initWorkerSentry();
 
 async function schedulerTick(): Promise<void> {
   const due = await getUsersDueForScan();
   await Promise.all(
-    due.map((clerkId) =>
-      limit(async () => {
-        try {
-          await runCycleForUser(clerkId);
-          await recordScanCompleted(clerkId, Date.now());
-        } catch (err) {
-          console.error(`scan failed for ${clerkId}`, err);
-        }
-      }),
-    ),
+    due
+      .filter((clerkId) => !inFlight.has(clerkId))
+      .map((clerkId) =>
+        limit(async () => {
+          if (inFlight.has(clerkId)) return;
+          const acquired = await tryAcquireScanLock(clerkId, instanceId);
+          if (!acquired) return;
+          inFlight.add(clerkId);
+          try {
+            await runCycleForUser(clerkId);
+            await recordScanCompleted(clerkId, Date.now());
+          } catch (err) {
+            console.error(`scan failed for ${clerkId}`, err);
+            captureWorkerError(err, { clerkId, phase: "scan_cycle" });
+          } finally {
+            inFlight.delete(clerkId);
+            await releaseScanLock(clerkId, instanceId).catch(() => undefined);
+          }
+        }),
+      ),
   );
 }
 
@@ -51,8 +67,13 @@ async function main(): Promise<void> {
   console.log(`Autotrade worker ${instanceId} starting…`);
   startHealthServer();
   if (env.ALPACA_STREAMING) {
-    await liveEngine.start();
-    console.log("Live price stream started");
+    try {
+      await liveEngine.start();
+      console.log("Live price stream started");
+    } catch (err) {
+      console.error("LiveEngine failed to start", err);
+      captureWorkerError(err, { phase: "live_engine_start" });
+    }
   }
   startScheduler();
   console.log(`Scheduler tick ${TICK_MS}ms, concurrency ${CONCURRENCY}`);
@@ -60,5 +81,6 @@ async function main(): Promise<void> {
 
 main().catch((err) => {
   console.error("Worker failed:", err);
+  captureWorkerError(err, { phase: "worker_boot" });
   process.exit(1);
 });

@@ -75,23 +75,49 @@ export async function POST(req: Request) {
 
       if (event.type === 'user.created') {
         capture(data.id, { event: 'user_signed_up', properties: { userId: data.id, email: primaryEmail } });
-        const syncResult = await syncFromClerk({ clerkId: data.id, email: primaryEmail });
+        try {
+          const syncResult = await syncFromClerk({ clerkId: data.id, email: primaryEmail });
 
-        if (syncResult.shouldSendWelcome) {
-          await deliverWelcomeEmail({
-            clerkId: data.id,
-            email: primaryEmail,
-            name,
-            firstName,
-            lastName,
+          if (syncResult.shouldSendWelcome) {
+            await deliverWelcomeEmail({
+              clerkId: data.id,
+              email: primaryEmail,
+              name,
+              firstName,
+              lastName,
+            });
+          } else {
+            await syncResendContact({
+              clerkId: data.id,
+              email: primaryEmail,
+              firstName,
+              lastName,
+            });
+          }
+        } catch (err) {
+          captureAppErrorServer(ErrorCodes.BOT_USER_CREATE, err, {
+            route: '/api/v1/webhooks/clerk',
+            userId: data.id,
+            phase: 'user.created',
           });
-        } else {
-          await syncResendContact({ email: primaryEmail, firstName, lastName });
+          throw err;
         }
       } else {
         await Promise.allSettled([
-          syncResendContact({ email: primaryEmail, firstName, lastName }),
-          syncFromClerk({ clerkId: data.id, email: primaryEmail }),
+          syncResendContact({
+            clerkId: data.id,
+            email: primaryEmail,
+            firstName,
+            lastName,
+          }),
+          syncFromClerk({ clerkId: data.id, email: primaryEmail }).catch((err) => {
+            captureAppErrorServer(ErrorCodes.BOT_USER_CREATE, err, {
+              route: '/api/v1/webhooks/clerk',
+              userId: data.id,
+              phase: 'user.updated',
+            });
+            throw err;
+          }),
         ]);
       }
     }
@@ -100,7 +126,7 @@ export async function POST(req: Request) {
   if (event.type === 'user.deleted') {
     const email = await disableFromClerk(event.data.id);
     if (email) {
-      void unsubscribeResendContact(email);
+      void unsubscribeResendContact(email, event.data.id);
     }
   }
 

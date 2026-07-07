@@ -47,6 +47,21 @@ export class RateLimiter {
     }
   }
 
+  /** Reserve tokens without blocking; returns false when budget is insufficient. */
+  tryAcquire(count = 1): boolean {
+    this.refill();
+    if (this.tokens >= count) {
+      this.tokens -= count;
+      return true;
+    }
+    return false;
+  }
+
+  snapshot(): { remaining: number; capacity: number; intervalMs: number } {
+    this.refill();
+    return { remaining: this.tokens, capacity: this.rate, intervalMs: this.intervalMs };
+  }
+
   private refill(): void {
     const now = Date.now();
     const elapsed = now - this.last;

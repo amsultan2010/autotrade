@@ -1,4 +1,9 @@
 import { Resend } from 'resend';
+import {
+  findClerkIdByEmail,
+  getResendContactId,
+  setResendContactId,
+} from '@/lib/db/users';
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -10,7 +15,19 @@ function getAudienceId(): string | null {
   return process.env.RESEND_AUDIENCE_ID ?? null;
 }
 
+async function resolveClerkId(clerkId: string | undefined, email: string): Promise<string | null> {
+  if (clerkId) return clerkId;
+  return findClerkIdByEmail(email);
+}
+
+async function listContactByEmail(audienceId: string, email: string) {
+  const resend = getResend();
+  const listed = await resend.contacts.list({ audienceId });
+  return listed.data?.data?.find((c) => c.email === email);
+}
+
 export async function syncResendContact(contact: {
+  clerkId?: string;
   email: string;
   firstName?: string;
   lastName?: string;
@@ -20,18 +37,32 @@ export async function syncResendContact(contact: {
   if (!audienceId) return;
 
   const resend = getResend();
+  const clerkId = await resolveClerkId(contact.clerkId, contact.email);
+  const storedId = clerkId ? await getResendContactId(clerkId) : null;
+
+  if (storedId) {
+    await resend.contacts.update({
+      audienceId,
+      id: storedId,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      unsubscribed: contact.unsubscribed ?? false,
+    });
+    return;
+  }
 
   try {
-    await resend.contacts.create({
+    const created = await resend.contacts.create({
       audienceId,
       email: contact.email,
       firstName: contact.firstName,
       lastName: contact.lastName,
       unsubscribed: contact.unsubscribed ?? false,
     });
+    const id = created.data?.id;
+    if (clerkId && id) await setResendContactId(clerkId, id);
   } catch {
-    const listed = await resend.contacts.list({ audienceId });
-    const existing = listed.data?.data?.find((c) => c.email === contact.email);
+    const existing = await listContactByEmail(audienceId, contact.email);
     if (!existing) return;
 
     await resend.contacts.update({
@@ -41,29 +72,35 @@ export async function syncResendContact(contact: {
       lastName: contact.lastName,
       unsubscribed: contact.unsubscribed ?? false,
     });
+    if (clerkId) await setResendContactId(clerkId, existing.id);
   }
 }
 
-export async function removeResendContact(email: string) {
+export async function removeResendContact(email: string, clerkId?: string) {
   const audienceId = getAudienceId();
   if (!audienceId || !email) return;
 
   const resend = getResend();
-  const contacts = await resend.contacts.list({ audienceId });
-  const contact = contacts.data?.data?.find((c) => c.email === email);
-  if (!contact?.id) return;
+  const resolvedClerkId = await resolveClerkId(clerkId, email);
+  const storedId = resolvedClerkId ? await getResendContactId(resolvedClerkId) : null;
+  const contactId = storedId ?? (await listContactByEmail(audienceId, email))?.id;
+  if (!contactId) return;
 
-  await resend.contacts.remove({ audienceId, id: contact.id });
+  await resend.contacts.remove({ audienceId, id: contactId });
 }
 
-export async function unsubscribeResendContact(email: string) {
+export async function unsubscribeResendContact(email: string, clerkId?: string) {
   const audienceId = getAudienceId();
   if (!audienceId) return;
 
   const resend = getResend();
-  const contacts = await resend.contacts.list({ audienceId });
-  const contact = contacts.data?.data?.find((c) => c.email === email);
-  if (!contact) return;
+  const resolvedClerkId = await resolveClerkId(clerkId, email);
+  const storedId = resolvedClerkId ? await getResendContactId(resolvedClerkId) : null;
+  const contact =
+    storedId != null
+      ? { id: storedId }
+      : await listContactByEmail(audienceId, email);
+  if (!contact?.id) return;
 
   await resend.contacts.update({
     audienceId,
@@ -72,14 +109,22 @@ export async function unsubscribeResendContact(email: string) {
   });
 }
 
-export async function syncWeeklyDigestPreference(email: string, enabled: boolean) {
+export async function syncWeeklyDigestPreference(
+  email: string,
+  enabled: boolean,
+  clerkId?: string,
+) {
   const audienceId = getAudienceId();
   if (!audienceId) return;
 
   const resend = getResend();
-  const contacts = await resend.contacts.list({ audienceId });
-  const contact = contacts.data?.data?.find((c) => c.email === email);
-  if (!contact) return;
+  const resolvedClerkId = await resolveClerkId(clerkId, email);
+  const storedId = resolvedClerkId ? await getResendContactId(resolvedClerkId) : null;
+  const contact =
+    storedId != null
+      ? { id: storedId }
+      : await listContactByEmail(audienceId, email);
+  if (!contact?.id) return;
 
   await resend.contacts.update({
     audienceId,
