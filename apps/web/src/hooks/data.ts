@@ -256,9 +256,17 @@ export function usePaperTrial() {
 export function useFounderSettings() {
   return useApiQuery<{
     email: string;
+    role: string;
     planOverride: string | null;
     effectiveTier: string;
     billingTier: string | null;
+    subscriptionStatus: string | null;
+    alpacaGuideCompleted: boolean;
+    productTourCompleted: boolean;
+    weeklyDigestEnabled: boolean;
+    billingEnabled: boolean;
+    useLaunchPrices: boolean;
+    allowedFounderEmails: string[];
   } | null>('/users/founder-settings');
 }
 
@@ -304,7 +312,9 @@ export const dataApi = {
   patchUser: (body: Record<string, unknown>) =>
     apiMutate('/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
   setFounderPlanOverride: (plan: string | null) =>
-    apiMutate('/users/founder-settings', { method: 'POST', body: JSON.stringify({ plan }) }),
+    apiMutate('/users/founder-settings', { method: 'POST', body: JSON.stringify({ action: 'setPlan', plan }) }),
+  founderAction: (body: Record<string, unknown>) =>
+    apiMutate('/users/founder-settings', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 export interface DashboardFeed {

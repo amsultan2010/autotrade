@@ -140,7 +140,11 @@ export function Panel({
   return (
     <motion.section
       variants={reduce ? undefined : forgeFadeUp}
-      className={cn('forge-plate', className)}
+      className={cn(
+        'forge-plate relative',
+        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-teal/30 before:to-transparent',
+        className,
+      )}
       data-tour={dataTour}
       id={id}
       role={role}

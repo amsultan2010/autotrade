@@ -1,6 +1,7 @@
 import { getSupabaseServer } from '@/lib/supabase-server';
-import { isFounderEmail } from '@/lib/billing';
+import { isFounderEmail, isBillingEnabled, useLaunchPrices } from '@/lib/billing';
 import { getEffectiveTier } from '@/lib/entitlements';
+import { FOUNDER_TEST_EMAILS } from '@autotrade/shared';
 import { mapUser, type UserRow, type UserRecord } from './row-mappers';
 import { ensureUserRecords } from './bootstrap';
 import { getSubscriptionByClerkId } from './subscriptions';
@@ -171,10 +172,69 @@ export async function getFounderSettings(clerkId: string) {
   const sub = await getSubscriptionByClerkId(clerkId);
   return {
     email: user.email,
+    role: user.role,
     planOverride: user.founderPlanOverride ?? null,
     effectiveTier: getEffectiveTier(user.role, sub, user.email, user.founderPlanOverride ?? null),
     billingTier: sub?.tier ?? null,
+    subscriptionStatus: sub?.status ?? null,
+    alpacaGuideCompleted: user.alpacaGuideCompleted ?? false,
+    productTourCompleted: user.productTourCompleted ?? false,
+    weeklyDigestEnabled: user.weeklyDigestEnabled !== false,
+    billingEnabled: isBillingEnabled(),
+    useLaunchPrices: useLaunchPrices(),
+    allowedFounderEmails: [...FOUNDER_TEST_EMAILS],
   };
+}
+
+export async function founderLookupUser(requesterClerkId: string, email: string) {
+  const requester = await me(requesterClerkId);
+  if (!requester || !isFounderEmail(requester.email)) return null;
+
+  const normalized = email.trim().toLowerCase();
+  const { data, error } = await getSupabaseServer()
+    .from('users')
+    .select('clerk_id, email, role, status, alpaca_guide_completed, product_tour_completed, weekly_digest_enabled, founder_plan_override')
+    .eq('email', normalized)
+    .maybeSingle();
+  if (error) throw new Error(`founderLookupUser failed: ${error.message}`);
+  if (!data) return null;
+
+  const targetClerkId = data.clerk_id as string;
+  const sub = await getSubscriptionByClerkId(targetClerkId);
+  const mapped = mapUser(data as UserRow);
+
+  return {
+    clerkId: targetClerkId,
+    email: mapped.email,
+    role: mapped.role,
+    status: mapped.status,
+    alpacaGuideCompleted: mapped.alpacaGuideCompleted ?? false,
+    productTourCompleted: mapped.productTourCompleted ?? false,
+    weeklyDigestEnabled: mapped.weeklyDigestEnabled !== false,
+    founderPlanOverride: mapped.founderPlanOverride ?? null,
+    billingTier: sub?.tier ?? null,
+    subscriptionStatus: sub?.status ?? null,
+    effectiveTier: getEffectiveTier(mapped.role, sub, mapped.email, mapped.founderPlanOverride ?? null),
+  };
+}
+
+export async function founderPatchUserByEmail(
+  requesterClerkId: string,
+  email: string,
+  patch: Partial<{
+    alpacaGuideCompleted: boolean;
+    productTourCompleted: boolean;
+    weeklyDigestEnabled: boolean;
+    founderPlanOverride: 'free' | 'essential' | 'pro' | 'unlimited' | null;
+  }>,
+) {
+  const requester = await me(requesterClerkId);
+  if (!requester || !isFounderEmail(requester.email)) {
+    throw new Error('Founder access required');
+  }
+  const targetClerkId = await findClerkIdByEmail(email);
+  if (!targetClerkId) throw new Error('User not found');
+  return patchUser(targetClerkId, patch);
 }
 
 export async function getByClerkId(clerkId: string) {

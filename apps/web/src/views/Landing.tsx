@@ -132,7 +132,7 @@ export function Landing() {
 
   return (
     <div className="lp-root relative bg-bg text-ink">
-      <AmbientFx ghost />
+      <AmbientFx variant="landing" />
       <ForgeScrollBar />
       <a href="#main" className="skip-link">Skip to content</a>
 

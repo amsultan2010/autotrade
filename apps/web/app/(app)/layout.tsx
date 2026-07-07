@@ -138,7 +138,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     <>
         <OnboardingExperience />
         <ProductTour />
-        <AmbientFx ghost />
+        <AmbientFx variant="app" />
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>

@@ -8,7 +8,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   const reduce = useReducedMotion();
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-      <AmbientFx ghost />
+      <AmbientFx variant="app" />
       <div className="lp-hero-glow left-1/2 top-1/4 -translate-x-1/2 opacity-60" aria-hidden />
 
       <a href="#auth-main" className="skip-link">Skip to sign in</a>
