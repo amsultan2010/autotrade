@@ -16,10 +16,13 @@ const ITEMS = [
 
 const DOUBLED = [...ITEMS, ...ITEMS];
 
-export function DataTicker() {
+export function DataTicker({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="ticker-wrap" aria-label="Market ticker">
-      <div className="ticker-track">
+    <div
+      className={compact ? 'overflow-hidden' : 'ticker-wrap'}
+      aria-label="Market ticker"
+    >
+      <div className="ticker-track" style={compact ? { padding: '6px 0' } : undefined}>
         {DOUBLED.map((item, i) => (
           <span key={i} className="ticker-item">
             <span className="ticker-sym">{item.sym}</span>

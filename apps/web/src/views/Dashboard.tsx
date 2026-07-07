@@ -265,7 +265,7 @@ function ConfidenceGauge({ value }: { value: number }) {
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = '#f4f8fd';
-      ctx.font = `bold ${size * 0.22}px Fraunces, serif`;
+      ctx.font = `bold ${size * 0.22}px "Chakra Petch", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${value}%`, cx, cy - size * 0.04);

@@ -1,36 +1,39 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { DM_Sans, Fraunces, IBM_Plex_Mono } from 'next/font/google';
+import { dark } from '@clerk/ui/themes';
+import { Chakra_Petch, IBM_Plex_Sans, JetBrains_Mono } from 'next/font/google';
 import { PostHogProvider } from '@/lib/posthog';
 import { PostHogPageView } from '@/lib/posthog-pageview';
 import { SentryErrorListeners } from '@/components/SentryErrorListeners';
 import { AppProviders } from '@/components/providers';
 import './globals.css';
 
-const dmSans = DM_Sans({
+const ibmSans = IBM_Plex_Sans({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  variable: '--font-ibm-sans',
+  weight: ['400', '500', '600', '700'],
   display: 'swap',
 });
 
-const fraunces = Fraunces({
+const chakra = Chakra_Petch({
   subsets: ['latin'],
-  variable: '--font-fraunces',
+  variable: '--font-chakra',
+  weight: ['500', '600', '700'],
   display: 'swap',
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const jetbrains = JetBrains_Mono({
   subsets: ['latin'],
-  variable: '--font-ibm-mono',
-  weight: ['400', '500', '600'],
+  variable: '--font-jetbrains',
+  weight: ['400', '500', '600', '700'],
   display: 'swap',
 });
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Autotrade — AI Trading, Built for You',
-  description: 'Premium AI-powered trading with warm, intuitive controls and institutional-grade signals',
+  title: 'Autotrade — HyperForge Trading Console',
+  description: 'Skeuomorphic AI trading terminal with institutional-grade signals and execution',
   icons: {
     icon: [
       { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
@@ -49,24 +52,25 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${fraunces.variable} ${ibmPlexMono.variable}`}>
+    <html lang="en" className={`${ibmSans.variable} ${chakra.variable} ${jetbrains.variable}`}>
       <body className="min-h-dvh bg-bg text-ink antialiased">
         <ClerkProvider
           appearance={{
+            theme: dark,
             variables: {
-              colorBackground: '#ffffff',
-              colorInputBackground: '#f5f0e8',
-              colorInputText: '#1c1917',
-              colorText: '#1c1917',
-              colorTextSecondary: '#57534e',
-              colorPrimary: '#e85d04',
-              colorDanger: '#dc2626',
-              colorSuccess: '#15803d',
-              colorNeutral: '#a8a29e',
-              borderRadius: '14px',
+              colorBackground: '#08080f',
+              colorInputBackground: '#0e0e18',
+              colorInputText: '#e8f4fc',
+              colorText: '#e8f4fc',
+              colorTextSecondary: '#7a9bb8',
+              colorPrimary: '#00c896',
+              colorDanger: '#ff3b52',
+              colorSuccess: '#00c896',
+              colorNeutral: '#7a9bb8',
+              borderRadius: '8px',
               fontFamily: 'var(--font-sans)',
-              fontFamilyButtons: 'var(--font-sans)',
-              fontSize: '15px',
+              fontFamilyButtons: 'var(--font-display)',
+              fontSize: '14px',
             },
           }}
         >

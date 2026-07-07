@@ -1,8 +1,13 @@
 'use client';
 
-import { SunriseAmbient } from '@/src/components/SunriseAmbient';
+import { HyperForgeAmbient } from '@/src/components/HyperForgeAmbient';
 
-/** Full-screen warm atmospheric layers — golden hour, soft grain, lens warmth. */
-export function AmbientFx({ dim = false }: { dim?: boolean }) {
-  return <SunriseAmbient subtle={dim} />;
+export function AmbientFx({
+  dim = false,
+  ghost = false,
+}: {
+  dim?: boolean;
+  ghost?: boolean;
+}) {
+  return <HyperForgeAmbient dim={dim} ghost={ghost} />;
 }
