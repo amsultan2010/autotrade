@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { TIMEFRAMES, type Candle, type Timeframe, ErrorCodes } from '@autotrade/shared';
 import { api } from '../api/client';
@@ -7,6 +8,15 @@ import { PriceChart, type ChartMarker } from '../components/PriceChart';
 import { Skeleton } from '../components/Skeleton';
 import { useAuth } from '@clerk/nextjs';
 import { useWatchlist, useTrades } from '@/src/hooks/data';
+import {
+  PageShell,
+  PageHeader,
+  Panel,
+  EmptyState,
+  SegmentedControl,
+  AlertBanner,
+} from '@/src/components/layout/PageShell';
+import { cn } from '@/lib/utils';
 
 function buildMarkers(trades: Array<{
   openedAt: number;
@@ -38,9 +48,15 @@ function buildMarkers(trades: Array<{
   return m;
 }
 
+const selectClassName = cn(
+  'h-10 min-w-[140px] rounded-lg border border-border-strong bg-surface px-3 py-2',
+  'font-mono text-sm text-ink',
+  'transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20',
+);
+
 export function Charts() {
   const { isSignedIn: isAuthenticated, isLoaded: authLoaded } = useAuth();
-  const convexAuthLoading = !authLoaded;
+  const authLoading = !authLoaded;
   const { data: watchlist } = useWatchlist();
   const [symbol, setSymbol] = useState('');
   const [tf, setTf] = useState<Timeframe>('1h');
@@ -50,18 +66,15 @@ export function Charts() {
 
   const symbols = (watchlist as Array<{ symbol: string }> | undefined)?.map((w) => w.symbol) ?? [];
 
-  // Set the default symbol once the watchlist loads.
   useEffect(() => {
     if (symbols.length > 0 && !symbol) {
       setSymbol(symbols[0]!);
     }
   }, [symbols, symbol]);
 
-  // Query trades for the selected symbol.
   const { data: tradeItems } = useTrades({ symbol: symbol || undefined, limit: 200 });
   const markers = tradeItems ? buildMarkers(tradeItems) : [];
 
-  // Fetch candles from the market API whenever symbol/timeframe changes.
   useEffect(() => {
     if (!symbol) return;
     let cancelled = false;
@@ -80,56 +93,83 @@ export function Charts() {
     return () => { cancelled = true; };
   }, [symbol, tf]);
 
-  return (
-    <div className="page">
-      <header className="page-head">
-        <h1>Charts</h1>
-        <div className="row gap">
-          <select className="chart-select" value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            {symbols.length === 0 && <option value="">No symbols - add some on Watchlist</option>}
-            {symbols.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <div className="seg small">
-            {TIMEFRAMES.map((t) => (
-              <button key={t} className={tf === t ? 'active' : ''} onClick={() => setTf(t)}>{t}</button>
-            ))}
-          </div>
-        </div>
-      </header>
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-3">
+      <select
+        className={selectClassName}
+        value={symbol}
+        onChange={(e) => setSymbol(e.target.value)}
+        aria-label="Symbol"
+      >
+        {symbols.length === 0 && <option value="">No symbols — add some on Watchlist</option>}
+        {symbols.map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+      <SegmentedControl
+        options={TIMEFRAMES}
+        value={tf}
+        onChange={setTf}
+        size="sm"
+      />
+    </div>
+  );
 
-      <section className="panel">
-        {convexAuthLoading || (isAuthenticated && watchlist == null) ? (
-          <div className="chart-skeleton" aria-label="Loading" role="status">
-            <Skeleton height={28} width="40%" className="mb-4" />
+  return (
+    <PageShell>
+      <PageHeader title="Charts" actions={headerActions} />
+
+      <Panel className="mt-6">
+        {authLoading || (isAuthenticated && watchlist == null) ? (
+          <div aria-label="Loading" role="status" className="space-y-4">
+            <Skeleton height={28} width="40%" />
             <Skeleton height={320} width="100%" />
           </div>
         ) : !symbol ? (
-          <p className="muted">Add symbols on the Watchlist tab, then pick one here to see its chart.</p>
+          <EmptyState
+            title="No symbol selected"
+            description="Add symbols on the Watchlist tab, then pick one here to see its chart."
+          />
         ) : error ? (
-          <p className="muted">{error}</p>
+          <AlertBanner variant="error">{error}</AlertBanner>
         ) : candles.length === 0 ? (
-          <div className="chart-skeleton" aria-label="Loading chart" role="status">
-            <Skeleton height={28} width="35%" className="mb-4" />
+          <div aria-label="Loading chart" role="status" className="space-y-4">
+            <Skeleton height={28} width="35%" />
             <Skeleton height={320} width="100%" />
           </div>
         ) : (
-          <>
-            <div className="chart-meta">
-              <span className="mono">{symbol}</span> · {tf} · {candles.length} candles
-              {markers.length > 0 && <span className="muted"> · {markers.length} trade markers</span>}
-              {loading && <span className="muted"> · refreshing…</span>}
-            </div>
+          <div className="space-y-4">
+            <p className="text-sm text-ink-secondary">
+              <span className="font-mono font-semibold text-ink">{symbol}</span>
+              {' · '}
+              {tf}
+              {' · '}
+              <span className="tabular-nums">{candles.length}</span> candles
+              {markers.length > 0 && (
+                <span>
+                  {' · '}
+                  <span className="tabular-nums">{markers.length}</span> trade markers
+                </span>
+              )}
+              {loading && <span> · refreshing…</span>}
+            </p>
+
             <PriceChart candles={candles} markers={markers} />
-            <div className="chart-legend">
-              <span><i className="sw up" /> up candle</span>
-              <span><i className="sw down" /> down candle</span>
+
+            <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4 text-xs text-ink-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-positive" aria-hidden />
+                up candle
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-negative" aria-hidden />
+                down candle
+              </span>
               <span>▲ long entry · ▼ short entry · ● exit</span>
             </div>
-          </>
+          </div>
         )}
-      </section>
-    </div>
+      </Panel>
+    </PageShell>
   );
 }

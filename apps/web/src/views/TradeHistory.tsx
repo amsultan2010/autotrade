@@ -1,11 +1,26 @@
 'use client';
+
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { TableSkeleton } from '../components/Skeleton';
 import { countOpenPositions, countWinningOpenTrades, type OpenTradeView } from '@/lib/positions';
 import { formatUserError } from '@/lib/error-tracking';
 import { useBrokerSnapshot, useBrokerStatus, useTrades, dataApi } from '@/src/hooks/data';
+import {
+  PageShell,
+  PageHeader,
+  Panel,
+  StatCard,
+  Badge,
+  DataTable,
+  EmptyState,
+  SegmentedControl,
+  AlertBanner,
+} from '@/src/components/layout/PageShell';
+import { Button } from '@/src/components/ui/button';
 
 type TradeResult = 'OPEN' | 'WIN' | 'LOSS' | 'BREAKEVEN';
+type FilterValue = 'all' | TradeResult;
 
 interface TradeItem {
   _id: string;
@@ -29,13 +44,35 @@ interface TradeItem {
   closedAt?: number;
 }
 
+const FILTER_OPTIONS = ['all', 'OPEN', 'WIN', 'LOSS'] as const satisfies readonly FilterValue[];
+
 function money(n: number | null | undefined): string {
   if (n == null) return '--';
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
+function pnlClass(n: number | null | undefined): string {
+  if (n == null) return 'text-ink-muted';
+  return n >= 0 ? 'text-positive' : 'text-negative';
+}
+
+function resultBadgeVariant(result: TradeResult): 'default' | 'success' | 'warning' | 'danger' | 'muted' {
+  switch (result) {
+    case 'WIN':
+      return 'success';
+    case 'LOSS':
+      return 'danger';
+    case 'OPEN':
+      return 'warning';
+    case 'BREAKEVEN':
+      return 'muted';
+    default:
+      return 'default';
+  }
+}
+
 export function TradeHistory() {
-  const [filter, setFilter] = useState<'all' | TradeResult>('all');
+  const [filter, setFilter] = useState<FilterValue>('all');
   const [closingId, setClosingId] = useState<string | null>(null);
   const [cashingOut, setCashingOut] = useState(false);
   const [cashOutMessage, setCashOutMessage] = useState<string | null>(null);
@@ -47,9 +84,6 @@ export function TradeHistory() {
   const { data: tradeData, loading: tradesLoading } = useTrades({
     result: filter === 'all' ? undefined : filter,
   });
-  
-  
-  
   const { data: brokerSnapshot } = useBrokerSnapshot();
   const { data: allOpenTrades, loading: openTradesLoading } = useTrades({ result: 'OPEN', limit: 100 });
 
@@ -81,24 +115,23 @@ export function TradeHistory() {
           return null;
         }
       }),
-    ).then((rows) => {
+    ).then((pairs) => {
       if (cancelled) return;
       const next: Record<string, number> = {};
-      for (const row of rows) {
+      for (const row of pairs) {
         if (row) next[row[0]] = row[1];
       }
       setQuoteBySymbol(next);
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [openSymbolsKey]);
 
   const trades = (tradeData ?? []) as TradeItem[];
   const selected = trades.find((t) => t._id === selectedId) ?? null;
-  const openPositionCount = countOpenPositions(
-    brokerSnapshot?.positions ?? [],
-    openItems,
-  );
+  const openPositionCount = countOpenPositions(brokerSnapshot?.positions ?? [], openItems);
   const winningOpenCount = countWinningOpenTrades(
     brokerSnapshot?.positions ?? [],
     openItems,
@@ -143,19 +176,18 @@ export function TradeHistory() {
   }
 
   return (
-    <div className="page" data-tour="trade-history">
-      {closeError && (
-        <p className="muted" role="alert" style={{ marginBottom: '0.75rem' }}>
-          {closeError}
-        </p>
-      )}
-
-      <header className="page-head">
-        <h1>Trade History</h1>
-        <div className="row gap" style={{ alignItems: 'center' }}>
-          <button
-            type="button"
-            className={`btn-primary${!canCashOut ? ' disabled' : ''}`}
+    <PageShell>
+      <PageHeader
+        title="Trade History"
+        description={
+          brokerStatus?.connected
+            ? `${openPositionCount} open position(s) · ${trades.length} total trade(s) in history${
+                brokerStatus.paper ? ' (Alpaca paper)' : ' (Alpaca live)'
+              }. Dashboard positions and this list use the same trade records.`
+            : 'Review past and open trades. Connect Alpaca in Settings to sync live positions.'
+        }
+        actions={
+          <Button
             disabled={cashingOut || !canCashOut}
             title={
               winningOpenCount > 0
@@ -167,77 +199,108 @@ export function TradeHistory() {
             onClick={() => void cashOut()}
           >
             {cashingOut ? 'Cashing out…' : 'Cash Out'}
-          </button>
-        </div>
-        <div className="seg small" role="tablist" aria-label="Filter trades">
-          {(['all', 'OPEN', 'WIN', 'LOSS'] as const).map((f) => (
-            <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f}
-            </button>
-          ))}
-        </div>
-      </header>
+          </Button>
+        }
+      />
 
-      {cashOutMessage && (
-        <div className="error-banner" style={{ marginBottom: '0.75rem', background: 'rgba(0,200,150,0.1)', borderColor: 'rgba(0,200,150,0.35)' }}>
-          {cashOutMessage}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <SegmentedControl options={FILTER_OPTIONS} value={filter} onChange={setFilter} size="sm" />
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <StatCard label="Open positions" value={openPositionCount} />
+        <StatCard
+          label="Winning open"
+          value={winningOpenCount}
+          trend={winningOpenCount > 0 ? 'up' : 'neutral'}
+          hint={canCashOut ? 'Eligible for cash out' : 'None in profit'}
+        />
+        <StatCard label="In this view" value={trades.length} hint={`Filter: ${filter}`} />
+      </div>
+
+      {(closeError || cashOutMessage) && (
+        <div className="mb-6 space-y-3">
+          {closeError && (
+            <AlertBanner variant="error" onDismiss={() => setCloseError(null)}>
+              {closeError}
+            </AlertBanner>
+          )}
+          {cashOutMessage && (
+            <AlertBanner variant="info" onDismiss={() => setCashOutMessage(null)}>
+              {cashOutMessage}
+            </AlertBanner>
+          )}
         </div>
       )}
 
-      {brokerStatus?.connected && (
-        <p className="muted" style={{ marginBottom: '0.75rem', fontSize: 13 }}>
-          {openPositionCount} open position(s) ·{' '}
-          {trades.length} total trade(s) in history
-          {brokerStatus.paper ? ' (Alpaca paper)' : ' (Alpaca live)'}.
-          Dashboard positions and this list use the same trade records.
-        </p>
-      )}
-
-      <div className="split">
-        <section className="panel grow">
-          {tradeData === undefined ? (
-            <TableSkeleton rows={8} />
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]" data-tour="trade-history">
+        <Panel className="min-w-0 [&>div:last-child]:p-0">
+          {tradeData === undefined || tradesLoading ? (
+            <div className="p-5">
+              <TableSkeleton rows={8} />
+            </div>
           ) : trades.length === 0 ? (
-            <p className="muted">
-              No trades match this filter yet.
-              {brokerStatus?.connected
-                ? ' Start the bot or tap Scan Now on the dashboard to open trades via Alpaca.'
-                : ' Connect Alpaca in Settings, then start the bot.'}
-            </p>
+            <EmptyState
+              title="No trades match this filter"
+              description={
+                brokerStatus?.connected
+                  ? 'Start the bot or tap Scan Now on the dashboard to open trades via Alpaca.'
+                  : 'Connect Alpaca in Settings, then start the bot.'
+              }
+            />
           ) : (
-            <table className="tbl">
+            <DataTable>
               <thead>
-                <tr>
-                  <th>Opened</th>
-                  <th>Symbol</th>
-                  <th>Side</th>
-                  <th>Mode</th>
-                  <th>Entry</th>
-                  <th>Exit</th>
-                  <th>P/L</th>
-                  <th>Result</th>
-                  <th></th>
+                <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                  <th className="px-5 py-3">Opened</th>
+                  <th className="px-5 py-3">Symbol</th>
+                  <th className="px-5 py-3">Side</th>
+                  <th className="px-5 py-3">Mode</th>
+                  <th className="px-5 py-3 text-right">Entry</th>
+                  <th className="px-5 py-3 text-right">Exit</th>
+                  <th className="px-5 py-3 text-right">P/L</th>
+                  <th className="px-5 py-3">Result</th>
+                  <th className="px-5 py-3 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {trades.map((t) => (
                   <tr
                     key={t._id}
-                    className={selectedId === t._id ? 'row-sel' : ''}
+                    className={cn(
+                      'cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-surface-overlay/50',
+                      selectedId === t._id && 'bg-accent-muted/40',
+                    )}
                     onClick={() => setSelectedId(t._id === selectedId ? null : t._id)}
                   >
-                    <td className="muted">{new Date(t.openedAt).toLocaleString()}</td>
-                    <td className="mono">{t.symbol}</td>
-                    <td>{t.side}</td>
-                    <td><span className="tag">{t.mode}</span></td>
-                    <td>{money(t.entryPrice)}</td>
-                    <td>{money(t.exitPrice ?? null)}</td>
-                    <td className={t.pnl == null ? '' : t.pnl >= 0 ? 'pos' : 'neg'}>{money(t.pnl ?? null)}</td>
-                    <td><span className={`pill pill-${t.result.toLowerCase()}`}>{t.result}</span></td>
-                    <td className="right">
+                    <td className="whitespace-nowrap px-5 py-3 text-ink-secondary">
+                      {new Date(t.openedAt).toLocaleString()}
+                    </td>
+                    <td className="px-5 py-3 font-mono font-semibold text-ink">{t.symbol}</td>
+                    <td className="px-5 py-3 text-ink">{t.side}</td>
+                    <td className="px-5 py-3">
+                      <Badge variant="muted">{t.mode}</Badge>
+                    </td>
+                    <td className="px-5 py-3 text-right font-mono tabular-nums text-ink">
+                      {money(t.entryPrice)}
+                    </td>
+                    <td className="px-5 py-3 text-right font-mono tabular-nums text-ink">
+                      {money(t.exitPrice ?? null)}
+                    </td>
+                    <td className={cn('px-5 py-3 text-right font-mono tabular-nums', pnlClass(t.pnl))}>
+                      {money(t.pnl ?? null)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <Badge variant={resultBadgeVariant(t.result)}>{t.result}</Badge>
+                    </td>
+                    <td className="px-5 py-3 text-right">
                       {t.result === 'OPEN' && (
-                        <button
-                          className="btn-text danger"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-negative hover:text-negative"
                           disabled={closingId === t._id}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -245,51 +308,85 @@ export function TradeHistory() {
                           }}
                         >
                           {closingId === t._id ? 'Closing…' : 'Close'}
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           )}
-        </section>
+        </Panel>
 
         {selected && (
-          <aside className="panel detail">
-            <div className="detail-head">
-              <h2 className="mono">{selected.symbol}</h2>
-              <button className="btn-text" onClick={() => setSelectedId(null)}>Close</button>
+          <Panel
+            title="Trade details"
+            action={
+              <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
+                Close
+              </Button>
+            }
+            className="lg:sticky lg:top-6 lg:self-start"
+          >
+            <div className="mb-4 flex items-center gap-2">
+              <span className="font-mono text-lg font-semibold text-ink">{selected.symbol}</span>
+              <Badge variant={resultBadgeVariant(selected.result)}>{selected.result}</Badge>
             </div>
-            <Detail label="Strategy" value={selected.strategy} />
-            <Detail label="Confidence" value={`${Math.round(selected.confidence)}%`} />
-            <Detail label="Side / Mode" value={`${selected.side} · ${selected.mode}`} />
-            <Detail label="Qty" value={String(selected.qty)} />
-            <Detail label="Entry / Exit" value={`${money(selected.entryPrice)} → ${money(selected.exitPrice ?? null)}`} />
-            <Detail label="Stop / Target" value={`${money(selected.stopLoss ?? null)} / ${money(selected.takeProfit ?? null)}`} />
-            <Detail label="P/L" value={money(selected.pnl ?? null)} />
-            <Detail label="Entry reason" value={selected.entryReason} />
-            <Detail label="Exit reason" value={selected.exitReason ?? '--'} />
-            <Detail
-              label="Mistake tags"
-              value={selected.mistakeTags?.length ? selected.mistakeTags.join(', ') : 'none'}
-            />
-            <Detail
-              label="Reasoning correct?"
-              value={selected.reasoningCorrect == null ? '--' : selected.reasoningCorrect ? 'Yes' : 'No'}
-            />
-          </aside>
+            <dl className="space-y-3">
+              <Detail label="Strategy" value={selected.strategy} />
+              <Detail label="Confidence" value={`${Math.round(selected.confidence)}%`} />
+              <Detail label="Side / Mode" value={`${selected.side} · ${selected.mode}`} />
+              <Detail label="Qty" value={String(selected.qty)} />
+              <Detail
+                label="Entry / Exit"
+                value={`${money(selected.entryPrice)} → ${money(selected.exitPrice ?? null)}`}
+              />
+              <Detail
+                label="Stop / Target"
+                value={`${money(selected.stopLoss ?? null)} / ${money(selected.takeProfit ?? null)}`}
+              />
+              <Detail
+                label="P/L"
+                value={money(selected.pnl ?? null)}
+                valueClassName={pnlClass(selected.pnl)}
+              />
+              <Detail label="Entry reason" value={selected.entryReason} />
+              <Detail label="Exit reason" value={selected.exitReason ?? '--'} />
+              <Detail
+                label="Mistake tags"
+                value={selected.mistakeTags?.length ? selected.mistakeTags.join(', ') : 'none'}
+              />
+              <Detail
+                label="Reasoning correct?"
+                value={
+                  selected.reasoningCorrect == null
+                    ? '--'
+                    : selected.reasoningCorrect
+                      ? 'Yes'
+                      : 'No'
+                }
+              />
+            </dl>
+          </Panel>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
-    <div className="detail-row">
-      <div className="detail-label">{label}</div>
-      <div className="detail-value">{value}</div>
+    <div className="grid grid-cols-[120px_1fr] gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0">
+      <dt className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</dt>
+      <dd className={cn('text-sm text-ink', valueClassName)}>{value}</dd>
     </div>
   );
 }

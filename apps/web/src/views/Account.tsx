@@ -4,6 +4,16 @@ import { useUser } from '@clerk/nextjs';
 import { Crown, Loader2, RefreshCw, Sparkles, XCircle } from 'lucide-react';
 import { tierDisplayColor, tierDisplayLabel, type PlanTier } from '@autotrade/shared';
 import { useSubscription } from '@/src/components/subscription/SubscriptionProvider';
+import {
+  PageShell,
+  PageHeader,
+  StatCard,
+  Panel,
+  Badge,
+  AlertBanner,
+} from '@/src/components/layout/PageShell';
+import { Button } from '@/src/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/src/components/ui/card';
 
 function statusLabel(status: string, effectiveTier: 'free' | PlanTier, cancelAtPeriodEnd: boolean): string {
   if (effectiveTier === 'free') return 'Free plan';
@@ -22,11 +32,15 @@ function statusLabel(status: string, effectiveTier: 'free' | PlanTier, cancelAtP
   }
 }
 
-function statusToneClass(status: string, effectiveTier: 'free' | PlanTier, cancelAtPeriodEnd: boolean): string {
-  if (effectiveTier === 'free' || status === 'NONE') return 'account-status-neutral';
-  if (cancelAtPeriodEnd || status === 'PAST_DUE') return 'account-status-warn';
-  if (status === 'CANCELED') return 'account-status-bad';
-  return 'account-status-ok';
+function statusBadgeVariant(
+  status: string,
+  effectiveTier: 'free' | PlanTier,
+  cancelAtPeriodEnd: boolean,
+): 'default' | 'success' | 'warning' | 'danger' | 'muted' {
+  if (effectiveTier === 'free' || status === 'NONE') return 'muted';
+  if (cancelAtPeriodEnd || status === 'PAST_DUE') return 'warning';
+  if (status === 'CANCELED') return 'danger';
+  return 'success';
 }
 
 function daysRemaining(periodEnd: number | null): number | null {
@@ -49,10 +63,10 @@ export function Account() {
 
   if (!entitlements) {
     return (
-      <div className="page">
-        <h1>Account</h1>
-        <p className="muted">Loading your account…</p>
-      </div>
+      <PageShell>
+        <PageHeader title="Account" />
+        <p className="text-sm text-ink-secondary">Loading your account…</p>
+      </PageShell>
     );
   }
 
@@ -73,135 +87,138 @@ export function Account() {
   const renewLabel = cancelAtPeriodEnd ? 'Access ends' : 'Next billing date';
 
   return (
-    <div className="page">
-      <header className="page-head">
-        <h1>Account</h1>
-      </header>
+    <PageShell className="space-y-6">
+      <PageHeader title="Account" />
 
-      {/* ── Subscription ─────────────────────────────────────────── */}
-      <section
-        className="panel account-sub-card"
-        style={{ ['--account-accent' as string]: accent }}
+      <Card
+        className="overflow-hidden"
+        style={{ borderColor: `color-mix(in oklab, ${accent} 35%, var(--color-border))` }}
       >
-        <div className="account-sub-head">
-          <div className="account-plan-id">
-            <span className="account-plan-icon" aria-hidden>
+        <CardHeader className="flex-col items-stretch gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface"
+              style={{ color: accent }}
+              aria-hidden
+            >
               {effectiveTier === 'unlimited' ? <Crown size={20} /> : <Sparkles size={20} />}
             </span>
-            <div>
-              <h2 className="account-plan-name">{tierDisplayLabel(effectiveTier)}</h2>
-              <p className="muted account-plan-sub">
+            <div className="min-w-0">
+              <h2 className="font-display text-xl font-bold tracking-tight text-ink">
+                {tierDisplayLabel(effectiveTier)}
+              </h2>
+              <p className="mt-0.5 text-sm text-ink-secondary">
                 {isPaid && planMeta
                   ? `$${planMeta.displayPriceMonthly}/mo`
                   : 'Paper trading & core features'}
               </p>
             </div>
           </div>
-          <span className={`account-status ${statusToneClass(subscriptionStatus, effectiveTier, cancelAtPeriodEnd)}`}>
+          <Badge variant={statusBadgeVariant(subscriptionStatus, effectiveTier, cancelAtPeriodEnd)}>
             {statusLabel(subscriptionStatus, effectiveTier, cancelAtPeriodEnd)}
-          </span>
-        </div>
+          </Badge>
+        </CardHeader>
 
-        <div className="account-meta-grid">
-          <div className="account-meta">
-            <span className="account-meta-label">Current plan</span>
-            <span className="account-meta-value">{tierDisplayLabel(effectiveTier)}</span>
+        <CardContent className="space-y-5 border-t border-border pt-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard label="Current plan" value={tierDisplayLabel(effectiveTier)} />
+            {isPaid && (
+              <>
+                <StatCard
+                  label="Days remaining"
+                  value={days != null ? `${days} day${days === 1 ? '' : 's'}` : '—'}
+                />
+                <StatCard
+                  label={renewLabel}
+                  value={currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString() : '—'}
+                />
+              </>
+            )}
           </div>
-          {isPaid && (
-            <>
-              <div className="account-meta">
-                <span className="account-meta-label">Days remaining</span>
-                <span className="account-meta-value">
-                  {days != null ? `${days} day${days === 1 ? '' : 's'}` : '—'}
-                </span>
-              </div>
-              <div className="account-meta">
-                <span className="account-meta-label">{renewLabel}</span>
-                <span className="account-meta-value">
-                  {currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString() : '—'}
-                </span>
-              </div>
-            </>
+
+          {cancelAtPeriodEnd && currentPeriodEnd && (
+            <AlertBanner variant="warning">
+              Your {tierDisplayLabel(effectiveTier)} plan stays active until{' '}
+              {new Date(currentPeriodEnd).toLocaleDateString()}. Reactivate any time before then to keep
+              your features.
+            </AlertBanner>
           )}
-        </div>
 
-        {cancelAtPeriodEnd && currentPeriodEnd && (
-          <p className="account-note muted">
-            Your {tierDisplayLabel(effectiveTier)} plan stays active until{' '}
-            {new Date(currentPeriodEnd).toLocaleDateString()}. Reactivate any time before then to keep your features.
-          </p>
-        )}
+          {!billingEnabled && !isPaid && (
+            <AlertBanner variant="info">
+              Paid plans are being finalized. You can keep using paper trading in the meantime.
+            </AlertBanner>
+          )}
+        </CardContent>
 
-        {!billingEnabled && !isPaid && (
-          <p className="account-note muted">
-            Paid plans are being finalized. You can keep using paper trading in the meantime.
-          </p>
-        )}
-
-        <div className="account-actions">
+        <CardFooter className="flex flex-wrap gap-2">
           {!isPaid && (
-            <button
+            <Button
               type="button"
-              className="btn-primary"
               disabled={!billingEnabled}
               onClick={() => openUpgradeModal('Upgrade to unlock live trading and faster scans')}
             >
-              <Sparkles size={15} aria-hidden /> Upgrade plan
-            </button>
+              <Sparkles size={15} aria-hidden />
+              Upgrade plan
+            </Button>
           )}
 
           {isPaid && (
-            <button
+            <Button
               type="button"
-              className="btn-primary"
               disabled={!billingEnabled}
               onClick={() => openUpgradeModal('Change your plan')}
             >
-              <RefreshCw size={15} aria-hidden /> Change plan
-            </button>
+              <RefreshCw size={15} aria-hidden />
+              Change plan
+            </Button>
           )}
 
           {isPaid && cancelAtPeriodEnd && (
-            <button
+            <Button
               type="button"
-              className="btn-ghost"
+              variant="outline"
               disabled={isUpgrading || !billingEnabled}
               onClick={() => void reactivatePlan()}
             >
-              {isUpgrading ? <Loader2 size={15} className="account-spin" aria-hidden /> : <RefreshCw size={15} aria-hidden />}
+              {isUpgrading ? (
+                <Loader2 size={15} className="animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw size={15} aria-hidden />
+              )}
               Reactivate subscription
-            </button>
+            </Button>
           )}
 
           {isPaid && !cancelAtPeriodEnd && (
-            <button
+            <Button
               type="button"
-              className="btn-ghost account-cancel-link"
+              variant="ghost"
+              className="text-ink-muted hover:text-negative"
               disabled={!billingEnabled}
               onClick={() => openUpgradeModal('Manage your subscription')}
             >
-              <XCircle size={15} aria-hidden /> Cancel subscription
-            </button>
+              <XCircle size={15} aria-hidden />
+              Cancel subscription
+            </Button>
           )}
-        </div>
-      </section>
+        </CardFooter>
+      </Card>
 
-      {/* ── Profile ──────────────────────────────────────────────── */}
-      <section className="panel">
-        <h2>Profile</h2>
-        <div className="account-meta-grid" style={{ marginTop: '0.75rem' }}>
-          <div className="account-meta">
-            <span className="account-meta-label">Email</span>
-            <span className="account-meta-value">{email || '—'}</span>
+      <Panel title="Profile">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-ink-muted">Email</p>
+            <p className="mt-1 text-sm text-ink">{email || '—'}</p>
           </div>
-          <div className="account-meta">
-            <span className="account-meta-label">Membership</span>
-            <span className="account-meta-value" style={{ color: accent }}>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-ink-muted">Membership</p>
+            <p className="mt-1 text-sm font-semibold" style={{ color: accent }}>
               {tierDisplayLabel(effectiveTier)}
-            </span>
+            </p>
           </div>
         </div>
-      </section>
-    </div>
+      </Panel>
+    </PageShell>
   );
 }

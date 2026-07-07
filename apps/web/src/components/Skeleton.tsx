@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils';
+
 export function Skeleton({
   className = '',
   width,
@@ -9,7 +11,10 @@ export function Skeleton({
 }) {
   return (
     <span
-      className={`skeleton ${className}`.trim()}
+      className={cn(
+        'inline-block animate-pulse rounded-md bg-surface-overlay motion-reduce:animate-none',
+        className,
+      )}
       style={{ width, height }}
       aria-hidden="true"
     />
@@ -18,9 +23,9 @@ export function Skeleton({
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="skeleton-table" aria-label="Loading" role="status">
+    <div className="space-y-3" aria-label="Loading" role="status">
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="skeleton-row">
+        <div key={i} className="flex gap-4">
           <Skeleton height={14} width="22%" />
           <Skeleton height={14} width="18%" />
           <Skeleton height={14} width="16%" />

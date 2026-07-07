@@ -1,19 +1,24 @@
-# Autotrade Design System
+# Autotrade Design System — Lumen
 
-**Direction**: Skeuomorphic maximalism — obsidian surfaces, gold accents, instrument-panel density.
+**Direction**: Modern fintech console — clean surfaces, sky accent, data-first density.
 
 ## Tokens
-- Background: `oklch(0.12 0.01 280)`
-- Gold accent: `oklch(0.78 0.12 85)`
-- Positive P&L: `oklch(0.72 0.14 155)`
-- Negative: `#ff3b52`
-
-## Material classes
-- `.material-panel` — raised console panel
-- `.material-inset` — recessed readout
-- `.material-button` — physical press button
+- Background: `#09090b` (bg-bg)
+- Surface: `#111113` / `#1a1a1f`
+- Accent: `#38bdf8` (sky)
+- Positive P&L: `#34d399`
+- Negative: `#f87171`
 
 ## Typography
-- Display: Syne
+- Display: Plus Jakarta Sans
 - UI: Inter
 - Data: IBM Plex Mono
+
+## Layout
+- Sidebar: 260px desktop
+- Mobile nav: 72px bottom bar
+- 8px spacing grid
+
+## Components
+- Shared layout: `src/components/layout/PageShell.tsx`
+- shadcn/Radix: `src/components/ui/*`

@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/ui/themes';
-import { IBM_Plex_Mono, Inter, Syne } from 'next/font/google';
+import { IBM_Plex_Mono, Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import { PostHogProvider } from '@/lib/posthog';
 import { PostHogPageView } from '@/lib/posthog-pageview';
 import { SentryErrorListeners } from '@/components/SentryErrorListeners';
 import { AppProviders } from '@/components/providers';
 import './globals.css';
-import './scan-account-theme.css';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -15,16 +14,16 @@ const inter = Inter({
   display: 'swap',
 });
 
-const syne = Syne({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-syne',
-  weight: ['600', '700', '800'],
+  variable: '--font-jakarta',
+  weight: ['500', '600', '700', '800'],
   display: 'swap',
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const jetbrains = IBM_Plex_Mono({
   subsets: ['latin'],
-  variable: '--font-ibm-mono',
+  variable: '--font-jetbrains',
   weight: ['400', '500', '600'],
   display: 'swap',
 });
@@ -32,8 +31,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Autotrade',
-  description: 'AI-powered automated trading bot',
+  title: 'Autotrade — AI Trading Console',
+  description: 'AI-powered automated trading with paper and live execution',
   icons: {
     icon: [
       { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
@@ -52,22 +51,25 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${syne.variable} ${ibmPlexMono.variable}`}>
-      <body className={inter.className}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jakarta.variable} ${jetbrains.variable}`}
+    >
+      <body className="min-h-dvh bg-bg text-ink antialiased">
         <ClerkProvider
           appearance={{
             theme: dark,
             variables: {
-              colorBackground: '#0a0a0c',
-              colorInputBackground: '#090c10',
-              colorInputText: '#f4f8fd',
-              colorText: '#f4f8fd',
-              colorTextSecondary: '#a8bece',
-              colorPrimary: '#d4af37',
-              colorDanger: '#ff3b52',
-              colorSuccess: '#c9a227',
-              colorNeutral: '#a8bece',
-              borderRadius: '8px',
+              colorBackground: '#111113',
+              colorInputBackground: '#1a1a1f',
+              colorInputText: '#fafafa',
+              colorText: '#fafafa',
+              colorTextSecondary: '#a1a1aa',
+              colorPrimary: '#38bdf8',
+              colorDanger: '#f87171',
+              colorSuccess: '#34d399',
+              colorNeutral: '#a1a1aa',
+              borderRadius: '10px',
               fontFamily: 'var(--font-sans)',
               fontFamilyButtons: 'var(--font-sans)',
               fontSize: '15px',

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useFounderSettings, dataApi } from '@/src/hooks/data';
 import { TIER_COLORS, type EffectiveTier } from '@autotrade/shared';
 import { FlaskConical, Loader2, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/src/components/ui/badge';
 
 type SimPlan = EffectiveTier | 'auto';
 
@@ -21,7 +23,7 @@ function tierLabel(tier: string): string {
 
 export function FounderSettingsPanel() {
   const { data: founder, loading: founderLoading } = useFounderSettings();
-  
+
   const [saving, setSaving] = useState<SimPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,74 +45,110 @@ export function FounderSettingsPanel() {
   }
 
   return (
-    <section className="panel founder-settings-panel" aria-labelledby="founder-settings-title">
-      <div className="founder-settings-header">
-        <div className="founder-settings-badge" aria-hidden>
-          <FlaskConical size={16} strokeWidth={2} />
-        </div>
-        <div>
-          <h2 id="founder-settings-title">Founder tools</h2>
-          <p className="muted founder-settings-subtitle">
-            Simulate how the app behaves for each subscription tier. Changes apply instantly across the dashboard, bot, and billing gates.
-          </p>
+    <section
+      className="founder-settings-panel overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card)]"
+      aria-labelledby="founder-settings-title"
+    >
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-muted text-accent"
+            aria-hidden
+          >
+            <FlaskConical size={16} strokeWidth={2} />
+          </div>
+          <div>
+            <h2 id="founder-settings-title" className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              Founder tools
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+              Simulate how the app behaves for each subscription tier. Changes apply instantly across
+              the dashboard, bot, and billing gates.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="founder-settings-status">
-        <div className="founder-settings-status-item">
-          <span className="muted">App sees you as</span>
-          <strong className="founder-settings-tier-pill">{tierLabel(founder.effectiveTier)}</strong>
+      <div className="space-y-5 p-5">
+        <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-surface-raised px-4 py-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-ink-muted">App sees you as</span>
+            <Badge variant="default" className="w-fit text-[10px]">
+              {tierLabel(founder.effectiveTier)}
+            </Badge>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-ink-muted">Billing record</span>
+            <span className="text-sm font-semibold text-ink">
+              {founder.billingTier ? tierLabel(founder.billingTier) : 'None'}
+            </span>
+          </div>
         </div>
-        <div className="founder-settings-status-item">
-          <span className="muted">Billing record</span>
-          <span>{founder.billingTier ? tierLabel(founder.billingTier) : 'None'}</span>
-        </div>
-      </div>
 
-      <div className="founder-plan-grid" role="radiogroup" aria-label="Simulated plan tier">
-        {PLAN_OPTIONS.map((option) => {
-          const isActive = active === option.id;
-          const tierKey = option.id === 'auto' ? 'unlimited' : option.id;
-          const colors = TIER_COLORS[tierKey as keyof typeof TIER_COLORS] ?? TIER_COLORS.unlimited;
-          const isSaving = saving === option.id;
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label="Simulated plan tier">
+          {PLAN_OPTIONS.map((option) => {
+            const isActive = active === option.id;
+            const tierKey = option.id === 'auto' ? 'unlimited' : option.id;
+            const colors = TIER_COLORS[tierKey as keyof typeof TIER_COLORS] ?? TIER_COLORS.unlimited;
+            const isSaving = saving === option.id;
 
-          return (
-            <button
-              key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              className={`founder-plan-card ${isActive ? 'founder-plan-card--active' : ''}`}
-              style={{
-                ['--tier-accent' as string]: colors.accent,
-                ['--tier-accent-dim' as string]: colors.accentDim,
-                ['--tier-border' as string]: colors.border,
-              }}
-              disabled={isSaving}
-              onClick={() => void select(option.id)}
-            >
-              <div className="founder-plan-card-top">
-                <span className="founder-plan-card-label">{option.label}</span>
-                {option.id === 'unlimited' && (
-                  <Sparkles size={13} className="founder-plan-card-icon" aria-hidden />
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                className={cn(
+                  'relative rounded-xl border bg-surface-raised p-4 text-left transition-all',
+                  'hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+                  isActive ? 'ring-2' : 'border-border',
+                  isSaving && 'opacity-70',
                 )}
-              </div>
-              <p className="founder-plan-card-desc">{option.description}</p>
-              {isSaving ? (
-                <Loader2 size={14} className="founder-plan-card-spinner" aria-hidden />
-              ) : isActive ? (
-                <span className="founder-plan-card-active">Active</span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+                style={{
+                  borderColor: isActive ? colors.border : undefined,
+                  ['--tw-ring-color' as string]: isActive ? colors.accent : undefined,
+                }}
+                disabled={isSaving}
+                onClick={() => void select(option.id)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: isActive ? colors.accent : undefined }}
+                  >
+                    {option.label}
+                  </span>
+                  {option.id === 'unlimited' && (
+                    <Sparkles
+                      size={13}
+                      className={isActive ? 'text-accent' : 'text-ink-muted'}
+                      aria-hidden
+                    />
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-ink-secondary">
+                  {option.description}
+                </p>
+                <div className="mt-3 h-4">
+                  {isSaving ? (
+                    <Loader2 size={14} className="animate-spin text-ink-muted" aria-hidden />
+                  ) : isActive ? (
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">
+                      Active
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-      {error && (
-        <p className="founder-settings-error" role="alert">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p className="text-sm text-negative" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

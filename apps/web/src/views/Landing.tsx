@@ -1,8 +1,7 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { useState } from 'react';
 import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
-import { ConstellationBg } from '../components/ConstellationBg';
-import { CountUp } from '../components/CountUp';
 import {
   Sparkles,
   Zap,
@@ -14,8 +13,14 @@ import {
   TrendingUp,
   Clock,
   HeadphonesIcon,
+  ChevronDown,
+  Menu,
+  X,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
+import { Button } from '@/src/components/ui/button';
+import { cn } from '@/lib/utils';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -32,7 +37,6 @@ const TICKERS = [
   { sym: 'AMD',   price: '168.45', chg: '-1.33', pos: false },
   { sym: 'BRK.B', price: '465.90', chg: '+0.22', pos: true },
 ];
-
 
 const FEATURES: Array<{ Icon: LucideIcon; title: string; desc: string; accent: string }> = [
   { Icon: Sparkles, title: 'AI Signal Engine', desc: 'Real-time pattern recognition across thousands of assets. Scans momentum, volume anomalies, and macro events simultaneously.', accent: '#00c896' },
@@ -79,535 +83,602 @@ const FAQ = [
   { q: 'Is my brokerage API key secure?', a: 'Keys are encrypted at rest and never exposed to the client. Only server-side execution uses your credentials.' },
 ];
 
-// ─── Candlestick Canvas ───────────────────────────────────────────────────────
-interface Candle { o: number; h: number; l: number; c: number; }
+const NAV_LINKS = [
+  { href: '#features', label: 'Features' },
+  { href: '#how', label: 'How It Works' },
+  { href: '#faq', label: 'FAQ' },
+] as const;
 
-function buildSmoothLoopCandles(count: number): Candle[] {
-  const candles: Candle[] = [];
-  for (let i = 0; i < count; i++) {
-    const t = (i / count) * Math.PI * 2;
-    const close = 200 + Math.sin(t) * 18 + Math.sin(t * 2 + 0.4) * 6;
-    const open = 200 + Math.sin(t - 0.08) * 18 + Math.sin(t * 2 + 0.32) * 6;
-    const wick = 1.2 + Math.abs(Math.sin(t * 3)) * 0.8;
-    candles.push({
-      o: open,
-      c: close,
-      h: Math.max(open, close) + wick,
-      l: Math.min(open, close) - wick,
-    });
-  }
-  return candles;
-}
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-const LOOP_CANDLES = buildSmoothLoopCandles(120);
-const LOOP_LEN = LOOP_CANDLES.length;
-const CHART_MIN_P = Math.min(...LOOP_CANDLES.map((c) => c.l));
-const CHART_MAX_P = Math.max(...LOOP_CANDLES.map((c) => c.h));
-
-function CandleChart() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef  = useRef<number>(0);
-  const offsetRef = useRef(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-
-    function resize() {
-      canvas!.width  = canvas!.offsetWidth  * devicePixelRatio;
-      canvas!.height = canvas!.offsetHeight * devicePixelRatio;
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    let last = performance.now();
-
-    function draw(now: number) {
-      const dt = now - last;
-      last = now;
-      offsetRef.current += dt * 0.012;
-
-      const W = canvas!.width;
-      const H = canvas!.height;
-      const cw   = 14 * devicePixelRatio;
-      const step = cw + 5 * devicePixelRatio;
-
-      const visibleCount = Math.ceil(W / step) + 2;
-      const pixelOffset = offsetRef.current % step;
-      const headIdx = Math.floor(offsetRef.current / step);
-
-      const visible: Candle[] = [];
-      for (let i = visibleCount - 1; i >= 0; i--) {
-        const idx = ((headIdx - i) % LOOP_LEN + LOOP_LEN) % LOOP_LEN;
-        visible.push(LOOP_CANDLES[idx]!);
-      }
-
-      ctx.clearRect(0, 0, W, H);
-
-      // Subtle horizontal grid
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-      ctx.lineWidth = 1;
-      for (let g = 1; g < 5; g++) {
-        const y = (H / 5) * g;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-      }
-
-      const range = CHART_MAX_P - CHART_MIN_P || 1;
-      const pad = H * 0.1;
-      const toY = (p: number) => H - pad - ((p - CHART_MIN_P) / range) * (H - pad * 2);
-
-      visible.forEach((cd, i) => {
-        const x    = W - (visible.length - i) * step + pixelOffset * devicePixelRatio;
-        const bull = cd.c >= cd.o;
-        const color = bull ? '#00c896' : '#ff3b52';
-
-        // Wick
-        ctx.strokeStyle = bull ? 'rgba(0,200,150,0.6)' : 'rgba(255,59,82,0.6)';
-        ctx.lineWidth   = 1.5 * devicePixelRatio;
-        ctx.beginPath();
-        ctx.moveTo(x + cw / 2, toY(cd.h));
-        ctx.lineTo(x + cw / 2, toY(cd.l));
-        ctx.stroke();
-
-        // Body
-        ctx.fillStyle = color;
-        const top = toY(Math.max(cd.o, cd.c));
-        const bot = toY(Math.min(cd.o, cd.c));
-        const bodyH = Math.max(bot - top, 2 * devicePixelRatio);
-        ctx.fillRect(x, top, cw, bodyH);
-      });
-
-      // Simple flat price line, no gradient
-      const lastC = visible[visible.length - 1];
-      if (lastC) {
-        const lineY = toY(lastC.c);
-        ctx.strokeStyle = 'rgba(0,200,150,0.35)';
-        ctx.lineWidth   = 1 * devicePixelRatio;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W, lineY); ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      frameRef.current = requestAnimationFrame(draw);
-    }
-
-    frameRef.current = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
-}
-
-// ─── Particle field ───────────────────────────────────────────────────────────
-interface Particle { x: number; y: number; vx: number; vy: number; r: number; a: number; }
-
-function ParticleField() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef  = useRef<number>(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-
-    const particles: Particle[] = [];
-
-    function resize() {
-      canvas!.width  = canvas!.offsetWidth  * devicePixelRatio;
-      canvas!.height = canvas!.offsetHeight * devicePixelRatio;
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    for (let i = 0; i < 80; i++) {
-      particles.push({ x: Math.random(), y: Math.random(), vx: (Math.random() - 0.5) * 0.0002, vy: (Math.random() - 0.5) * 0.0002, r: Math.random() * 1.5 + 0.5, a: Math.random() });
-    }
-
-    function draw() {
-      const W = canvas!.width;
-      const H = canvas!.height;
-      ctx.clearRect(0, 0, W, H);
-
-      for (const p of particles) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0) p.x = 1; if (p.x > 1) p.x = 0;
-        if (p.y < 0) p.y = 1; if (p.y > 1) p.y = 0;
-        ctx.beginPath();
-        ctx.arc(p.x * W, p.y * H, p.r * devicePixelRatio, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0,200,150,${p.a * 0.4})`;
-        ctx.fill();
-      }
-
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const pi = particles[i]!;
-          const pj = particles[j]!;
-          const dx   = (pi.x - pj.x) * W;
-          const dy   = (pi.y - pj.y) * H;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120 * devicePixelRatio) {
-            ctx.beginPath();
-            ctx.moveTo(pi.x * W, pi.y * H);
-            ctx.lineTo(pj.x * W, pj.y * H);
-            ctx.strokeStyle = `rgba(0,200,150,${(1 - dist / (120 * devicePixelRatio)) * 0.12})`;
-            ctx.lineWidth   = 0.5 * devicePixelRatio;
-            ctx.stroke();
-          }
-        }
-      }
-
-      frameRef.current = requestAnimationFrame(draw);
-    }
-
-    frameRef.current = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-      aria-hidden="true"
-    />
+    <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+      {children}
+    </p>
   );
 }
 
-// ─── Animated counter ─────────────────────────────────────────────────────────
-
-// ─── Trade badge ──────────────────────────────────────────────────────────────
-function TradeBadge({ sym, action, qty, pnl, delay }: typeof BADGES[0]) {
+function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="lp-badge" style={{ animationDelay: `${delay}s` }}>
-      <span className="lp-badge-sym">{sym}</span>
-      <span className={`lp-badge-action ${action === 'BUY' ? 'buy' : 'sell'}`}>{action}</span>
-      <span className="lp-badge-qty">{qty}</span>
-      <span className={`lp-badge-pnl ${pnl.startsWith('-') ? 'neg' : 'pos'}`}>{pnl}</span>
+    <h2 className={cn('font-display text-3xl font-bold tracking-tight text-ink md:text-4xl', className)}>
+      {children}
+    </h2>
+  );
+}
+
+function TradeBadge({ sym, action, qty, pnl, delay }: (typeof BADGES)[0]) {
+  const isPositive = !pnl.startsWith('-');
+  return (
+    <div
+      className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised/90 px-4 py-2.5 shadow-[var(--shadow-card)] backdrop-blur-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:fill-mode-both"
+      style={{ animationDelay: `${delay}s`, animationDuration: '0.7s' }}
+    >
+      <span className="font-mono text-sm font-semibold text-ink">{sym}</span>
+      <span
+        className={cn(
+          'rounded px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide',
+          action === 'BUY' ? 'bg-positive-muted text-positive' : 'bg-negative-muted text-negative',
+        )}
+      >
+        {action}
+      </span>
+      <span className="hidden text-xs text-ink-muted sm:inline">{qty}</span>
+      <span className={cn('ml-auto font-mono text-sm font-semibold tabular-nums', isPositive ? 'text-positive' : 'text-negative')}>
+        {pnl}
+      </span>
+    </div>
+  );
+}
+
+function HeroDashboard() {
+  return (
+    <div className="relative w-full max-w-lg lg:max-w-none">
+      {/* Ambient glow */}
+      <div
+        className="pointer-events-none absolute -inset-8 rounded-full opacity-40 blur-3xl motion-safe:animate-pulse"
+        style={{ background: 'radial-gradient(circle, color-mix(in oklab, #38bdf8 30%, transparent), transparent 70%)' }}
+        aria-hidden
+      />
+
+      <div className="relative overflow-hidden rounded-xl border border-border bg-surface-raised shadow-[var(--shadow-elevated)]">
+        {/* Window chrome */}
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <div className="flex gap-1.5" aria-hidden>
+            <span className="h-2.5 w-2.5 rounded-full bg-negative/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-warning/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-positive/60" />
+          </div>
+          <span className="mx-auto font-mono text-[11px] text-ink-muted">autotrade — dashboard</span>
+        </div>
+
+        <div className="grid gap-0 sm:grid-cols-[140px_1fr]">
+          {/* Sidebar mock */}
+          <div className="hidden border-r border-border bg-surface p-4 sm:block">
+            <div className="mb-4 flex items-center gap-2">
+              <img src="/icon.png" alt="" width={24} height={24} className="rounded-md" />
+              <span className="font-display text-sm font-bold">Autotrade</span>
+            </div>
+            <nav className="space-y-1" aria-hidden>
+              {['Dashboard', 'Signals', 'Portfolio', 'Settings'].map((item, i) => (
+                <div
+                  key={item}
+                  className={cn(
+                    'rounded-md px-3 py-2 text-xs font-medium',
+                    i === 0 ? 'bg-accent-muted text-accent' : 'text-ink-muted',
+                  )}
+                >
+                  {item}
+                </div>
+              ))}
+            </nav>
+          </div>
+
+          {/* Main panel */}
+          <div className="p-4 md:p-5">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <p className="text-xs text-ink-muted">Portfolio Value</p>
+                <p className="font-mono text-2xl font-bold tabular-nums text-ink">$124,832.50</p>
+              </div>
+              <span className="rounded-md bg-positive-muted px-2 py-1 font-mono text-xs font-semibold text-positive">
+                +2.41% today
+              </span>
+            </div>
+
+            {/* SVG chart */}
+            <div className="relative h-36 overflow-hidden rounded-lg border border-border bg-surface md:h-44">
+              <svg viewBox="0 0 400 160" className="h-full w-full" preserveAspectRatio="none" aria-hidden>
+                <defs>
+                  <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {[40, 80, 120].map((y) => (
+                  <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+                ))}
+                <path
+                  d="M0,120 C40,110 60,90 100,95 C140,100 160,70 200,75 C240,80 280,50 320,55 C360,60 380,40 400,35 L400,160 L0,160 Z"
+                  fill="url(#chart-fill)"
+                />
+                <path
+                  d="M0,120 C40,110 60,90 100,95 C140,100 160,70 200,75 C240,80 280,50 320,55 C360,60 380,40 400,35"
+                  fill="none"
+                  stroke="#38bdf8"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute bottom-2 left-3 flex gap-4 font-mono text-[10px] text-ink-muted">
+                <span>09:30</span>
+                <span>12:00</span>
+                <span>16:00</span>
+              </div>
+            </div>
+
+            {/* Mini stats row */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { label: 'Open P&L', value: '+$1,842', pos: true },
+                { label: 'Win Rate', value: '68.4%', pos: true },
+                { label: 'Positions', value: '7', pos: null },
+              ].map((s) => (
+                <div key={s.label} className="rounded-lg border border-border bg-surface px-3 py-2">
+                  <p className="text-[10px] text-ink-muted">{s.label}</p>
+                  <p
+                    className={cn(
+                      'font-mono text-sm font-semibold tabular-nums',
+                      s.pos === true && 'text-positive',
+                      s.pos === false && 'text-negative',
+                      s.pos === null && 'text-ink',
+                    )}
+                  >
+                    {s.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthButtons({ size = 'default' as 'default' | 'lg', className }: { size?: 'default' | 'lg'; className?: string }) {
+  const { isSignedIn } = useUser();
+  const btnSize = size === 'lg' ? 'lg' : 'default';
+
+  if (isSignedIn) {
+    return (
+      <div className={cn('flex items-center gap-2', className)}>
+        <Button variant="ghost" size={btnSize} asChild>
+          <a href="/dashboard">Dashboard</a>
+        </Button>
+        <Button size={btnSize} asChild>
+          <a href="/dashboard">
+            Open App
+            <ArrowRight className="h-4 w-4" />
+          </a>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex items-center gap-2', className)}>
+      <SignInButton mode="modal">
+        <Button variant="ghost" size={btnSize}>Sign In</Button>
+      </SignInButton>
+      <SignUpButton mode="modal">
+        <Button size={btnSize}>
+          Get Started
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </SignUpButton>
     </div>
   );
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+
 export function Landing() {
   const { isSignedIn } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const featureRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [featureVisible, setFeatureVisible] = useState<boolean[]>(FEATURES.map(() => false));
-
-  const howRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [howVisible, setHowVisible] = useState<boolean[]>(HOW_STEPS.map(() => false));
-
-  useEffect(() => {
-    const observers = featureRefs.current.map((el, i) => {
-      if (!el) return null;
-      const obs = new IntersectionObserver(
-        (entries) => {
-          if (entries[0]?.isIntersecting)
-            setFeatureVisible(prev => { const n = [...prev]; n[i] = true; return n; });
-        },
-        { threshold: 0.1 }
-      );
-      obs.observe(el);
-      return obs;
-    });
-    return () => observers.forEach(o => o?.disconnect());
-  }, []);
-
-  const handleCardTilt = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const rx = ((e.clientY - cy) / (rect.height / 2)) * -6;
-    const ry = ((e.clientX - cx) / (rect.width / 2)) * 6;
-    el.style.setProperty('--rx', `${rx}deg`);
-    el.style.setProperty('--ry', `${ry}deg`);
-    el.style.transform = `translateY(0) perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg)`;
-  }, []);
-
-  const handleCardReset = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    el.style.setProperty('--rx', '0deg');
-    el.style.setProperty('--ry', '0deg');
-    el.style.transform = '';
-  }, []);
-
-  useEffect(() => {
-    const observers = howRefs.current.map((el, i) => {
-      if (!el) return null;
-      const obs = new IntersectionObserver(
-        (entries) => {
-          if (entries[0]?.isIntersecting)
-            setHowVisible(prev => { const n = [...prev]; n[i] = true; return n; });
-        },
-        { threshold: 0.2 }
-      );
-      obs.observe(el);
-      return obs;
-    });
-    return () => observers.forEach(o => o?.disconnect());
-  }, []);
-
   return (
-    <div className="lp-root">
-      <a href="#lp-main" className="skip-link">Skip to content</a>
-      <ConstellationBg zIndex={0} />
+    <div className="min-h-dvh bg-bg text-ink">
+      <style>{`
+        @keyframes ticker-scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-33.333%); }
+        }
+        .ticker-animate {
+          animation: ticker-scroll 45s linear infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ticker-animate { animation: none; }
+        }
+      `}</style>
 
-      <div id="lp-main">
-      {/* ── Ticker tape ─── */}
-      <div className="lp-ticker-wrap">
-        <div className="lp-ticker-track">
+      <a href="#main-content" className="skip-link">Skip to content</a>
+
+      {/* ── Ticker tape ── */}
+      <div className="overflow-hidden border-b border-border bg-surface" aria-hidden>
+        <div className="ticker-animate flex w-max">
           {[...TICKERS, ...TICKERS, ...TICKERS].map((t, i) => (
-            <span key={i} className="lp-ticker-item">
-              <span className="lp-ticker-sym">{t.sym}</span>
-              <span className="lp-ticker-price">${t.price}</span>
-              <span className={`lp-ticker-chg ${t.pos ? 'pos' : 'neg'}`}>
-                {t.pos ? '▲' : '▼'} {t.chg}
+            <span
+              key={i}
+              className="flex shrink-0 items-center gap-3 border-r border-border px-6 py-2 font-mono text-xs"
+            >
+              <span className="font-semibold text-ink-secondary">{t.sym}</span>
+              <span className="tabular-nums text-ink">${t.price}</span>
+              <span className={cn('tabular-nums', t.pos ? 'text-positive' : 'text-negative')}>
+                {t.pos ? '▲' : '▼'} {t.chg}%
               </span>
             </span>
           ))}
         </div>
       </div>
 
-      {/* ── Header ─── */}
-      <header className="lp-header">
-        <div className="lp-brand">
-          <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
-          <span className="lp-brand-name">Autotrade</span>
+      {/* ── Sticky nav ── */}
+      <header className="sticky top-0 z-50 border-b border-border/80 bg-bg/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-8">
+          <a href="#" className="flex min-h-[44px] items-center gap-2.5">
+            <img src="/icon.png" alt="Autotrade" width={32} height={32} className="rounded-lg" />
+            <span className="font-display text-lg font-bold tracking-tight">Autotrade</span>
+          </a>
+
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="min-h-[44px] rounded-lg px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="hidden md:block">
+            <AuthButtons />
+          </div>
+
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink md:hidden"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            <span className="sr-only">Menu</span>
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-        <nav className="lp-nav-links" aria-label="Primary">
-          <a href="#features">Features</a>
-          <a href="#how">How It Works</a>
-          <a href="#stats">Performance</a>
-          <a href="#faq">FAQ</a>
-        </nav>
-        <button
-          type="button"
-          className="lp-mobile-toggle"
-          aria-expanded={mobileOpen}
-          aria-controls="lp-mobile-menu"
-          onClick={() => setMobileOpen((o) => !o)}
-        >
-          <span className="sr-only">Menu</span>
-          <span className="lp-burger" aria-hidden />
-        </button>
-        <div id="lp-mobile-menu" className={`lp-mobile-menu${mobileOpen ? ' open' : ''}`}>
-          <a href="#features" onClick={() => setMobileOpen(false)}>Features</a>
-          <a href="#how" onClick={() => setMobileOpen(false)}>How It Works</a>
-          <a href="#stats" onClick={() => setMobileOpen(false)}>Performance</a>
-          <a href="#faq" onClick={() => setMobileOpen(false)}>FAQ</a>
-        </div>
-        <div className="lp-auth-btns">
-          {isSignedIn ? (
-            <>
-              <a className="lp-btn-ghost" href="/dashboard">Dashboard</a>
-              <a className="lp-btn-primary" href="/dashboard">Open App →</a>
-            </>
-          ) : (
-            <>
-              <SignInButton mode="modal"><button className="lp-btn-ghost">Sign In</button></SignInButton>
-              <SignUpButton mode="modal"><button className="lp-btn-primary">Get Started →</button></SignUpButton>
-            </>
-          )}
-        </div>
+
+        {mobileOpen && (
+          <div id="mobile-menu" className="border-t border-border bg-surface px-4 py-4 md:hidden">
+            <nav className="flex flex-col gap-1" aria-label="Mobile">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="min-h-[44px] rounded-lg px-4 py-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+              <AuthButtons className="flex-col [&_button]:w-full [&_a]:w-full" />
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* ── Hero ─── */}
-      <section className="lp-hero">
-        <ParticleField />
-        <div className="lp-hero-content">
-          <div className="lp-eyebrow">
-            <span className="lp-eyebrow-dot" />
-            AI-Powered Algorithmic Trading
-          </div>
-          <h1 className="lp-hero-title">
-            <span className="lp-hero-line">Trade Smarter.</span>
-            <span className="lp-hero-line lp-accent">React Faster.</span>
-            <span className="lp-hero-line">Win Bigger.</span>
-          </h1>
-          <p className="lp-hero-sub">
-            Autotrade fuses institutional-grade AI signals with lightning-fast execution,
-            giving individual traders the edge once reserved for hedge funds.
-          </p>
-          <div className="lp-hero-cta">
-            {isSignedIn ? (
-              <>
-                <a className="lp-btn-primary lp-btn-lg" href="/dashboard">Open Dashboard</a>
-                <a className="lp-btn-ghost lp-btn-lg" href="/watchlist">View Watchlist</a>
-              </>
-            ) : (
-              <>
-                <SignUpButton mode="modal"><button className="lp-btn-primary lp-btn-lg">Start Trading Free</button></SignUpButton>
-                <SignInButton mode="modal"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
-              </>
-            )}
-          </div>
-          <div className="lp-hero-badges">
-            {BADGES.map((b, i) => <TradeBadge key={i} {...b} />)}
-          </div>
-        </div>
-
-        <div className="lp-hero-chart">
-          <div className="lp-chart-canvas">
-            <CandleChart />
-          </div>
-        </div>
-
-        <div className="lp-hero-orb lp-hero-orb-1" />
-        <div className="lp-hero-orb lp-hero-orb-2" />
-      </section>
-
-      {/* ── Stats band ─── */}
-      <section id="stats" className="lp-stats-band" aria-label="Platform stats">
-        {STATS.map((s) => (
-          <div key={s.label} className="lp-stat-card">
-            <CountUp value={s.value} cls="lp-stat-value" />
-            <div className="lp-stat-label">{s.label}</div>
-          </div>
-        ))}
-      </section>
-
-
-      {/* ── Trust band ─── */}
-      <section className="lp-colored-band lp-colored-band--purple" style={{ paddingTop: 56, paddingBottom: 56 }} aria-label="Trust indicators">
-        <div className="lp-trust-grid">
-          {TRUST.map((t, i) => (
-            <div key={i} className="lp-trust-card">
-              <div className="lp-trust-icon"><t.Icon size={22} strokeWidth={2} /></div>
-              <h3 className="lp-trust-title">{t.title}</h3>
-              <p className="lp-trust-desc">{t.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── How it works ─── */}
-      <section id="how" className="lp-how">
-        <div className="lp-section-label">How It Works</div>
-        <h2 className="lp-section-title">From Signal to Trade in Milliseconds</h2>
-        <div className="lp-how-steps">
-          {HOW_STEPS.map((step, i) => (
+      <main id="main-content">
+        {/* ── Hero ── */}
+        <section className="relative overflow-hidden">
+          {/* Gradient mesh */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="absolute -left-1/4 top-0 h-[500px] w-[500px] rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, #38bdf8, transparent 70%)' }} />
+            <div className="absolute -right-1/4 bottom-0 h-[400px] w-[400px] rounded-full opacity-15 blur-3xl" style={{ background: 'radial-gradient(circle, #34d399, transparent 70%)' }} />
             <div
-              key={i}
-              ref={el => { howRefs.current[i] = el; }}
-              className={`lp-how-step ${howVisible[i] ? 'visible' : ''}`}
-              style={{ transitionDelay: `${i * 100}ms` }}
-            >
-              <div className="lp-how-num">{step.n}</div>
-              {i < HOW_STEPS.length - 1 && <div className="lp-how-connector" />}
-              <h3 className="lp-how-title">{step.title}</h3>
-              <p className="lp-how-desc">{step.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+              className="absolute inset-0 opacity-[0.03]"
+              style={{
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                backgroundSize: '64px 64px',
+              }}
+            />
+          </div>
 
-      {/* ── Features ─── */}
-      <section id="features" className="lp-features">
-        <div className="lp-section-label">Platform Features</div>
-        <h2 className="lp-section-title">Everything You Need to Trade Professionally</h2>
-        <div className="lp-features-grid">
-          {FEATURES.map((f, i) => (
-            <div
-              key={i}
-              ref={el => { featureRefs.current[i] = el; }}
-              className={`lp-feature-card ${featureVisible[i] ? 'visible' : ''}`}
-              style={{ transitionDelay: `${(i % 3) * 80}ms`, '--lp-accent': f.accent } as React.CSSProperties}
-              onMouseMove={handleCardTilt}
-              onMouseLeave={handleCardReset}
-            >
-              <div className="lp-feature-icon-wrap" style={{ color: f.accent, '--lp-accent': f.accent } as React.CSSProperties}>
-                <f.Icon size={22} strokeWidth={2} />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-8 md:py-24 lg:grid-cols-2 lg:gap-16">
+            <div className="flex flex-col gap-6">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface-raised px-4 py-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-accent opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+                </span>
+                <span className="text-xs font-medium text-ink-secondary">AI-Powered Algorithmic Trading</span>
               </div>
-              <h3 className="lp-feature-title">{f.title}</h3>
-              <p className="lp-feature-desc">{f.desc}</p>
-              <div className="lp-feature-glow" style={{ background: f.accent }} />
-            </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── FAQ ─── */}
-      <section id="faq" className="lp-faq">
-        <div className="lp-section-label">FAQ</div>
-        <h2 className="lp-section-title">Common Questions</h2>
-        <div className="lp-faq-list">
-          {FAQ.map((item, i) => (
-            <div key={i} className={`lp-faq-item${openFaq === i ? ' open' : ''}`}>
-              <button
-                type="button"
-                className="lp-faq-q"
-                aria-expanded={openFaq === i}
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+              <h1 className="font-display text-4xl font-bold leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+                Trade Smarter.{' '}
+                <span className="text-accent">React Faster.</span>{' '}
+                Win Bigger.
+              </h1>
+
+              <p className="max-w-xl text-base leading-relaxed text-ink-secondary md:text-lg">
+                Autotrade fuses institutional-grade AI signals with lightning-fast execution,
+                giving individual traders the edge once reserved for hedge funds.
+              </p>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {isSignedIn ? (
+                  <>
+                    <Button size="lg" asChild>
+                      <a href="/dashboard">
+                        Open Dashboard
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="lg" asChild>
+                      <a href="/watchlist">View Watchlist</a>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <SignUpButton mode="modal">
+                      <Button size="lg">
+                        Start Trading Free
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </SignUpButton>
+                    <SignInButton mode="modal">
+                      <Button variant="outline" size="lg">Sign In</Button>
+                    </SignInButton>
+                  </>
+                )}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {BADGES.map((b, i) => (
+                  <TradeBadge key={i} {...b} />
+                ))}
+              </div>
+            </div>
+
+            <HeroDashboard />
+          </div>
+        </section>
+
+        {/* ── Stats band ── */}
+        <section id="stats" className="border-y border-border bg-surface" aria-label="Platform stats">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px bg-border md:grid-cols-4">
+            {STATS.map((s) => (
+              <div key={s.label} className="flex flex-col items-center gap-1 bg-surface px-6 py-10 text-center">
+                <p className="font-mono text-3xl font-bold tabular-nums text-ink md:text-4xl">{s.value}</p>
+                <p className="text-sm text-ink-muted">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Trust ── */}
+        <section className="mx-auto max-w-6xl px-4 py-20 md:px-8 md:py-24" aria-label="Trust indicators">
+          <div className="mb-12 text-center">
+            <SectionLabel>Why Traders Trust Us</SectionLabel>
+            <SectionTitle className="mt-3">Built for Security &amp; Confidence</SectionTitle>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {TRUST.map((t, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-border bg-surface-raised p-6 shadow-[var(--shadow-card)] transition-colors hover:border-border-strong"
               >
-                {item.q}
-                <span className="lp-faq-chevron" aria-hidden />
-              </button>
-              <div className="lp-faq-a" role="region" hidden={openFaq !== i}>
-                <p>{item.a}</p>
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-muted text-accent">
+                  <t.Icon size={22} strokeWidth={2} />
+                </div>
+                <h3 className="font-display text-base font-semibold text-ink">{t.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{t.desc}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── CTA ─── */}
-      <section className="lp-cta">
-        <div className="lp-cta-grid" />
-        <div className="lp-cta-orb" />
-        <div className="lp-cta-content">
-          <div className="lp-cta-badge">No credit card required to start</div>
-          <h2 className="lp-cta-title">Ready to Let the Algorithm Work?</h2>
-          <p className="lp-cta-sub">
-            Join thousands of traders who've replaced emotional decision-making with
-            data-driven precision. Start with paper trading, go live when you're ready.
-          </p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {isSignedIn ? (
-              <>
-                <a className="lp-btn-primary lp-btn-xl" href="/dashboard">Go to Dashboard</a>
-                <a className="lp-btn-ghost lp-btn-lg" href="/settings">Account Settings</a>
-              </>
-            ) : (
-              <>
-                <SignUpButton mode="modal"><button className="lp-btn-primary lp-btn-xl">Create Free Account</button></SignUpButton>
-                <SignInButton mode="modal"><button className="lp-btn-ghost lp-btn-lg">Sign In</button></SignInButton>
-              </>
-            )}
+            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Footer ─── */}
-      <footer className="lp-footer">
-        <div className="lp-footer-grid">
-          <div className="lp-footer-brand">
-            <div className="lp-brand">
-              <img className="lp-brand-mark" src="/icon.png" alt="Autotrade" width={32} height={32} />
-              <span className="lp-brand-name">Autotrade</span>
+        {/* ── Features ── */}
+        <section id="features" className="border-t border-border bg-surface px-4 py-20 md:px-8 md:py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <SectionLabel>Platform Features</SectionLabel>
+              <SectionTitle className="mt-3">Everything You Need to Trade Professionally</SectionTitle>
             </div>
-            <p className="lp-footer-tagline">Precision terminal for AI-driven trading.</p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map((f, i) => (
+                <div
+                  key={i}
+                  className="group relative overflow-hidden rounded-xl border border-border bg-surface-raised p-6 shadow-[var(--shadow-card)] transition-all hover:border-border-strong hover:shadow-[var(--shadow-elevated)]"
+                >
+                  <div
+                    className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg transition-colors"
+                    style={{ backgroundColor: `color-mix(in oklab, ${f.accent} 15%, transparent)`, color: f.accent }}
+                  >
+                    <f.Icon size={22} strokeWidth={2} />
+                  </div>
+                  <h3 className="font-display text-base font-semibold text-ink">{f.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{f.desc}</p>
+                  <div
+                    className="pointer-events-none absolute -bottom-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-2xl transition-opacity group-hover:opacity-30"
+                    style={{ background: f.accent }}
+                    aria-hidden
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-          <nav className="lp-footer-nav" aria-label="Footer">
-            <a href="#features">Features</a>
-            <a href="#how">How it works</a>
-            <a href="#faq">FAQ</a>
-            <a href="/sign-in">Sign in</a>
+        </section>
+
+        {/* ── How it works ── */}
+        <section id="how" className="mx-auto max-w-6xl px-4 py-20 md:px-8 md:py-24">
+          <div className="mb-12 text-center">
+            <SectionLabel>How It Works</SectionLabel>
+            <SectionTitle className="mt-3">From Signal to Trade in Milliseconds</SectionTitle>
+          </div>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+            {HOW_STEPS.map((step, i) => (
+              <div key={i} className="relative flex flex-col gap-4">
+                {i < HOW_STEPS.length - 1 && (
+                  <div
+                    className="absolute left-6 top-12 hidden h-px w-[calc(100%+2rem)] bg-border lg:block"
+                    aria-hidden
+                  />
+                )}
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface-raised font-mono text-sm font-bold text-accent">
+                  {step.n}
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-semibold text-ink">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── FAQ ── */}
+        <section id="faq" className="border-t border-border bg-surface px-4 py-20 md:px-8 md:py-24">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-12 text-center">
+              <SectionLabel>FAQ</SectionLabel>
+              <SectionTitle className="mt-3">Common Questions</SectionTitle>
+            </div>
+            <div className="flex flex-col gap-2">
+              {FAQ.map((item, i) => {
+                const isOpen = openFaq === i;
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      'overflow-hidden rounded-xl border bg-surface-raised transition-colors',
+                      isOpen ? 'border-border-strong' : 'border-border',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="flex min-h-[44px] w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-ink transition-colors hover:text-accent"
+                      aria-expanded={isOpen}
+                      onClick={() => setOpenFaq(isOpen ? null : i)}
+                    >
+                      {item.q}
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 shrink-0 text-ink-muted transition-transform motion-safe:duration-200',
+                          isOpen && 'rotate-180',
+                        )}
+                      />
+                    </button>
+                    <div
+                      className={cn(
+                        'grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200',
+                        isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+                      )}
+                    >
+                      <div className="overflow-hidden">
+                        <p className="px-5 pb-4 text-sm leading-relaxed text-ink-secondary">{item.a}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Footer CTA (Peak-End Rule) ── */}
+        <section className="relative overflow-hidden border-t border-border">
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-positive/5" />
+            <div className="absolute -top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, #38bdf8, transparent 70%)' }} />
+          </div>
+          <div className="relative mx-auto max-w-3xl px-4 py-20 text-center md:px-8 md:py-28">
+            <span className="inline-flex rounded-full border border-border bg-surface-raised px-4 py-1.5 text-xs font-medium text-ink-secondary">
+              No credit card required to start
+            </span>
+            <h2 className="mt-6 font-display text-3xl font-bold tracking-tight text-ink md:text-5xl">
+              Ready to Let the Algorithm Work?
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-secondary">
+              Join thousands of traders who&apos;ve replaced emotional decision-making with
+              data-driven precision. Start with paper trading, go live when you&apos;re ready.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              {isSignedIn ? (
+                <>
+                  <Button size="lg" asChild>
+                    <a href="/dashboard">
+                      Go to Dashboard
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="lg" asChild>
+                    <a href="/settings">Account Settings</a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <SignUpButton mode="modal">
+                    <Button size="lg">
+                      Create Free Account
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </SignUpButton>
+                  <SignInButton mode="modal">
+                    <Button variant="outline" size="lg">Sign In</Button>
+                  </SignInButton>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-border bg-surface">
+        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 md:flex-row md:items-start md:justify-between md:px-8">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <img src="/icon.png" alt="Autotrade" width={28} height={28} className="rounded-md" />
+              <span className="font-display text-base font-bold">Autotrade</span>
+            </div>
+            <p className="mt-3 max-w-xs text-sm text-ink-muted">
+              Precision terminal for AI-driven trading.
+            </p>
+          </div>
+          <nav className="flex flex-wrap gap-x-8 gap-y-3" aria-label="Footer">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="min-h-[44px] text-sm text-ink-secondary transition-colors hover:text-ink"
+              >
+                {link.label}
+              </a>
+            ))}
+            <a href="/sign-in" className="min-h-[44px] text-sm text-ink-secondary transition-colors hover:text-ink">
+              Sign in
+            </a>
           </nav>
         </div>
-        <p className="lp-footer-copy">
-          © 2026 Autotrade. All rights reserved. Trading involves risk of loss. Not financial advice.
-        </p>
+        <div className="border-t border-border">
+          <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-ink-muted md:px-8">
+            © 2026 Autotrade. All rights reserved. Trading involves risk of loss. Not financial advice.
+          </p>
+        </div>
       </footer>
-      </div>
     </div>
   );
 }

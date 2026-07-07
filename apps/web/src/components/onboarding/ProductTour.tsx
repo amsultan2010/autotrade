@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUserProfile, dataApi } from '@/src/hooks/data';
+import { cn } from '@/lib/utils';
+import { Button } from '@/src/components/ui/button';
 import { TOUR_STEPS } from './tour-steps';
 
 interface Rect {
@@ -21,7 +23,7 @@ function measureTarget(selector: string): Rect | null {
 
 export function ProductTour() {
   const { data: user } = useUserProfile();
-  
+
   const router = useRouter();
   const pathname = usePathname();
 
@@ -123,52 +125,75 @@ export function ProductTour() {
   const tooltipLeft = spotlight ? spotlight.left + spotlight.width / 2 : '50%';
 
   return (
-    <div className="product-tour" role="dialog" aria-modal="true" aria-label="Product tour">
-      <div className="product-tour-backdrop" onClick={() => void finish()} aria-hidden />
+    <div className="fixed inset-0 z-[200]" role="dialog" aria-modal="true" aria-label="Product tour">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default bg-transparent"
+        onClick={() => void finish()}
+        aria-label="Close tour"
+      />
 
       {spotlight && (
         <div
-          className="product-tour-spotlight"
+          className="pointer-events-none absolute rounded-xl border-2 border-accent ring-4 ring-accent/20"
           style={{
             top: spotlight.top,
             left: spotlight.left,
             width: spotlight.width,
             height: spotlight.height,
+            boxShadow: '0 0 0 9999px rgba(9, 12, 16, 0.82)',
           }}
+          aria-hidden
         />
       )}
 
+      {!spotlight && <div className="absolute inset-0 bg-bg/85 backdrop-blur-sm" aria-hidden />}
+
       <div
-        className={`product-tour-card product-tour-card--${step.placement}`}
-        style={{
-          top: typeof tooltipTop === 'number' ? tooltipTop : undefined,
-          left: typeof tooltipLeft === 'number' ? tooltipLeft : undefined,
-          transform:
-            typeof tooltipTop === 'number'
-              ? step.placement === 'top'
-                ? 'translate(-50%, -100%)'
-                : 'translateX(-50%)'
-              : 'translate(-50%, -50%)',
-        }}
+        className={cn(
+          'absolute z-10 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-border bg-surface-raised p-5 shadow-2xl',
+          !spotlight && 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        )}
+        style={
+          spotlight
+            ? {
+                top: typeof tooltipTop === 'number' ? tooltipTop : undefined,
+                left: typeof tooltipLeft === 'number' ? tooltipLeft : undefined,
+                transform:
+                  typeof tooltipTop === 'number'
+                    ? step.placement === 'top'
+                      ? 'translate(-50%, -100%)'
+                      : 'translateX(-50%)'
+                    : undefined,
+              }
+            : undefined
+        }
       >
-        <p className="product-tour-kicker">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
           Tour · {stepIndex + 1} / {TOUR_STEPS.length}
         </p>
-        <h2 className="product-tour-title">{step.title}</h2>
-        <p className="product-tour-body">{step.body}</p>
-        <div className="product-tour-actions">
-          <button type="button" className="btn-ghost" onClick={() => void finish()} disabled={dismissing}>
+        <h2 className="mt-2 font-display text-lg font-bold tracking-tight text-ink">{step.title}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.body}</p>
+
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void finish()}
+            disabled={dismissing}
+          >
             Skip tour
-          </button>
-          <div className="product-tour-actions-right">
+          </Button>
+          <div className="flex items-center gap-2">
             {stepIndex > 0 && (
-              <button type="button" className="btn-ghost" onClick={back}>
+              <Button type="button" variant="outline" size="sm" onClick={back}>
                 Back
-              </button>
+              </Button>
             )}
-            <button type="button" className="btn-primary" onClick={next} disabled={dismissing}>
+            <Button type="button" size="sm" onClick={next} disabled={dismissing}>
               {isLast ? 'Finish' : 'Next'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

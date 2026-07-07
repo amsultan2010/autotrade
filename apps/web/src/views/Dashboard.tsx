@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorCodes } from '@autotrade/shared';
+import { cn } from '@/lib/utils';
 import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 import { mergeOpenPositions, countOpenPositions, enrichDisplayPositions, type DisplayPosition } from '@/lib/positions';
 import {
@@ -25,8 +26,19 @@ import {
   useTrades,
   useWatchlist,
   dataApi,
-  type TradeRow,
 } from '@/src/hooks/data';
+import {
+  PageShell,
+  PageHeader,
+  StatCard,
+  Panel,
+  Badge,
+  SegmentedControl,
+  AlertBanner,
+  EmptyState,
+  DataTable,
+} from '@/src/components/layout/PageShell';
+import { Button } from '@/src/components/ui/button';
 
 // ─── Convex data shapes ───────────────────────────────────────────────────────
 interface ConvexBotStatus {
@@ -86,15 +98,20 @@ interface Quote {
   changePct: number | null;
 }
 
+const EQUITY_TABS = ['1D', '1W', '1M', '3M', '1Y'] as const;
+const POS_COLOR = '#34d399';
+const NEG_COLOR = '#f87171';
+const ACCENT_COLOR = '#38bdf8';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function money(n: number | null | undefined): string {
   if (n == null) return '--';
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
-function pnlClass(n: number | null | undefined) {
+function pnlClass(n: number | null | undefined): string {
   if (n == null) return '';
-  return n >= 0 ? 'pos' : 'neg';
+  return n >= 0 ? 'text-positive' : 'text-negative';
 }
 
 function minsAgo(ts: number | string): string {
@@ -104,9 +121,6 @@ function minsAgo(ts: number | string): string {
   if (diff === 1) return '1m ago';
   return `${diff}m ago`;
 }
-
-// ─── Equity curve helpers (simulator fallback) ───────────────────────────────
-// Live Alpaca portfolio history is fetched via /api/v1/broker/portfolio-history.
 
 // ─── Portfolio area chart (canvas) ───────────────────────────────────────────
 function PortfolioChart({ data, labels }: { data: number[]; labels: string[] }) {
@@ -151,10 +165,10 @@ function PortfolioChart({ data, labels }: { data: number[]; labels: string[] }) 
       });
 
       const isUp = data[data.length - 1]! >= data[0]!;
-      const lineColor = isUp ? '#00c896' : '#ff3b52';
+      const lineColor = isUp ? POS_COLOR : NEG_COLOR;
       const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
-      grad.addColorStop(0, isUp ? 'rgba(0,200,150,0.22)' : 'rgba(255,59,82,0.22)');
-      grad.addColorStop(1, isUp ? 'rgba(0,200,150,0)' : 'rgba(255,59,82,0)');
+      grad.addColorStop(0, isUp ? 'rgba(52,211,153,0.22)' : 'rgba(248,113,113,0.22)');
+      grad.addColorStop(1, isUp ? 'rgba(52,211,153,0)' : 'rgba(248,113,113,0)');
 
       ctx.beginPath();
       ctx.moveTo(toX(0), toY(data[0]!));
@@ -188,7 +202,7 @@ function PortfolioChart({ data, labels }: { data: number[]; labels: string[] }) 
       ctx.arc(lastX, lastY, 4 * devicePixelRatio, 0, Math.PI * 2);
       ctx.fillStyle = lineColor;
       ctx.fill();
-      ctx.strokeStyle = isUp ? 'rgba(0,200,150,0.4)' : 'rgba(255,59,82,0.4)';
+      ctx.strokeStyle = isUp ? 'rgba(52,211,153,0.4)' : 'rgba(248,113,113,0.4)';
       ctx.lineWidth = 6 * devicePixelRatio;
       ctx.stroke();
     }
@@ -199,7 +213,7 @@ function PortfolioChart({ data, labels }: { data: number[]; labels: string[] }) 
     return () => ro.disconnect();
   }, [data, labels]);
 
-  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
+  return <canvas ref={canvasRef} className="h-full w-full" />;
 }
 
 // ─── Radial confidence gauge (canvas) ────────────────────────────────────────
@@ -231,8 +245,8 @@ function ConfidenceGauge({ value }: { value: number }) {
       ctx.stroke();
 
       const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-      grad.addColorStop(0, '#00c896');
-      grad.addColorStop(1, '#4facfe');
+      grad.addColorStop(0, POS_COLOR);
+      grad.addColorStop(1, ACCENT_COLOR);
       ctx.beginPath();
       ctx.arc(cx, cy, r, startAngle, fillAngle);
       ctx.strokeStyle = grad;
@@ -244,8 +258,8 @@ function ConfidenceGauge({ value }: { value: number }) {
       const ty = cy + r * Math.sin(fillAngle);
       ctx.beginPath();
       ctx.arc(tx, ty, size * 0.035, 0, Math.PI * 2);
-      ctx.fillStyle = '#00c896';
-      ctx.shadowColor = '#00c896';
+      ctx.fillStyle = ACCENT_COLOR;
+      ctx.shadowColor = ACCENT_COLOR;
       ctx.shadowBlur = size * 0.08;
       ctx.fill();
       ctx.shadowBlur = 0;
@@ -268,7 +282,7 @@ function ConfidenceGauge({ value }: { value: number }) {
     return () => ro.disconnect();
   }, [value]);
 
-  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
+  return <canvas ref={canvasRef} className="h-full w-full" />;
 }
 
 // ─── Sparkline from real price / PnL series ───────────────────────────────────
@@ -291,7 +305,7 @@ function DataSparkline({ values, up, width = 44, height = 22 }: { values: number
       canvas!.height = H;
       const ctx = canvas!.getContext('2d')!;
       ctx.clearRect(0, 0, W, H);
-      const color = up ? '#00c896' : '#ff3b52';
+      const color = up ? POS_COLOR : NEG_COLOR;
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5 * devicePixelRatio;
       ctx.beginPath();
@@ -307,37 +321,21 @@ function DataSparkline({ values, up, width = 44, height = 22 }: { values: number
   }, [values, up]);
 
   if (values.length < 2) {
-    return <span className="muted" style={{ fontSize: 10, width, display: 'inline-block' }}>--</span>;
+    return <span className="inline-block text-[10px] text-ink-muted" style={{ width }}>--</span>;
   }
 
-  return <canvas ref={canvasRef} style={{ width, height, display: 'block' }} />;
+  return <canvas ref={canvasRef} className="block" style={{ width, height }} />;
 }
 
 // ─── Dismissible info banner ───────────────────────────────────────────────────
 const ALPACA_NO_POSITIONS_BANNER_KEY = 'autotrade-dismiss-alpaca-no-positions-banner';
 
-const dismissibleBannerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: 12,
-  margin: '0 0 12px',
-  padding: '12px 14px 12px 16px',
-  borderRadius: 'var(--r-sm)',
-  fontSize: 14,
-  lineHeight: 1.45,
-  background: 'rgba(79,172,254,0.12)',
-  border: '1px solid rgba(79,172,254,0.35)',
-  color: 'var(--ink-2)',
-};
-
 function DismissibleInfoBanner({
   storageKey,
   children,
-  style,
 }: {
   storageKey: string;
   children: React.ReactNode;
-  style?: React.CSSProperties;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const [ready, setReady] = useState(false);
@@ -355,42 +353,9 @@ function DismissibleInfoBanner({
   if (!ready || dismissed) return null;
 
   return (
-    <div style={{ ...dismissibleBannerStyle, ...style }}>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Dismiss"
-        style={{
-          flexShrink: 0,
-          width: 28,
-          height: 28,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: 0,
-          borderRadius: 6,
-          background: 'transparent',
-          color: 'inherit',
-          fontSize: 20,
-          lineHeight: 1,
-          opacity: 0.65,
-          cursor: 'pointer',
-        }}
-      >
-        ×
-      </button>
-    </div>
-  );
-}
-
-// ─── Dashboard panel with HUD corners ───────────────────────────────────────
-function DbPanel({ className, children, ...rest }: { className?: string; children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={className ? `db-panel ${className}` : 'db-panel'} {...rest}>
-      <span className="hud-corners" aria-hidden="true" />
+    <AlertBanner variant="info" onDismiss={dismiss}>
       {children}
-    </div>
+    </AlertBanner>
   );
 }
 
@@ -398,20 +363,27 @@ function DbPanel({ className, children, ...rest }: { className?: string; childre
 function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: boolean }) {
   const abs = Math.abs(pct);
   const intensity = Math.min(abs / 4, 1);
-  const bg = pct >= 0
-    ? `rgba(0,200,150,${0.15 + intensity * 0.55})`
-    : `rgba(255,59,82,${0.15 + intensity * 0.55})`;
-  const border = pct >= 0 ? 'rgba(0,200,150,0.3)' : 'rgba(255,59,82,0.3)';
+  const isUp = pct >= 0;
+  const bg = isUp
+    ? `rgba(52,211,153,${0.15 + intensity * 0.55})`
+    : `rgba(248,113,113,${0.15 + intensity * 0.55})`;
+  const border = isUp ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)';
+
   return (
-    <div className={`db-heatmap-tile ${large ? 'large' : ''}`} style={{ background: bg, borderColor: border }}>
-      <span className="db-heatmap-sym">{sym}</span>
-      <span className="db-heatmap-pct" style={{ color: pct >= 0 ? '#00c896' : '#ff3b52' }}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center rounded-lg border p-2 text-center',
+        large ? 'min-h-[72px]' : 'min-h-[52px]',
+      )}
+      style={{ background: bg, borderColor: border }}
+    >
+      <span className="font-mono text-xs font-bold text-ink">{sym}</span>
+      <span className={cn('font-mono text-xs font-semibold tabular-nums', isUp ? 'text-positive' : 'text-negative')}>
         {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
       </span>
     </div>
   );
 }
-
 
 interface StrategyBreakdownRow {
   key: string;
@@ -468,10 +440,10 @@ function buildRecentActivity(closed: TradeItem[], signalRows: ConvexSignal[]): A
   return items.sort((a, b) => b.at - a.at).slice(0, 8);
 }
 
-function resultBadgeClass(result: string): string {
-  if (result === 'WIN') return 'db-result-win';
-  if (result === 'LOSS') return 'db-result-loss';
-  return 'db-result-flat';
+function resultBadgeVariant(result: string): 'success' | 'danger' | 'muted' {
+  if (result === 'WIN') return 'success';
+  if (result === 'LOSS') return 'danger';
+  return 'muted';
 }
 
 const ALPACA_SYNC_INTERVAL_MS = 90_000;
@@ -481,7 +453,6 @@ function isAlpacaRateLimitMessage(message: string): boolean {
   return /\b429\b|rate limit/i.test(message);
 }
 
-
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export function Dashboard() {
   const { entitlements } = useSubscription();
@@ -489,7 +460,7 @@ export function Dashboard() {
   const showAdvanced = entitlements?.limits?.advancedAnalytics ?? false;
   const showPremium = entitlements?.limits?.premiumAnalytics ?? false;
   const { isSignedIn: isAuthenticated, isLoaded: authLoaded } = useAuth();
-  const convexAuthLoading = !authLoaded;
+  const authLoading = !authLoaded;
   const { data: botStatus, refresh: refreshBotStatus } = useBotStatus();
   const botRunning = botStatus?.running === true;
   const widgetPollMs = botRunning ? 10_000 : 20_000;
@@ -572,7 +543,7 @@ export function Dashboard() {
   // Sync Alpaca account snapshot when broker is connected (throttled; snapshot poll reads DB).
   const brokerConnected = brokerStatus?.connected === true;
   useEffect(() => {
-    if (!brokerConnected || convexAuthLoading || !isAuthenticated) return;
+    if (!brokerConnected || authLoading || !isAuthenticated) return;
 
     const runSync = () => {
       if (Date.now() < alpacaBackoffUntilRef.current) return;
@@ -605,11 +576,11 @@ export function Dashboard() {
     runSync();
     const t = setInterval(runSync, ALPACA_SYNC_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [brokerConnected, convexAuthLoading, isAuthenticated, refreshBrokerSnapshot]);
+  }, [brokerConnected, authLoading, isAuthenticated, refreshBrokerSnapshot]);
 
   // Alpaca portfolio equity history for the chart (live account curve).
   useEffect(() => {
-    if (!brokerConnected || convexAuthLoading || !isAuthenticated) {
+    if (!brokerConnected || authLoading || !isAuthenticated) {
       setAlpacaEquitySeries(null);
       setAlpacaTimestamps([]);
       return;
@@ -652,7 +623,7 @@ export function Dashboard() {
       cancelled = true;
       clearInterval(refreshId);
     };
-  }, [brokerConnected, convexAuthLoading, isAuthenticated, tab]);
+  }, [brokerConnected, authLoading, isAuthenticated, tab]);
 
   const signals: ConvexSignal[] = (signalRows ?? []).map((s) => ({
     id: s.id,
@@ -694,7 +665,7 @@ export function Dashboard() {
   }, [signalTickersKey]);
 
   async function toggle() {
-    if (convexAuthLoading || !isAuthenticated) {
+    if (authLoading || !isAuthenticated) {
       setError('Connecting your session. Try again in a moment.');
       return;
     }
@@ -801,436 +772,510 @@ export function Dashboard() {
     ? botStatus.running
       ? `LIVE · ${botStatus.mode}`
       : botStatus.mode
-    : convexAuthLoading
+    : authLoading
       ? 'Connecting…'
       : '…';
 
-  const botControlsReady = !convexAuthLoading && isAuthenticated;
-  const dataLoading = convexAuthLoading || (isAuthenticated && botStatus === undefined && watchlistLoading);
+  const botControlsReady = !authLoading && isAuthenticated;
+  const dataLoading = authLoading || (isAuthenticated && botStatus === undefined && watchlistLoading);
 
   return (
-    <div className="db-root" data-tour="dashboard">
-{/* Top controls */}
-      <div className="db-topbar">
-        <div className="db-topbar-left">
-          <span className={`badge ${botStatus?.running ? 'badge-on' : 'badge-off'}`}>
-            {botStatus?.running && <span className="live-dot" />}
-            {modeLabel}
+    <PageShell data-tour="dashboard">
+      <PageHeader
+        title="Dashboard"
+        description="Live portfolio, signals, and bot controls at a glance."
+        actions={
+          <div data-tour="bot-controls">
+            <Button
+              variant={botRunning ? 'destructive' : 'default'}
+              size="sm"
+              disabled={busy || !botControlsReady}
+              onClick={() => void toggle()}
+            >
+              {botRunning ? 'Stop Bot' : 'Start Bot'}
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Top status bar */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <Badge variant={botRunning ? 'success' : 'muted'} pulse={botRunning}>
+          {modeLabel}
+        </Badge>
+        {snap && (
+          <span className="text-xs text-ink-secondary">
+            Alpaca {snap.mode} · buying power {money(snap.buyingPower)}
+            {snap.syncedAt && (
+              <span className="ml-1.5 opacity-60">· synced {minsAgo(snap.syncedAt)}</span>
+            )}
           </span>
-          {snap && (
-            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-              Alpaca {snap.mode} · buying power {money(snap.buyingPower)}
-              {snap.syncedAt && (
-                <span style={{ marginLeft: 6, opacity: 0.6 }}>
-                  · synced {minsAgo(snap.syncedAt)}
-                </span>
-              )}
-            </span>
-          )}
-          {brokerConnected && !snap && snapshotLoading && (
-            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>Syncing Alpaca…</span>
-          )}
-          {brokerConnected && !snap && !snapshotLoading && (
-            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>Waiting for Alpaca snapshot…</span>
-          )}
-        </div>
-        <div className="db-topbar-right" data-tour="bot-controls">
-          <button
-            className={botStatus?.running ? 'btn-danger' : 'btn-primary'}
-            style={{ fontSize: 13, padding: '7px 16px' }}
-            disabled={busy || !botControlsReady}
-            onClick={() => void toggle()}
-          >
-            {botStatus?.running ? 'Stop Bot' : 'Start Bot'}
-          </button>
-        </div>
+        )}
+        {brokerConnected && !snap && snapshotLoading && (
+          <span className="text-xs text-ink-secondary">Syncing Alpaca…</span>
+        )}
+        {brokerConnected && !snap && !snapshotLoading && (
+          <span className="text-xs text-ink-secondary">Waiting for Alpaca snapshot…</span>
+        )}
       </div>
 
-      <div className="db-banner-stack">
-      {error && (
-        <div className="error-banner">{error}</div>
-      )}
-      {brokerError && (
-        <div className="error-banner" style={{ margin: '0 0 12px' }}>
-          {isAlpacaRateLimitMessage(brokerError)
-            ? brokerError
-            : `Alpaca sync: ${brokerError}`}
-          {!isAlpacaRateLimitMessage(brokerError) && /unauthorized|401|403/i.test(brokerError) && (
-            <span>
-              {'. '}Reconnect your paper API keys in Settings (generate new keys at app.alpaca.markets if needed).
-            </span>
-          )}
-        </div>
-      )}
-      {dataLoading && (
-        <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>Loading your account data…</p>
-      )}
-      {!dataLoading && botStatus?.mode === 'DISABLED' && (
-        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
-          Bot is stopped. Tap <strong>Start Bot</strong> to begin automatic scans of your watchlist.
-        </div>
-      )}
-      {!dataLoading && !brokerConnected && (
-        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(79,172,254,0.12)', borderColor: 'rgba(79,172,254,0.35)' }}>
-          Portfolio shows the <strong>$100,000 simulator</strong>. Connect Alpaca in Settings to trade with your paper account balance.
-        </div>
-      )}
-      {!dataLoading && brokerConnected && snap && !snap.syncError && livePositions.length === 0 && botStatus?.running && (
-        <DismissibleInfoBanner storageKey={ALPACA_NO_POSITIONS_BANNER_KEY}>
-          Alpaca is connected: your keys work and we can read your paper account. No open positions yet: the bot only places orders when a strategy produces an approved <strong>BUY</strong> or <strong>SHORT</strong> (not HOLD) while the bot is running.
-        </DismissibleInfoBanner>
-      )}
-      {!dataLoading && brokerConnected && snap?.syncError && !isAlpacaRateLimitMessage(snap.syncError) && (
-        <div className="error-banner" style={{ margin: '0 0 12px' }}>
-          Alpaca sync failed: {snap.syncError}. Disconnect and reconnect your paper keys in Settings.
-        </div>
-      )}
-      {!dataLoading && brokerConnected && snap?.syncError && isAlpacaRateLimitMessage(snap.syncError) && (
-        <div className="error-banner" style={{ margin: '0 0 12px', background: 'rgba(255,193,7,0.12)', borderColor: 'rgba(255,193,7,0.35)' }}>
-          Alpaca is temporarily rate limiting updates. Your last synced portfolio is still shown.
-        </div>
-      )}
-      </div>
-
-      {!dataLoading && (
-        <div className="db-summary-grid">
-          <div className="db-summary-card">
-            <span className="db-summary-label">Portfolio</span>
-            <span className="db-summary-value">{equity > 0 ? money(equity) : '--'}</span>
-            <span className="muted" style={{ fontSize: 11 }}>{portfolioLabel}</span>
-          </div>
-          <div className="db-summary-card">
-            <span className="db-summary-label">Cash</span>
-            <span className="db-summary-value">{balance > 0 ? money(balance) : '--'}</span>
-          </div>
-          <div className="db-summary-card">
-            <span className="db-summary-label">Buying Power</span>
-            <span className="db-summary-value">{buyingPower != null ? money(buyingPower) : '--'}</span>
-          </div>
-          <div className="db-summary-card">
-            <span className="db-summary-label">Open Positions</span>
-            <span className="db-summary-value">{positionsLoading ? '…' : (openPositionCount ?? livePositions.length)}</span>
-          </div>
-          <div className="db-summary-card">
-            <span className="db-summary-label">Watchlist</span>
-            <span className="db-summary-value">{watchlistCount}</span>
-            <a href="/watchlist" className="db-view-all" style={{ marginTop: 4, fontSize: 11 }}>Manage →</a>
-          </div>
-          <div className="db-summary-card">
-            <span className="db-summary-label">Win Rate</span>
-            <span className={`db-summary-value ${winRate >= 50 ? 'pos' : winRate > 0 ? 'neg' : ''}`}>
-              {perfData ? `${winRate}%` : '--'}
-            </span>
-            <span className="muted" style={{ fontSize: 11 }}>
-              {perfData ? `${perfData.totalTrades} closed` : 'No closed trades'}
-            </span>
-          </div>
-          {botStatus?.paperTradesLimit != null && (
-            <div className="db-summary-card">
-              <span className="db-summary-label">Paper Quota</span>
-              <span className="db-summary-value">
-                {botStatus.paperTradesUsed ?? 0}/{botStatus.paperTradesLimit}
+      {/* Banners */}
+      <div className="mb-6 flex flex-col gap-3">
+        {error && <AlertBanner variant="error">{error}</AlertBanner>}
+        {brokerError && (
+          <AlertBanner variant={isAlpacaRateLimitMessage(brokerError) ? 'warning' : 'error'}>
+            {isAlpacaRateLimitMessage(brokerError)
+              ? brokerError
+              : `Alpaca sync: ${brokerError}`}
+            {!isAlpacaRateLimitMessage(brokerError) && /unauthorized|401|403/i.test(brokerError) && (
+              <span>
+                {'. '}Reconnect your paper API keys in Settings (generate new keys at app.alpaca.markets if needed).
               </span>
-            </div>
+            )}
+          </AlertBanner>
+        )}
+        {dataLoading && (
+          <p className="text-sm text-ink-secondary">Loading your account data…</p>
+        )}
+        {!dataLoading && botStatus?.mode === 'DISABLED' && (
+          <AlertBanner variant="info">
+            Bot is stopped. Tap <strong>Start Bot</strong> to begin automatic scans of your watchlist.
+          </AlertBanner>
+        )}
+        {!dataLoading && !brokerConnected && (
+          <AlertBanner variant="info">
+            Portfolio shows the <strong>$100,000 simulator</strong>. Connect Alpaca in Settings to trade with your paper account balance.
+          </AlertBanner>
+        )}
+        {!dataLoading && brokerConnected && snap && !snap.syncError && livePositions.length === 0 && botStatus?.running && (
+          <DismissibleInfoBanner storageKey={ALPACA_NO_POSITIONS_BANNER_KEY}>
+            Alpaca is connected: your keys work and we can read your paper account. No open positions yet: the bot only places orders when a strategy produces an approved <strong>BUY</strong> or <strong>SHORT</strong> (not HOLD) while the bot is running.
+          </DismissibleInfoBanner>
+        )}
+        {!dataLoading && brokerConnected && snap?.syncError && !isAlpacaRateLimitMessage(snap.syncError) && (
+          <AlertBanner variant="error">
+            Alpaca sync failed: {snap.syncError}. Disconnect and reconnect your paper keys in Settings.
+          </AlertBanner>
+        )}
+        {!dataLoading && brokerConnected && snap?.syncError && isAlpacaRateLimitMessage(snap.syncError) && (
+          <AlertBanner variant="warning">
+            Alpaca is temporarily rate limiting updates. Your last synced portfolio is still shown.
+          </AlertBanner>
+        )}
+      </div>
+
+      {/* Stat cards */}
+      {!dataLoading && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Portfolio"
+            value={equity > 0 ? money(equity) : '--'}
+            hint={portfolioLabel}
+          />
+          <StatCard
+            label="Cash"
+            value={balance > 0 ? money(balance) : '--'}
+          />
+          <StatCard
+            label="Buying Power"
+            value={buyingPower != null ? money(buyingPower) : '--'}
+          />
+          <StatCard
+            label="Open Positions"
+            value={positionsLoading ? '…' : (openPositionCount ?? livePositions.length)}
+          />
+          <StatCard
+            label="Watchlist"
+            value={watchlistCount}
+            hint={
+              <a href="/watchlist" className="text-accent hover:underline">
+                Manage →
+              </a>
+            }
+          />
+          <StatCard
+            label="Win Rate"
+            value={perfData ? `${winRate}%` : '--'}
+            trend={winRate >= 50 ? 'up' : winRate > 0 ? 'down' : 'neutral'}
+            hint={perfData ? `${perfData.totalTrades} closed` : 'No closed trades'}
+          />
+          {botStatus?.paperTradesLimit != null && (
+            <StatCard
+              label="Paper Quota"
+              value={`${botStatus.paperTradesUsed ?? 0}/${botStatus.paperTradesLimit}`}
+            />
           )}
           {showPremium && perfData?.maxDrawdown != null && perfData.maxDrawdown > 0 && (
-            <div className="db-summary-card">
-              <span className="db-summary-label">Max Drawdown</span>
-              <span className="db-summary-value neg">-{money(perfData.maxDrawdown)}</span>
-            </div>
+            <StatCard
+              label="Max Drawdown"
+              value={`-${money(perfData.maxDrawdown)}`}
+              trend="down"
+            />
           )}
         </div>
       )}
 
-      {/* ── Row 1 ── */}
-      <div className="db-grid-top">
-
-        {/* AI Signal Feed */}
-        <DbPanel className="db-signal-panel" data-tour="signals">
-          <div className="db-panel-header">
-            <span className="db-panel-title">AI SIGNAL FEED</span>
-            <span className="db-live-badge"><span className="live-dot" />Live</span>
-          </div>
-          <div className="db-signal-list">
-            {signals.length === 0 ? (
-              <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
-                No signals yet. Start the bot to generate signals.
-              </p>
-            ) : (
-              signals.slice(0, 6).map((s) => {
+      {/* Row 1: Signal feed | Portfolio chart | AI confidence */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <Panel
+          title="AI Signal Feed"
+          data-tour="signals"
+          action={
+            <Badge variant="success" pulse>
+              Live
+            </Badge>
+          }
+        >
+          {signals.length === 0 ? (
+            <EmptyState
+              title="No signals yet"
+              description="Start the bot to generate signals."
+            />
+          ) : (
+            <ul className="divide-y divide-border">
+              {signals.slice(0, 6).map((s) => {
                 const spark = symbolSparklines[s.ticker.toUpperCase()] ?? [];
                 const sparkUp = spark.length >= 2 ? spark[spark.length - 1]! >= spark[0]! : s.action === 'BUY';
                 return (
-                <div key={`${s.ticker}-${s.createdAt}`} className="db-signal-row">
-                  <DataSparkline values={spark} up={sparkUp} />
-                  <div className="db-signal-info">
-                    <span className="db-signal-ticker">{s.ticker}</span>
-                    <span className={`db-signal-action ${s.action === 'BUY' ? 'buy' : 'sell'}`}>
-                      {s.action === 'BUY' ? '▲' : '▼'} {s.action}
-                    </span>
-                    <span className="db-signal-conf">
-                      {s.strategy} · {Math.round(s.confidence)}%
-                    </span>
-                  </div>
-                  <span className="db-signal-age">{minsAgo(s.createdAt)}</span>
-                </div>
-              );})
-            )}
-          </div>
-          {signals.length > 0 && <span className="db-view-all muted" style={{ cursor: "default", opacity: 0.55 }}>Signals update live</span>}
-        </DbPanel>
+                  <li
+                    key={`${s.ticker}-${s.createdAt}`}
+                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <DataSparkline values={spark} up={sparkUp} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-bold text-ink">{s.ticker}</span>
+                        <span className={cn(
+                          'text-xs font-semibold',
+                          s.action === 'BUY' ? 'text-positive' : 'text-negative',
+                        )}>
+                          {s.action === 'BUY' ? '▲' : '▼'} {s.action}
+                        </span>
+                      </div>
+                      <p className="text-xs text-ink-secondary">
+                        {s.strategy} · {Math.round(s.confidence)}%
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-ink-muted">{minsAgo(s.createdAt)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {signals.length > 0 && (
+            <p className="mt-3 text-xs text-ink-muted">Signals update live</p>
+          )}
+        </Panel>
 
-        {/* Portfolio Value */}
-        <DbPanel className="db-portfolio-panel" data-tour="portfolio">
-          <div className="db-panel-header">
-            <span className="db-panel-title">PORTFOLIO VALUE</span>
-            <div className="db-tab-group">
-              {(['1D','1W','1M','3M','1Y'] as const).map(t => (
-                <button key={t} className={`db-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t}</button>
-              ))}
-            </div>
-          </div>
-          <div className="db-portfolio-value">{equity > 0 ? money(equity) : '--'}</div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{portfolioLabel}</div>
-          <div className={`db-portfolio-change ${dayGain >= 0 ? 'pos' : 'neg'}`}>
+        <Panel
+          title="Portfolio Value"
+          data-tour="portfolio"
+          action={
+            <SegmentedControl
+              options={EQUITY_TABS}
+              value={tab}
+              onChange={setTab}
+              size="sm"
+            />
+          }
+        >
+          <p className="font-mono text-3xl font-bold tabular-nums text-ink">
+            {equity > 0 ? money(equity) : '--'}
+          </p>
+          <p className="mt-1 text-xs text-ink-secondary">{portfolioLabel}</p>
+          <p className={cn('mt-2 text-sm font-semibold tabular-nums', dayGain >= 0 ? 'text-positive' : 'text-negative')}>
             {dayGain >= 0 ? '▲' : '▼'} {Math.abs(dayGainPct).toFixed(2)}% (Today)
-            <span style={{ marginLeft: 8, opacity: 0.7 }}>{dayGain >= 0 ? '+' : ''}{money(dayGain)}</span>
+            <span className="ml-2 opacity-70">
+              {dayGain >= 0 ? '+' : ''}{money(dayGain)}
+            </span>
             {alpacaDayGain != null && (
-              <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>via Alpaca</span>
+              <span className="ml-1.5 text-xs font-normal text-ink-muted">via Alpaca</span>
             )}
-          </div>
-          <div className="db-chart-area">
+          </p>
+          <div className="mt-4 h-48">
             <PortfolioChart data={equityCurve} labels={chartLabels} />
           </div>
-        </DbPanel>
+        </Panel>
 
-        {/* AI Confidence */}
-        <DbPanel className={`db-confidence-panel ${showAdvanced ? "" : "tier-locked-panel"}`} onClick={showAdvanced ? undefined : () => gate("advancedAnalytics", "Advanced analytics require Pro or Unlimited")} role={showAdvanced ? undefined : "button"} tabIndex={showAdvanced ? undefined : 0}>
-          <div className="db-panel-header">
-            <span className="db-panel-title">AI CONFIDENCE</span>
-          </div>
-          <div className="db-gauge-wrap">
+        <Panel
+          title="AI Confidence"
+          className={cn(
+            'relative',
+            !showAdvanced && 'group cursor-pointer',
+          )}
+          onClick={showAdvanced ? undefined : () => gate('advancedAnalytics', 'Advanced analytics require Pro or Unlimited')}
+          role={showAdvanced ? undefined : 'button'}
+          tabIndex={showAdvanced ? undefined : 0}
+        >
+          {!showAdvanced && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-bg/72 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+              <span className="text-sm font-semibold text-accent">Upgrade to unlock</span>
+            </div>
+          )}
+          <div className="mx-auto h-40 w-40">
             <ConfidenceGauge value={avgConfidence} />
           </div>
-          <div className="db-regime-row">
-            <span className="db-regime-label">Signal Regime</span>
-            <span className={`db-regime-value ${regime === 'Bullish' ? 'teal' : regime === 'Bearish' ? 'neg' : ''}`}>
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <span className="text-ink-secondary">Signal Regime</span>
+            <span className={cn(
+              'font-semibold',
+              regime === 'Bullish' && 'text-positive',
+              regime === 'Bearish' && 'text-negative',
+              regime !== 'Bullish' && regime !== 'Bearish' && 'text-ink',
+            )}>
               {regime} {regime === 'Bullish' ? '↗' : regime === 'Bearish' ? '↘' : '→'}
             </span>
           </div>
-          <div className="db-confidence-chart">
+          <div className="mt-3">
             <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={120} height={28} />
           </div>
-          <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+          <p className="mt-3 text-xs text-ink-muted">
             Win rate {perfData ? `${winRate}%` : '--'} · {signals.length} recent signal{signals.length === 1 ? '' : 's'}
           </p>
-        </DbPanel>
+        </Panel>
       </div>
 
-      {/* ── Row 1b: Strategy + recent activity ── */}
-      <div className="db-grid-mid">
-        <DbPanel className="db-strategy-panel">
-          <div className="db-panel-header">
-            <span className="db-panel-title">CLOSED TRADES BY STRATEGY</span>
-            <span className="muted" style={{ fontSize: 11 }}>{closedTrades.length} closed</span>
-          </div>
+      {/* Row 2: Strategy breakdown | Recent activity */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <Panel
+          title="Closed Trades by Strategy"
+          action={
+            <span className="text-xs text-ink-muted">{closedTrades.length} closed</span>
+          }
+        >
           {closedTradesLoading ? (
-            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>Loading closed trades…</p>
+            <p className="text-sm text-ink-secondary">Loading closed trades…</p>
           ) : topStrategies.length === 0 ? (
-            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
-              No closed trades yet. Performance by strategy will appear after your first exits.
-            </p>
+            <EmptyState
+              title="No closed trades yet"
+              description="Performance by strategy will appear after your first exits."
+            />
           ) : (
-            <table className="db-pos-table">
+            <DataTable>
               <thead>
-                <tr>
-                  <th className="muted" style={{ fontSize: 10, textAlign: 'left', paddingBottom: 8 }}>Strategy</th>
-                  <th className="muted" style={{ fontSize: 10, textAlign: 'right', paddingBottom: 8 }}>Trades</th>
-                  <th className="muted" style={{ fontSize: 10, textAlign: 'right', paddingBottom: 8 }}>Win%</th>
-                  <th className="muted" style={{ fontSize: 10, textAlign: 'right', paddingBottom: 8 }}>P&amp;L</th>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-muted">
+                  <th className="pb-3 pr-4 font-medium">Strategy</th>
+                  <th className="pb-3 pr-4 text-right font-medium">Trades</th>
+                  <th className="pb-3 pr-4 text-right font-medium">Win%</th>
+                  <th className="pb-3 text-right font-medium">P&amp;L</th>
                 </tr>
               </thead>
               <tbody>
                 {topStrategies.map((s) => (
-                  <tr key={s.key} className="db-pos-row">
-                    <td className="db-pos-ticker" style={{ fontSize: 12 }}>{formatStrategyLabel(s.key)}</td>
-                    <td className="db-pos-value" style={{ textAlign: 'right' }}>{s.trades}</td>
-                    <td className="db-pos-value" style={{ textAlign: 'right' }}>{Math.round(s.winRate * 100)}%</td>
-                    <td className={`db-pos-pnl ${s.totalPnl >= 0 ? 'pos' : 'neg'}`} style={{ textAlign: 'right' }}>
+                  <tr key={s.key} className="border-b border-border/50 last:border-0">
+                    <td className="py-3 pr-4 text-sm font-medium text-ink">
+                      {formatStrategyLabel(s.key)}
+                    </td>
+                    <td className="py-3 pr-4 text-right font-mono text-sm tabular-nums text-ink-secondary">
+                      {s.trades}
+                    </td>
+                    <td className="py-3 pr-4 text-right font-mono text-sm tabular-nums text-ink-secondary">
+                      {Math.round(s.winRate * 100)}%
+                    </td>
+                    <td className={cn('py-3 text-right font-mono text-sm font-semibold tabular-nums', pnlClass(s.totalPnl))}>
                       {s.totalPnl >= 0 ? '+' : ''}{money(s.totalPnl)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           )}
-        </DbPanel>
+        </Panel>
 
-        <DbPanel className="db-recent-panel">
-          <div className="db-panel-header">
-            <span className="db-panel-title">RECENT ACTIVITY</span>
-          </div>
+        <Panel title="Recent Activity">
           {closedTradesLoading && signalsLoading ? (
-            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>Loading activity…</p>
+            <p className="text-sm text-ink-secondary">Loading activity…</p>
           ) : recentActivity.length === 0 ? (
-            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
-              No activity yet. Start the bot to generate signals and trades.
-            </p>
+            <EmptyState
+              title="No activity yet"
+              description="Start the bot to generate signals and trades."
+            />
           ) : (
-            <div className="db-activity-list">
-              {recentActivity.map((item) => (
+            <ul className="divide-y divide-border">
+              {recentActivity.map((item) =>
                 item.kind === 'trade' ? (
-                  <div key={item.id} className="db-activity-row">
-                    <div className="db-activity-main">
-                      <span className="db-activity-symbol">{item.symbol}</span>
-                      <span className={`db-result-pill ${resultBadgeClass(item.result)}`}>{item.result}</span>
+                  <li key={item.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-bold text-ink">{item.symbol}</span>
+                        <Badge variant={resultBadgeVariant(item.result)}>{item.result}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-ink-secondary">
+                        {formatStrategyLabel(item.strategy)}
+                        <span className="text-ink-muted"> · {minsAgo(item.at)}</span>
+                      </p>
                     </div>
-                    <div className="db-activity-meta">
-                      <span>{formatStrategyLabel(item.strategy)}</span>
-                      <span className="muted">· {minsAgo(item.at)}</span>
-                    </div>
-                    <span className={`db-activity-pnl ${(item.pnl ?? 0) >= 0 ? 'pos' : 'neg'}`}>
+                    <span className={cn('shrink-0 font-mono text-sm font-semibold tabular-nums', pnlClass(item.pnl))}>
                       {(item.pnl ?? 0) >= 0 ? '+' : ''}{money(item.pnl)}
                     </span>
-                  </div>
+                  </li>
                 ) : (
-                  <div key={item.id} className="db-activity-row db-activity-signal">
-                    <div className="db-activity-main">
-                      <span className="db-activity-symbol">{item.symbol}</span>
-                      <span className={`db-signal-action ${item.action === 'BUY' ? 'buy' : 'sell'}`}>{item.action}</span>
+                  <li key={item.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-bold text-ink">{item.symbol}</span>
+                        <span className={cn(
+                          'text-xs font-semibold',
+                          item.action === 'BUY' ? 'text-positive' : 'text-negative',
+                        )}>
+                          {item.action}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-ink-secondary">
+                        {formatStrategyLabel(item.strategy)}
+                        <span className="text-ink-muted">
+                          {' '}· {Math.round(item.confidence)}% · {minsAgo(item.at)}
+                        </span>
+                      </p>
                     </div>
-                    <div className="db-activity-meta">
-                      <span>{formatStrategyLabel(item.strategy)}</span>
-                      <span className="muted">· {Math.round(item.confidence)}% · {minsAgo(item.at)}</span>
-                    </div>
-                    <span className="db-activity-tag muted">Signal</span>
-                  </div>
-                )
-              ))}
-            </div>
+                    <Badge variant="muted">Signal</Badge>
+                  </li>
+                ),
+              )}
+            </ul>
           )}
-          <a href="/history" className="db-view-all">Full trade history →</a>
-        </DbPanel>
+          <a
+            href="/history"
+            className="mt-4 inline-block text-sm font-medium text-accent hover:underline"
+          >
+            Full trade history →
+          </a>
+        </Panel>
       </div>
 
-      {/* ── Row 2 ── */}
-      <div className="db-grid-bottom">
-
-        {/* Positions */}
-        <DbPanel className="db-positions-panel">
-          <div className="db-panel-header">
-            <span className="db-panel-title">
-              POSITIONS ({positionsLoading ? '…' : (openPositionCount ?? livePositions.length)})
-            </span>
-          </div>
+      {/* Row 3: Positions | Heatmap | Performance */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Panel
+          title={`Positions (${positionsLoading ? '…' : (openPositionCount ?? livePositions.length)})`}
+        >
           {positionsLoading ? (
-            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>Loading positions…</p>
+            <p className="text-sm text-ink-secondary">Loading positions…</p>
           ) : livePositions.length === 0 ? (
-            <p className="muted" style={{ padding: '1rem 0', fontSize: 13 }}>
-              No open positions.
-              {!brokerConnected
-                ? ' Connect Alpaca in Settings for broker-backed paper trading, or start the bot to open simulator trades.'
-                : ' Start the bot to open trades on your watchlist.'}
-            </p>
+            <EmptyState
+              title="No open positions"
+              description={
+                !brokerConnected
+                  ? 'Connect Alpaca in Settings for broker-backed paper trading, or start the bot to open simulator trades.'
+                  : 'Start the bot to open trades on your watchlist.'
+              }
+            />
           ) : (
-            <table className="db-pos-table">
+            <DataTable>
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-muted">
+                  <th className="pb-3 pr-3 font-medium">Symbol</th>
+                  <th className="pb-3 pr-3 font-medium">Side</th>
+                  <th className="pb-3 pr-3 text-right font-medium">Value</th>
+                  <th className="pb-3 pr-3 text-right font-medium">P&amp;L</th>
+                  <th className="pb-3 text-right font-medium">%</th>
+                </tr>
+              </thead>
               <tbody>
                 {livePositions.map((p) => {
                   const pnl = p.unrealizedPnl ?? 0;
                   const pnlPct = p.unrealizedPnlPct ?? 0;
                   return (
-                    <tr key={p.tradeId ?? p.symbol} className="db-pos-row">
-                      <td className="db-pos-ticker">{p.symbol}</td>
-                      <td className={`db-pos-side ${p.side === 'LONG' ? 'buy' : 'sell'}`}>{p.side === 'LONG' ? 'Long' : 'Short'}</td>
-                      <td className="db-pos-value">
+                    <tr key={p.tradeId ?? p.symbol} className="border-b border-border/50 last:border-0">
+                      <td className="py-3 pr-3 font-mono text-sm font-bold text-ink">{p.symbol}</td>
+                      <td className={cn(
+                        'py-3 pr-3 text-sm font-medium',
+                        p.side === 'LONG' ? 'text-positive' : 'text-negative',
+                      )}>
+                        {p.side === 'LONG' ? 'Long' : 'Short'}
+                      </td>
+                      <td className="py-3 pr-3 text-right font-mono text-sm tabular-nums text-ink-secondary">
                         {p.marketValue != null ? money(p.marketValue) : `${p.qty} @ ${money(p.avgEntryPrice)}`}
                       </td>
-                      <td className={`db-pos-pnl ${pnl >= 0 ? 'pos' : 'neg'}`}>{pnl !== 0 ? `${pnl >= 0 ? '+' : ''}${money(pnl)}` : '--'}</td>
-                      <td className={`db-pos-pct ${pnlPct >= 0 ? 'pos' : 'neg'}`}>{pnlPct !== 0 ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : '--'}</td>
+                      <td className={cn('py-3 pr-3 text-right font-mono text-sm font-semibold tabular-nums', pnlClass(pnl))}>
+                        {pnl !== 0 ? `${pnl >= 0 ? '+' : ''}${money(pnl)}` : '--'}
+                      </td>
+                      <td className={cn('py-3 text-right font-mono text-sm font-semibold tabular-nums', pnlClass(pnlPct))}>
+                        {pnlPct !== 0 ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : '--'}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
+            </DataTable>
           )}
-          <a href="/history" className="db-view-all">View trade history →</a>
-        </DbPanel>
+          <a
+            href="/history"
+            className="mt-4 inline-block text-sm font-medium text-accent hover:underline"
+          >
+            View trade history →
+          </a>
+        </Panel>
 
-        {/* Market Heatmap */}
-        <DbPanel className="db-heatmap-panel">
-          <div className="db-panel-header">
-            <span className="db-panel-title">MARKET HEATMAP</span>
-          </div>
-          <div className="db-heatmap-grid">
-            {heatmapData.length === 0 ? (
-              <p className="muted" style={{ padding: '1rem 0', fontSize: 13, gridColumn: '1 / -1' }}>
-                Add symbols to your Watchlist to see live market heatmap.
-              </p>
-            ) : (
-              <>
-                {heatmapData.slice(0, 7).map((t) => (
-                  <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} large={t.large} />
-                ))}
-                {heatmapData.slice(7).map((t) => (
-                  <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} />
-                ))}
-              </>
-            )}
-          </div>
-        </DbPanel>
+        <Panel title="Market Heatmap">
+          {heatmapData.length === 0 ? (
+            <EmptyState
+              title="No watchlist symbols"
+              description="Add symbols to your Watchlist to see live market heatmap."
+            />
+          ) : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {heatmapData.slice(0, 7).map((t) => (
+                <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} large={t.large} />
+              ))}
+              {heatmapData.slice(7).map((t) => (
+                <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} />
+              ))}
+            </div>
+          )}
+        </Panel>
 
-        {/* Performance */}
-        <DbPanel className="db-perf-panel">
-          <div className="db-panel-header">
-            <span className="db-panel-title">PERFORMANCE</span>
-          </div>
-          <div className="db-perf-list">
-            <div className="db-perf-row">
-              <span className="db-perf-label">Today</span>
-              <span className={`db-perf-value ${pnlClass(perfToday)}`}>
+        <Panel title="Performance">
+          <dl className="space-y-3">
+            <div className="flex items-center justify-between">
+              <dt className="text-sm text-ink-secondary">Today</dt>
+              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfToday))}>
                 {perfData || alpacaDayGain != null ? `${perfToday >= 0 ? '+' : ''}${money(perfToday)}` : '--'}
-              </span>
+              </dd>
             </div>
-            <div className="db-perf-row">
-              <span className="db-perf-label">This Week</span>
-              <span className={`db-perf-value ${pnlClass(perfData?.weeklyPnl)}`}>
+            <div className="flex items-center justify-between">
+              <dt className="text-sm text-ink-secondary">This Week</dt>
+              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfData?.weeklyPnl))}>
                 {perfData ? `${perfData.weeklyPnl >= 0 ? '+' : ''}${money(perfData.weeklyPnl)}` : '--'}
-              </span>
+              </dd>
             </div>
-            <div className="db-perf-row">
-              <span className="db-perf-label">This Month</span>
-              <span className={`db-perf-value ${pnlClass(perfData?.monthlyPnl)}`}>
+            <div className="flex items-center justify-between">
+              <dt className="text-sm text-ink-secondary">This Month</dt>
+              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfData?.monthlyPnl))}>
                 {perfData ? `${perfData.monthlyPnl >= 0 ? '+' : ''}${money(perfData.monthlyPnl)}` : '--'}
-              </span>
+              </dd>
             </div>
-            <div className="db-perf-row">
-              <span className="db-perf-label">All Time</span>
-              <span className={`db-perf-value ${pnlClass(perfData?.totalPnl)}`}>
+            <div className="flex items-center justify-between">
+              <dt className="text-sm text-ink-secondary">All Time</dt>
+              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfData?.totalPnl))}>
                 {perfData ? `${perfData.totalPnl >= 0 ? '+' : ''}${money(perfData.totalPnl)}` : '--'}
-              </span>
+              </dd>
             </div>
-          </div>
-          <div className="db-perf-sparkline">
+          </dl>
+          <div className="mt-4">
             <DataSparkline values={perfPnlSeries} up={(perfData?.totalPnl ?? 0) >= 0} width={120} height={28} />
           </div>
-          <div className="db-perf-stats">
-            <div className="db-perf-stat">
-              <span className="db-perf-stat-label">Win Rate</span>
-              <span className={`db-perf-stat-value ${winRate >= 50 ? 'pos' : 'neg'}`}>
+          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
+            <div>
+              <p className="text-xs text-ink-muted">Win Rate</p>
+              <p className={cn('mt-1 font-mono text-lg font-semibold tabular-nums', winRate >= 50 ? 'text-positive' : 'text-negative')}>
                 {perfData ? `${winRate}%` : '--'}
-              </span>
+              </p>
             </div>
-            <div className="db-perf-stat">
-              <span className="db-perf-stat-label">Total Trades</span>
-              <span className="db-perf-stat-value">{perfData?.totalTrades ?? '--'}</span>
+            <div>
+              <p className="text-xs text-ink-muted">Total Trades</p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-ink">
+                {perfData?.totalTrades ?? '--'}
+              </p>
             </div>
-            <div className="db-perf-stat">
-              <span className="db-perf-stat-label">Open</span>
-              <span className="db-perf-stat-value">{openPositionCount ?? '…'}</span>
+            <div>
+              <p className="text-xs text-ink-muted">Open</p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-ink">
+                {openPositionCount ?? '…'}
+              </p>
             </div>
           </div>
-        </DbPanel>
+        </Panel>
       </div>
-    </div>
+    </PageShell>
   );
 }
