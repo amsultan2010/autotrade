@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
 import {
   ArrowRight,
@@ -67,19 +68,32 @@ const FAQ = [
 ];
 
 function AuthButtons({ className }: { className?: string }) {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
+
+  if (!isLoaded) {
+    return <div className={cn('h-10 w-40 animate-pulse rounded-md bg-surface/80', className)} aria-hidden />;
+  }
+
   if (isSignedIn) {
     return (
       <div className={cn('flex gap-2', className)}>
-        <Button variant="outline" asChild><a href="/dashboard">Console</a></Button>
-        <Button asChild><a href="/dashboard">Launch <ArrowRight className="h-4 w-4" /></a></Button>
+        <Button asChild>
+          <Link href="/dashboard">
+            Launch <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
       </div>
     );
   }
+
   return (
     <div className={cn('flex gap-2', className)}>
-      <SignInButton mode="modal"><Button variant="outline">Sign In</Button></SignInButton>
-      <SignUpButton mode="modal"><Button>Initialize <ArrowRight className="h-4 w-4" /></Button></SignUpButton>
+      <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+        <Button variant="outline">Sign In</Button>
+      </SignInButton>
+      <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+        <Button>Create Account</Button>
+      </SignUpButton>
     </div>
   );
 }
@@ -110,7 +124,7 @@ function CommandDeck() {
 }
 
 export function Landing() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
   const reduce = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -189,14 +203,27 @@ export function Landing() {
                 A maximalist trading forge — skeuomorphic controls, institutional AI, and execution fast enough to matter.
               </motion.p>
               <motion.div variants={forgeFadeUp} className="mt-8 flex flex-wrap gap-3">
-                {isSignedIn ? (
+                {!isLoaded ? (
+                  <div className="h-12 w-44 animate-pulse rounded-md bg-surface/80" aria-hidden />
+                ) : isSignedIn ? (
                   <Button size="lg" asChild>
-                    <a href="/dashboard">Open Console <ArrowRight className="h-4 w-4" /></a>
+                    <Link href="/dashboard">
+                      Launch Console <ArrowRight className="h-4 w-4" />
+                    </Link>
                   </Button>
                 ) : (
-                  <SignUpButton mode="modal">
-                    <Button size="lg">Initialize System <ArrowRight className="h-4 w-4" /></Button>
-                  </SignUpButton>
+                  <>
+                    <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                      <Button size="lg">
+                        Create Account <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </SignUpButton>
+                    <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+                      <Button variant="outline" size="lg">
+                        Sign In
+                      </Button>
+                    </SignInButton>
+                  </>
                 )}
                 <Button variant="outline" size="lg" asChild>
                   <a href="#pipeline">View Pipeline</a>
@@ -358,14 +385,27 @@ export function Landing() {
                 Paper first. Live when you authorize. No credit card.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                {isSignedIn ? (
+                {!isLoaded ? (
+                  <div className="h-12 w-44 animate-pulse rounded-md bg-surface/80" aria-hidden />
+                ) : isSignedIn ? (
                   <Button size="lg" asChild>
-                    <a href="/dashboard">Launch Console <ArrowRight className="h-4 w-4" /></a>
+                    <Link href="/dashboard">
+                      Launch Console <ArrowRight className="h-4 w-4" />
+                    </Link>
                   </Button>
                 ) : (
-                  <SignUpButton mode="modal">
-                    <Button size="lg">Create Account <ArrowRight className="h-4 w-4" /></Button>
-                  </SignUpButton>
+                  <>
+                    <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                      <Button size="lg">
+                        Create Account <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </SignUpButton>
+                    <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+                      <Button variant="outline" size="lg">
+                        Sign In
+                      </Button>
+                    </SignInButton>
+                  </>
                 )}
               </div>
             </ForgePlate>

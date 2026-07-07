@@ -107,7 +107,7 @@ function StatusBar({ scanActive }: { scanActive: boolean }) {
   );
 }
 
-function AppShell({ children }: { children: React.ReactNode }) {
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
   const pathname = usePathname();
@@ -127,8 +127,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   }, [clerkUser?.id, email]);
 
   return (
-    <AuthProvider>
-      <SubscriptionProvider>
+    <>
         <OnboardingExperience />
         <ProductTour />
         <AmbientFx ghost />
@@ -260,6 +259,15 @@ function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
         </div>
+    </>
+  );
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <SubscriptionProvider>
+        <AppShellInner>{children}</AppShellInner>
       </SubscriptionProvider>
     </AuthProvider>
   );
