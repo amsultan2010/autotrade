@@ -1,16 +1,31 @@
+'use client';
+
+import { type ReactNode } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0 },
+};
 
 export function PageShell({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
+  const reduce = useReducedMotion();
   return (
-    <div className={cn('mx-auto w-full max-w-[1440px] px-4 pb-8 pt-6 md:px-8 md:pb-12 md:pt-8', className)}>
+    <motion.div
+      className={cn('relative mx-auto w-full max-w-[1480px] px-4 pb-10 pt-6 md:px-8 md:pb-14 md:pt-8', className)}
+      initial={reduce ? false : 'hidden'}
+      animate="show"
+      variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -22,26 +37,31 @@ export function PageHeader({
 }: {
   title: string;
   description?: string;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
   className?: string;
 }) {
+  const reduce = useReducedMotion();
   return (
-    <header
+    <motion.header
+      variants={reduce ? undefined : fadeUp}
       className={cn(
-        'mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between',
+        'mb-8 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between',
         className,
       )}
     >
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
-          {title}
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">Console</p>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+          <span className="bg-gradient-to-r from-ink via-ink to-gold bg-clip-text text-transparent">
+            {title}
+          </span>
         </h1>
         {description && (
-          <p className="mt-1 max-w-2xl text-sm text-ink-secondary">{description}</p>
+          <p className="mt-2 max-w-2xl text-sm text-ink-secondary">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-    </header>
+    </motion.header>
   );
 }
 
@@ -53,19 +73,20 @@ export function StatCard({
   className,
 }: {
   label: string;
-  value: React.ReactNode;
-  hint?: React.ReactNode;
+  value: ReactNode;
+  hint?: ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   className?: string;
 }) {
+  const reduce = useReducedMotion();
   return (
-    <div
-      className={cn(
-        'rounded-xl border border-border bg-surface-raised p-4 shadow-[var(--shadow-card)]',
-        className,
-      )}
+    <motion.div
+      variants={reduce ? undefined : fadeUp}
+      whileHover={reduce ? undefined : { y: -3, transition: { duration: 0.2 } }}
+      className={cn('material-panel p-4', className)}
     >
-      <p className="text-xs font-medium uppercase tracking-wider text-ink-muted">{label}</p>
+      <span className="hud-corners" aria-hidden />
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-muted">{label}</p>
       <p
         className={cn(
           'mt-2 font-mono text-2xl font-semibold tabular-nums text-ink',
@@ -76,7 +97,7 @@ export function StatCard({
         {value}
       </p>
       {hint && <div className="mt-1 text-xs text-ink-secondary">{hint}</div>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -85,25 +106,41 @@ export function Panel({
   action,
   children,
   className,
-  ...rest
+  'data-tour': dataTour,
+  onClick,
+  onKeyDown,
+  role,
+  tabIndex,
+  id,
 }: {
   title?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
   className?: string;
-} & React.HTMLAttributes<HTMLElement>) {
+  'data-tour'?: string;
+  onClick?: React.MouseEventHandler<HTMLElement>;
+  onKeyDown?: React.KeyboardEventHandler<HTMLElement>;
+  role?: string;
+  tabIndex?: number;
+  id?: string;
+}) {
+  const reduce = useReducedMotion();
   return (
-    <section
-      className={cn(
-        'overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card)]',
-        className,
-      )}
-      {...rest}
+    <motion.section
+      variants={reduce ? undefined : fadeUp}
+      className={cn('material-panel', className)}
+      data-tour={dataTour}
+      id={id}
+      role={role}
+      tabIndex={tabIndex}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
     >
+      <span className="hud-corners" aria-hidden />
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           {title && (
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">
               {title}
             </h2>
           )}
@@ -111,7 +148,7 @@ export function Panel({
         </div>
       )}
       <div className="p-5">{children}</div>
-    </section>
+    </motion.section>
   );
 }
 
@@ -122,15 +159,18 @@ export function EmptyState({
 }: {
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <p className="font-display text-lg font-semibold text-ink">{title}</p>
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gold/30 bg-gold-muted text-gold">
+        ◈
+      </div>
+      <p className="font-display text-xl font-bold text-ink">{title}</p>
       {description && (
         <p className="mt-2 max-w-sm text-sm text-ink-secondary">{description}</p>
       )}
-      {action && <div className="mt-6">{action}</div>}
+      {action && <div className="mt-8">{action}</div>}
     </div>
   );
 }
@@ -149,7 +189,7 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       className={cn(
-        'inline-flex rounded-lg border border-border bg-surface p-1',
+        'material-inset inline-flex p-1',
         size === 'sm' && 'text-xs',
       )}
       role="tablist"
@@ -162,11 +202,11 @@ export function SegmentedControl<T extends string>({
           aria-selected={value === opt}
           onClick={() => onChange(opt)}
           className={cn(
-            'rounded-md px-3 py-1.5 font-medium transition-colors motion-safe:duration-200',
+            'rounded-md px-3 py-1.5 font-semibold transition-all motion-safe:duration-200',
             size === 'sm' && 'px-2 py-1',
             value === opt
-              ? 'bg-accent-muted text-accent shadow-sm'
-              : 'text-ink-secondary hover:text-ink',
+              ? 'bg-gold-muted text-gold shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]'
+              : 'text-ink-muted hover:text-ink-secondary',
           )}
         >
           {opt}
@@ -181,27 +221,22 @@ export function Badge({
   variant = 'default',
   pulse,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'muted';
   pulse?: boolean;
 }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-        variant === 'default' && 'bg-accent-muted text-accent',
-        variant === 'success' && 'bg-positive-muted text-positive',
-        variant === 'warning' && 'bg-warning-muted text-warning',
-        variant === 'danger' && 'bg-negative-muted text-negative',
-        variant === 'muted' && 'bg-surface-overlay text-ink-secondary',
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide',
+        variant === 'default' && 'border-gold/30 bg-gold-muted text-gold',
+        variant === 'success' && 'border-positive/30 bg-positive-muted text-positive',
+        variant === 'warning' && 'border-warning/30 bg-warning-muted text-warning',
+        variant === 'danger' && 'border-negative/30 bg-negative-muted text-negative',
+        variant === 'muted' && 'border-border bg-surface-overlay text-ink-secondary',
       )}
     >
-      {pulse && (
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-positive opacity-75 motion-reduce:animate-none" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-positive" />
-        </span>
-      )}
+      {pulse && <span className="live-dot" />}
       {children}
     </span>
   );
@@ -211,12 +246,14 @@ export function DataTable({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn('overflow-x-auto', className)}>
-      <table className="w-full min-w-[480px] border-collapse text-sm">{children}</table>
+      <table className="w-full min-w-[480px] border-collapse text-sm [&_th]:border-b [&_th]:border-border [&_th]:pb-2 [&_th]:text-left [&_th]:text-[10px] [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-muted [&_tr:hover]:bg-white/[0.02] [&_td]:py-3 [&_td]:border-b [&_td]:border-border/50">
+        {children}
+      </table>
     </div>
   );
 }
@@ -226,17 +263,17 @@ export function AlertBanner({
   variant = 'info',
   onDismiss,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   variant?: 'info' | 'warning' | 'error';
   onDismiss?: () => void;
 }) {
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-lg border px-4 py-3 text-sm',
-        variant === 'info' && 'border-accent/30 bg-accent-muted text-ink-secondary',
-        variant === 'warning' && 'border-warning/30 bg-warning-muted text-ink-secondary',
-        variant === 'error' && 'border-negative/30 bg-negative-muted text-ink-secondary',
+        'material-inset flex items-start gap-3 px-4 py-3 text-sm',
+        variant === 'info' && 'border-teal/20 text-ink-secondary',
+        variant === 'warning' && 'text-ink-secondary',
+        variant === 'error' && 'text-ink-secondary',
       )}
       role="alert"
     >
@@ -246,7 +283,7 @@ export function AlertBanner({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="shrink-0 rounded-md p-1 text-ink-muted transition-colors hover:bg-white/5 hover:text-ink"
+          className="material-button shrink-0 px-2 py-1 text-ink-muted hover:text-ink"
         >
           ×
         </button>

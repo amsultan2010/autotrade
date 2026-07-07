@@ -13,8 +13,7 @@ export default function SignInPage() {
             rootBox: 'w-full',
             card: 'shadow-none border-0 bg-transparent p-0',
             headerTitle: 'font-display',
-            formButtonPrimary:
-              'bg-accent text-bg hover:bg-accent-hover rounded-lg font-semibold shadow-sm',
+            formButtonPrimary: 'btn-gold w-full',
           },
         }}
       />

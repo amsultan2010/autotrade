@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
 import {
   Sparkles,
@@ -19,6 +19,14 @@ import {
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type Variants,
+} from 'framer-motion';
+import { AmbientFx } from '@/src/components/AmbientFx';
 import { Button } from '@/src/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -89,11 +97,45 @@ const NAV_LINKS = [
   { href: '#faq', label: 'FAQ' },
 ] as const;
 
+// ─── Motion helpers ───────────────────────────────────────────────────────────
+
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 32 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: EASE_OUT } },
+};
+
+const stagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
+};
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SectionReveal({
+  children,
+  className,
+  ...props
+}: React.ComponentProps<typeof motion.section>) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.section
+      className={className}
+      initial={reduce ? false : 'hidden'}
+      whileInView="visible"
+      viewport={{ once: true, margin: '-80px' }}
+      variants={fadeUp}
+      {...props}
+    >
+      {children}
+    </motion.section>
+  );
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+    <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold">
       {children}
     </p>
   );
@@ -101,71 +143,103 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h2 className={cn('font-display text-3xl font-bold tracking-tight text-ink md:text-4xl', className)}>
+    <h2 className={cn('font-display text-3xl font-bold tracking-tight text-ink md:text-4xl lg:text-5xl', className)}>
       {children}
     </h2>
   );
 }
 
-function TradeBadge({ sym, action, qty, pnl, delay }: (typeof BADGES)[0]) {
+function FloatingTradeBadge({ sym, action, qty, pnl, delay }: (typeof BADGES)[0]) {
+  const reduce = useReducedMotion();
   const isPositive = !pnl.startsWith('-');
+
   return (
-    <div
-      className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised/90 px-4 py-2.5 shadow-[var(--shadow-card)] backdrop-blur-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:fill-mode-both"
-      style={{ animationDelay: `${delay}s`, animationDuration: '0.7s' }}
+    <motion.div
+      className="material-inset flex items-center gap-3 px-4 py-2.5 backdrop-blur-sm"
+      initial={reduce ? false : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: delay * 0.3, ease: EASE_OUT }}
     >
-      <span className="font-mono text-sm font-semibold text-ink">{sym}</span>
-      <span
-        className={cn(
-          'rounded px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide',
-          action === 'BUY' ? 'bg-positive-muted text-positive' : 'bg-negative-muted text-negative',
-        )}
+      <motion.div
+        animate={reduce ? undefined : { y: [0, -5, 0] }}
+        transition={{ duration: 3.5 + delay * 0.4, repeat: Infinity, ease: 'easeInOut', delay }}
+        className="flex w-full items-center gap-3"
       >
-        {action}
-      </span>
-      <span className="hidden text-xs text-ink-muted sm:inline">{qty}</span>
-      <span className={cn('ml-auto font-mono text-sm font-semibold tabular-nums', isPositive ? 'text-positive' : 'text-negative')}>
-        {pnl}
-      </span>
-    </div>
+        <span className="font-mono text-sm font-bold text-gold">{sym}</span>
+        <span
+          className={cn(
+            'rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider',
+            action === 'BUY' ? 'bg-positive-muted text-positive' : 'bg-negative-muted text-negative',
+          )}
+        >
+          {action}
+        </span>
+        <span className="hidden text-xs text-ink-muted sm:inline">{qty}</span>
+        <span
+          className={cn(
+            'ml-auto font-mono text-sm font-bold tabular-nums',
+            isPositive ? 'text-positive' : 'text-negative',
+          )}
+        >
+          {pnl}
+        </span>
+      </motion.div>
+    </motion.div>
   );
 }
 
 function HeroDashboard() {
+  const reduce = useReducedMotion();
+
   return (
-    <div className="relative w-full max-w-lg lg:max-w-none">
-      {/* Ambient glow */}
+    <motion.div
+      className="relative w-full max-w-lg lg:max-w-none"
+      initial={reduce ? false : { opacity: 0, scale: 0.96, y: 24 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.25, ease: EASE_OUT }}
+    >
+      <div className="lp-hero-glow -right-16 -top-16 opacity-60" aria-hidden />
       <div
-        className="pointer-events-none absolute -inset-8 rounded-full opacity-40 blur-3xl motion-safe:animate-pulse"
-        style={{ background: 'radial-gradient(circle, color-mix(in oklab, #38bdf8 30%, transparent), transparent 70%)' }}
+        className="pointer-events-none absolute -left-12 bottom-0 h-48 w-48 rounded-full opacity-30 blur-3xl"
+        style={{ background: 'radial-gradient(circle, #00c896, transparent 70%)' }}
         aria-hidden
       />
 
-      <div className="relative overflow-hidden rounded-xl border border-border bg-surface-raised shadow-[var(--shadow-elevated)]">
-        {/* Window chrome */}
-        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+      <div className="material-panel relative overflow-hidden shadow-[var(--shadow-elevated)]">
+        <span className="hud-corners" aria-hidden />
+
+        <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
           <div className="flex gap-1.5" aria-hidden>
-            <span className="h-2.5 w-2.5 rounded-full bg-negative/60" />
-            <span className="h-2.5 w-2.5 rounded-full bg-warning/60" />
-            <span className="h-2.5 w-2.5 rounded-full bg-positive/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-negative/70 shadow-[0_0_8px_rgba(255,59,82,0.5)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-warning/70 shadow-[0_0_8px_rgba(240,165,0,0.5)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-positive/70 shadow-[0_0_8px_rgba(0,200,150,0.5)]" />
           </div>
-          <span className="mx-auto font-mono text-[11px] text-ink-muted">autotrade — dashboard</span>
+          <span className="mx-auto font-mono text-[10px] uppercase tracking-widest text-ink-muted">
+            autotrade — obsidian terminal
+          </span>
         </div>
 
         <div className="grid gap-0 sm:grid-cols-[140px_1fr]">
-          {/* Sidebar mock */}
-          <div className="hidden border-r border-border bg-surface p-4 sm:block">
+          <div className="hidden border-r border-white/[0.06] bg-[#08080e] p-4 sm:block">
             <div className="mb-4 flex items-center gap-2">
-              <img src="/icon.png" alt="" width={24} height={24} className="rounded-md" />
-              <span className="font-display text-sm font-bold">Autotrade</span>
+              <img
+                src="/icon.png"
+                alt=""
+                width={24}
+                height={24}
+                className="rounded-md shadow-[var(--shadow-gold-glow)]"
+              />
+              <span className="font-display text-sm font-bold text-gold">Autotrade</span>
             </div>
             <nav className="space-y-1" aria-hidden>
               {['Dashboard', 'Signals', 'Portfolio', 'Settings'].map((item, i) => (
                 <div
                   key={item}
                   className={cn(
-                    'rounded-md px-3 py-2 text-xs font-medium',
-                    i === 0 ? 'bg-accent-muted text-accent' : 'text-ink-muted',
+                    'rounded-md px-3 py-2 text-xs font-semibold',
+                    i === 0
+                      ? 'bg-gold-muted text-gold shadow-[inset_3px_0_0_#d4af37]'
+                      : 'text-ink-muted',
                   )}
                 >
                   {item}
@@ -174,64 +248,80 @@ function HeroDashboard() {
             </nav>
           </div>
 
-          {/* Main panel */}
           <div className="p-4 md:p-5">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
-                <p className="text-xs text-ink-muted">Portfolio Value</p>
-                <p className="font-mono text-2xl font-bold tabular-nums text-ink">$124,832.50</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+                  Portfolio Value
+                </p>
+                <p className="font-mono text-2xl font-bold tabular-nums text-ink md:text-3xl">
+                  $124,832.50
+                </p>
               </div>
-              <span className="rounded-md bg-positive-muted px-2 py-1 font-mono text-xs font-semibold text-positive">
+              <span className="material-inset rounded-md px-2.5 py-1 font-mono text-xs font-bold text-positive">
                 +2.41% today
               </span>
             </div>
 
-            {/* SVG chart */}
-            <div className="relative h-36 overflow-hidden rounded-lg border border-border bg-surface md:h-44">
+            <div className="material-inset relative h-36 overflow-hidden md:h-44">
               <svg viewBox="0 0 400 160" className="h-full w-full" preserveAspectRatio="none" aria-hidden>
                 <defs>
-                  <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                  <linearGradient id="lp-chart-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#00c896" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#00c896" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="lp-chart-line" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#00c896" />
+                    <stop offset="50%" stopColor="#d4af37" />
+                    <stop offset="100%" stopColor="#00c896" />
                   </linearGradient>
                 </defs>
                 {[40, 80, 120].map((y) => (
-                  <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+                  <line
+                    key={y}
+                    x1="0"
+                    y1={y}
+                    x2="400"
+                    y2={y}
+                    stroke="rgba(212,175,55,0.06)"
+                    strokeWidth="1"
+                  />
                 ))}
                 <path
                   d="M0,120 C40,110 60,90 100,95 C140,100 160,70 200,75 C240,80 280,50 320,55 C360,60 380,40 400,35 L400,160 L0,160 Z"
-                  fill="url(#chart-fill)"
+                  fill="url(#lp-chart-fill)"
                 />
                 <path
                   d="M0,120 C40,110 60,90 100,95 C140,100 160,70 200,75 C240,80 280,50 320,55 C360,60 380,40 400,35"
                   fill="none"
-                  stroke="#38bdf8"
-                  strokeWidth="2"
+                  stroke="url(#lp-chart-line)"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                 />
               </svg>
-              <div className="absolute bottom-2 left-3 flex gap-4 font-mono text-[10px] text-ink-muted">
+              <div className="absolute bottom-2 left-3 flex gap-4 font-mono text-[9px] text-ink-muted">
                 <span>09:30</span>
                 <span>12:00</span>
                 <span>16:00</span>
               </div>
             </div>
 
-            {/* Mini stats row */}
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
                 { label: 'Open P&L', value: '+$1,842', pos: true },
                 { label: 'Win Rate', value: '68.4%', pos: true },
                 { label: 'Positions', value: '7', pos: null },
               ].map((s) => (
-                <div key={s.label} className="rounded-lg border border-border bg-surface px-3 py-2">
-                  <p className="text-[10px] text-ink-muted">{s.label}</p>
+                <div key={s.label} className="material-inset px-3 py-2">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-ink-muted">
+                    {s.label}
+                  </p>
                   <p
                     className={cn(
-                      'font-mono text-sm font-semibold tabular-nums',
+                      'font-mono text-sm font-bold tabular-nums',
                       s.pos === true && 'text-positive',
                       s.pos === false && 'text-negative',
-                      s.pos === null && 'text-ink',
+                      s.pos === null && 'text-gold',
                     )}
                   >
                     {s.value}
@@ -242,11 +332,77 @@ function HeroDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function AuthButtons({ size = 'default' as 'default' | 'lg', className }: { size?: 'default' | 'lg'; className?: string }) {
+function FeatureCard({
+  Icon,
+  title,
+  desc,
+  accent,
+  index,
+}: (typeof FEATURES)[0] & { index: number }) {
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const rotateX = useTransform(my, [-80, 80], reduce ? [0, 0] : [6, -6]);
+  const rotateY = useTransform(mx, [-80, 80], reduce ? [0, 0] : [-6, 6]);
+
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (reduce || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    mx.set(e.clientX - (rect.left + rect.width / 2));
+    my.set(e.clientY - (rect.top + rect.height / 2));
+  }
+
+  function onLeave() {
+    mx.set(0);
+    my.set(0);
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      className="lp-feature-card group relative overflow-hidden p-6"
+      style={{ rotateX, rotateY, transformPerspective: 900 }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      initial={reduce ? false : { opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.55, delay: index * 0.08, ease: EASE_OUT }}
+    >
+      <span className="hud-corners" aria-hidden />
+      <div
+        className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg"
+        style={{
+          backgroundColor: `color-mix(in oklab, ${accent} 18%, transparent)`,
+          color: accent,
+          boxShadow: `0 0 24px color-mix(in oklab, ${accent} 25%, transparent)`,
+        }}
+      >
+        <Icon size={24} strokeWidth={2} />
+      </div>
+      <h3 className="font-display text-lg font-bold text-ink">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{desc}</p>
+      <div
+        className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-40"
+        style={{ background: accent }}
+        aria-hidden
+      />
+    </motion.div>
+  );
+}
+
+function AuthButtons({
+  size = 'default' as 'default' | 'lg',
+  className,
+}: {
+  size?: 'default' | 'lg';
+  className?: string;
+}) {
   const { isSignedIn } = useUser();
   const btnSize = size === 'lg' ? 'lg' : 'default';
 
@@ -285,37 +441,31 @@ function AuthButtons({ size = 'default' as 'default' | 'lg', className }: { size
 
 export function Landing() {
   const { isSignedIn } = useUser();
+  const reduce = useReducedMotion();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  return (
-    <div className="min-h-dvh bg-bg text-ink">
-      <style>{`
-        @keyframes ticker-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-33.333%); }
-        }
-        .ticker-animate {
-          animation: ticker-scroll 45s linear infinite;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .ticker-animate { animation: none; }
-        }
-      `}</style>
+  const tickerItems = [...TICKERS, ...TICKERS];
 
-      <a href="#main-content" className="skip-link">Skip to content</a>
+  return (
+    <div className="lp-root bg-bg text-ink">
+      <AmbientFx />
+
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
 
       {/* ── Ticker tape ── */}
-      <div className="overflow-hidden border-b border-border bg-surface" aria-hidden>
-        <div className="ticker-animate flex w-max">
-          {[...TICKERS, ...TICKERS, ...TICKERS].map((t, i) => (
+      <div className="lp-ticker relative z-20" aria-hidden>
+        <div className="lp-ticker-track">
+          {tickerItems.map((t, i) => (
             <span
               key={i}
-              className="flex shrink-0 items-center gap-3 border-r border-border px-6 py-2 font-mono text-xs"
+              className="flex shrink-0 items-center gap-3 border-r border-white/[0.06] px-6 py-2.5 font-mono text-xs"
             >
-              <span className="font-semibold text-ink-secondary">{t.sym}</span>
-              <span className="tabular-nums text-ink">${t.price}</span>
-              <span className={cn('tabular-nums', t.pos ? 'text-positive' : 'text-negative')}>
+              <span className="font-bold text-gold">{t.sym}</span>
+              <span className="tabular-nums text-ink-secondary">${t.price}</span>
+              <span className={cn('tabular-nums font-semibold', t.pos ? 'text-positive' : 'text-negative')}>
                 {t.pos ? '▲' : '▼'} {t.chg}%
               </span>
             </span>
@@ -324,11 +474,21 @@ export function Landing() {
       </div>
 
       {/* ── Sticky nav ── */}
-      <header className="sticky top-0 z-50 border-b border-border/80 bg-bg/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#06060a]/75 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-8">
-          <a href="#" className="flex min-h-[44px] items-center gap-2.5">
-            <img src="/icon.png" alt="Autotrade" width={32} height={32} className="rounded-lg" />
-            <span className="font-display text-lg font-bold tracking-tight">Autotrade</span>
+          <a href="#" className="group flex min-h-[44px] items-center gap-2.5">
+            <motion.img
+              src="/icon.png"
+              alt="Autotrade"
+              width={32}
+              height={32}
+              className="rounded-lg shadow-[var(--shadow-gold-glow)]"
+              animate={reduce ? undefined : { boxShadow: ['0 0 12px rgba(212,175,55,0.3)', '0 0 28px rgba(212,175,55,0.6)', '0 0 12px rgba(212,175,55,0.3)'] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <span className="font-display text-lg font-extrabold tracking-tight text-ink transition-colors group-hover:text-gold">
+              Autotrade
+            </span>
           </a>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
@@ -336,7 +496,7 @@ export function Landing() {
               <a
                 key={link.href}
                 href={link.href}
-                className="min-h-[44px] rounded-lg px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink"
+                className="min-h-[44px] rounded-lg px-4 py-2 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white/[0.04] hover:text-gold"
               >
                 {link.label}
               </a>
@@ -349,7 +509,7 @@ export function Landing() {
 
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink md:hidden"
+            className="material-button flex h-11 w-11 items-center justify-center text-ink-secondary transition-colors hover:text-gold md:hidden"
             aria-expanded={mobileOpen}
             aria-controls="mobile-menu"
             onClick={() => setMobileOpen((o) => !o)}
@@ -360,64 +520,84 @@ export function Landing() {
         </div>
 
         {mobileOpen && (
-          <div id="mobile-menu" className="border-t border-border bg-surface px-4 py-4 md:hidden">
+          <motion.div
+            id="mobile-menu"
+            className="border-t border-white/[0.06] bg-[#0c0c12]/95 px-4 py-4 backdrop-blur-xl md:hidden"
+            initial={reduce ? false : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
             <nav className="flex flex-col gap-1" aria-label="Mobile">
               {NAV_LINKS.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="min-h-[44px] rounded-lg px-4 py-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink"
+                  className="min-h-[44px] rounded-lg px-4 py-3 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white/[0.04] hover:text-gold"
                   onClick={() => setMobileOpen(false)}
                 >
                   {link.label}
                 </a>
               ))}
             </nav>
-            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+            <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.06] pt-4">
               <AuthButtons className="flex-col [&_button]:w-full [&_a]:w-full" />
             </div>
-          </div>
+          </motion.div>
         )}
       </header>
 
-      <main id="main-content">
+      <main id="main-content" className="relative z-10">
         {/* ── Hero ── */}
         <section className="relative overflow-hidden">
-          {/* Gradient mesh */}
-          <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute -left-1/4 top-0 h-[500px] w-[500px] rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, #38bdf8, transparent 70%)' }} />
-            <div className="absolute -right-1/4 bottom-0 h-[400px] w-[400px] rounded-full opacity-15 blur-3xl" style={{ background: 'radial-gradient(circle, #34d399, transparent 70%)' }} />
-            <div
-              className="absolute inset-0 opacity-[0.03]"
-              style={{
-                backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-                backgroundSize: '64px 64px',
-              }}
-            />
-          </div>
+          <div className="lp-hero-glow left-1/4 top-0 -translate-x-1/2 opacity-50" aria-hidden />
+          <div
+            className="pointer-events-none absolute right-0 top-1/3 h-[500px] w-[500px] rounded-full opacity-20 blur-3xl"
+            style={{ background: 'radial-gradient(circle, #00c896, transparent 65%)' }}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full opacity-15 blur-3xl"
+            style={{ background: 'radial-gradient(circle, #d4af37, transparent 65%)' }}
+            aria-hidden
+          />
 
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-8 md:py-24 lg:grid-cols-2 lg:gap-16">
-            <div className="flex flex-col gap-6">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface-raised px-4 py-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full motion-safe:animate-ping rounded-full bg-accent opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+            <motion.div
+              className="flex flex-col gap-6"
+              initial={reduce ? false : 'hidden'}
+              animate="visible"
+              variants={stagger}
+            >
+              <motion.div
+                variants={fadeUp}
+                className="material-inset inline-flex w-fit items-center gap-2.5 px-4 py-2"
+              >
+                <span className="live-dot" aria-hidden />
+                <span className="text-xs font-bold uppercase tracking-widest text-ink-secondary">
+                  AI-Powered Algorithmic Trading
                 </span>
-                <span className="text-xs font-medium text-ink-secondary">AI-Powered Algorithmic Trading</span>
-              </div>
+              </motion.div>
 
-              <h1 className="font-display text-4xl font-bold leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+              <motion.h1
+                variants={fadeUp}
+                className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl"
+              >
                 Trade Smarter.{' '}
-                <span className="text-accent">React Faster.</span>{' '}
-                Win Bigger.
-              </h1>
+                <span className="bg-gradient-to-r from-[#f0d060] via-[#d4af37] to-[#c9a227] bg-clip-text text-transparent">
+                  React Faster.
+                </span>{' '}
+                <span className="text-ink">Win Bigger.</span>
+              </motion.h1>
 
-              <p className="max-w-xl text-base leading-relaxed text-ink-secondary md:text-lg">
+              <motion.p
+                variants={fadeUp}
+                className="max-w-xl text-base leading-relaxed text-ink-secondary md:text-lg"
+              >
                 Autotrade fuses institutional-grade AI signals with lightning-fast execution,
                 giving individual traders the edge once reserved for hedge funds.
-              </p>
+              </motion.p>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <motion.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 {isSignedIn ? (
                   <>
                     <Button size="lg" asChild>
@@ -443,173 +623,200 @@ export function Landing() {
                     </SignInButton>
                   </>
                 )}
-              </div>
+              </motion.div>
 
-              <div className="grid gap-2 sm:grid-cols-2">
+              <motion.div variants={fadeUp} className="grid gap-2 sm:grid-cols-2">
                 {BADGES.map((b, i) => (
-                  <TradeBadge key={i} {...b} />
+                  <FloatingTradeBadge key={i} {...b} />
                 ))}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             <HeroDashboard />
           </div>
         </section>
 
         {/* ── Stats band ── */}
-        <section id="stats" className="border-y border-border bg-surface" aria-label="Platform stats">
-          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px bg-border md:grid-cols-4">
-            {STATS.map((s) => (
-              <div key={s.label} className="flex flex-col items-center gap-1 bg-surface px-6 py-10 text-center">
-                <p className="font-mono text-3xl font-bold tabular-nums text-ink md:text-4xl">{s.value}</p>
-                <p className="text-sm text-ink-muted">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Trust ── */}
-        <section className="mx-auto max-w-6xl px-4 py-20 md:px-8 md:py-24" aria-label="Trust indicators">
-          <div className="mb-12 text-center">
-            <SectionLabel>Why Traders Trust Us</SectionLabel>
-            <SectionTitle className="mt-3">Built for Security &amp; Confidence</SectionTitle>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {TRUST.map((t, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-border bg-surface-raised p-6 shadow-[var(--shadow-card)] transition-colors hover:border-border-strong"
-              >
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-muted text-accent">
-                  <t.Icon size={22} strokeWidth={2} />
-                </div>
-                <h3 className="font-display text-base font-semibold text-ink">{t.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{t.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Features ── */}
-        <section id="features" className="border-t border-border bg-surface px-4 py-20 md:px-8 md:py-24">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-12 text-center">
-              <SectionLabel>Platform Features</SectionLabel>
-              <SectionTitle className="mt-3">Everything You Need to Trade Professionally</SectionTitle>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map((f, i) => (
-                <div
-                  key={i}
-                  className="group relative overflow-hidden rounded-xl border border-border bg-surface-raised p-6 shadow-[var(--shadow-card)] transition-all hover:border-border-strong hover:shadow-[var(--shadow-elevated)]"
+        <SectionReveal id="stats" aria-label="Platform stats">
+          <div className="mx-auto max-w-6xl px-4 py-12 md:px-8">
+            <div className="material-inset grid grid-cols-2 divide-x divide-white/[0.05] md:grid-cols-4">
+              {STATS.map((s, i) => (
+                <motion.div
+                  key={s.label}
+                  className="flex flex-col items-center gap-1 px-6 py-8 text-center md:py-10"
+                  initial={reduce ? false : { opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.08 }}
                 >
-                  <div
-                    className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg transition-colors"
-                    style={{ backgroundColor: `color-mix(in oklab, ${f.accent} 15%, transparent)`, color: f.accent }}
-                  >
-                    <f.Icon size={22} strokeWidth={2} />
-                  </div>
-                  <h3 className="font-display text-base font-semibold text-ink">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{f.desc}</p>
-                  <div
-                    className="pointer-events-none absolute -bottom-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-2xl transition-opacity group-hover:opacity-30"
-                    style={{ background: f.accent }}
-                    aria-hidden
-                  />
-                </div>
+                  <p className="font-mono text-3xl font-extrabold tabular-nums text-gold md:text-4xl">
+                    {s.value}
+                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {s.label}
+                  </p>
+                </motion.div>
               ))}
             </div>
           </div>
-        </section>
+        </SectionReveal>
 
-        {/* ── How it works ── */}
-        <section id="how" className="mx-auto max-w-6xl px-4 py-20 md:px-8 md:py-24">
+        {/* ── Trust ── */}
+        <SectionReveal className="mx-auto max-w-6xl px-4 py-20 md:px-8 md:py-24" aria-label="Trust indicators">
           <div className="mb-12 text-center">
-            <SectionLabel>How It Works</SectionLabel>
-            <SectionTitle className="mt-3">From Signal to Trade in Milliseconds</SectionTitle>
+            <SectionLabel>Why Traders Trust Us</SectionLabel>
+            <SectionTitle className="mt-4">Built for Security &amp; Confidence</SectionTitle>
           </div>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {HOW_STEPS.map((step, i) => (
-              <div key={i} className="relative flex flex-col gap-4">
-                {i < HOW_STEPS.length - 1 && (
-                  <div
-                    className="absolute left-6 top-12 hidden h-px w-[calc(100%+2rem)] bg-border lg:block"
-                    aria-hidden
-                  />
-                )}
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface-raised font-mono text-sm font-bold text-accent">
-                  {step.n}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {TRUST.map((t, i) => (
+              <motion.div
+                key={i}
+                className="material-panel group relative p-6"
+                initial={reduce ? false : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                whileHover={reduce ? undefined : { y: -4 }}
+              >
+                <span className="hud-corners" aria-hidden />
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gold-muted text-gold shadow-[var(--shadow-gold-glow)] transition-transform group-hover:scale-110">
+                  <t.Icon size={22} strokeWidth={2} />
                 </div>
-                <div>
-                  <h3 className="font-display text-base font-semibold text-ink">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.desc}</p>
-                </div>
-              </div>
+                <h3 className="font-display text-base font-bold text-ink">{t.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{t.desc}</p>
+              </motion.div>
             ))}
           </div>
-        </section>
+        </SectionReveal>
+
+        {/* ── Features ── */}
+        <SectionReveal
+          id="features"
+          className="border-t border-white/[0.06] px-4 py-20 md:px-8 md:py-24"
+        >
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <SectionLabel>Platform Features</SectionLabel>
+              <SectionTitle className="mt-4">Everything You Need to Trade Professionally</SectionTitle>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" style={{ perspective: 1200 }}>
+              {FEATURES.map((f, i) => (
+                <FeatureCard key={i} {...f} index={i} />
+              ))}
+            </div>
+          </div>
+        </SectionReveal>
+
+        {/* ── How it works ── */}
+        <SectionReveal id="how" className="mx-auto max-w-6xl px-4 py-20 md:px-8 md:py-24">
+          <div className="mb-12 text-center">
+            <SectionLabel>How It Works</SectionLabel>
+            <SectionTitle className="mt-4">From Signal to Trade in Milliseconds</SectionTitle>
+          </div>
+          <div className="relative grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+            <div
+              className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-6 hidden h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent lg:block"
+              aria-hidden
+            />
+            {HOW_STEPS.map((step, i) => (
+              <motion.div
+                key={i}
+                className="relative flex flex-col gap-4"
+                initial={reduce ? false : { opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55, delay: i * 0.12 }}
+              >
+                <div className="material-panel relative flex h-14 w-14 items-center justify-center">
+                  <span className="hud-corners" aria-hidden />
+                  <span className="font-mono text-lg font-extrabold text-gold">{step.n}</span>
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-ink">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </SectionReveal>
 
         {/* ── FAQ ── */}
-        <section id="faq" className="border-t border-border bg-surface px-4 py-20 md:px-8 md:py-24">
+        <SectionReveal
+          id="faq"
+          className="border-t border-white/[0.06] bg-[#08080e]/50 px-4 py-20 md:px-8 md:py-24"
+        >
           <div className="mx-auto max-w-2xl">
             <div className="mb-12 text-center">
               <SectionLabel>FAQ</SectionLabel>
-              <SectionTitle className="mt-3">Common Questions</SectionTitle>
+              <SectionTitle className="mt-4">Common Questions</SectionTitle>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               {FAQ.map((item, i) => {
                 const isOpen = openFaq === i;
                 return (
-                  <div
+                  <motion.div
                     key={i}
-                    className={cn(
-                      'overflow-hidden rounded-xl border bg-surface-raised transition-colors',
-                      isOpen ? 'border-border-strong' : 'border-border',
-                    )}
+                    className="material-inset overflow-hidden"
+                    initial={reduce ? false : { opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: i * 0.06 }}
                   >
                     <button
                       type="button"
-                      className="flex min-h-[44px] w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-ink transition-colors hover:text-accent"
+                      className="flex min-h-[44px] w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-bold text-ink transition-colors hover:text-gold"
                       aria-expanded={isOpen}
                       onClick={() => setOpenFaq(isOpen ? null : i)}
                     >
                       {item.q}
                       <ChevronDown
                         className={cn(
-                          'h-4 w-4 shrink-0 text-ink-muted transition-transform motion-safe:duration-200',
+                          'h-4 w-4 shrink-0 text-gold transition-transform duration-200',
                           isOpen && 'rotate-180',
                         )}
                       />
                     </button>
-                    <div
-                      className={cn(
-                        'grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200',
-                        isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-                      )}
+                    <motion.div
+                      initial={false}
+                      animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
+                      transition={{ duration: reduce ? 0 : 0.25, ease: EASE_OUT }}
+                      className="overflow-hidden"
                     >
-                      <div className="overflow-hidden">
-                        <p className="px-5 pb-4 text-sm leading-relaxed text-ink-secondary">{item.a}</p>
-                      </div>
-                    </div>
-                  </div>
+                      <p className="px-5 pb-4 text-sm leading-relaxed text-ink-secondary">
+                        {item.a}
+                      </p>
+                    </motion.div>
+                  </motion.div>
                 );
               })}
             </div>
           </div>
-        </section>
+        </SectionReveal>
 
-        {/* ── Footer CTA (Peak-End Rule) ── */}
-        <section className="relative overflow-hidden border-t border-border">
-          <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-positive/5" />
-            <div className="absolute -top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, #38bdf8, transparent 70%)' }} />
-          </div>
-          <div className="relative mx-auto max-w-3xl px-4 py-20 text-center md:px-8 md:py-28">
-            <span className="inline-flex rounded-full border border-border bg-surface-raised px-4 py-1.5 text-xs font-medium text-ink-secondary">
+        {/* ── Footer CTA ── */}
+        <section className="relative overflow-hidden border-t border-white/[0.06]">
+          <div className="lp-hero-glow left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-70" aria-hidden />
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-gold/[0.04] via-transparent to-positive/[0.03]"
+            aria-hidden
+          />
+
+          <motion.div
+            className="relative mx-auto max-w-3xl px-4 py-20 text-center md:px-8 md:py-28"
+            initial={reduce ? false : { opacity: 0, y: 32 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.65, ease: EASE_OUT }}
+          >
+            <span className="material-inset inline-flex px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-ink-secondary">
               No credit card required to start
             </span>
-            <h2 className="mt-6 font-display text-3xl font-bold tracking-tight text-ink md:text-5xl">
-              Ready to Let the Algorithm Work?
+            <h2 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
+              Ready to Let the{' '}
+              <span className="bg-gradient-to-r from-[#f0d060] to-[#d4af37] bg-clip-text text-transparent">
+                Algorithm
+              </span>{' '}
+              Work?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-secondary">
               Join thousands of traders who&apos;ve replaced emotional decision-making with
@@ -642,20 +849,29 @@ export function Landing() {
                 </>
               )}
             </div>
-          </div>
+          </motion.div>
         </section>
       </main>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border bg-surface">
+      <footer className="relative z-10 border-t border-white/[0.06] bg-[#08080e]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 md:flex-row md:items-start md:justify-between md:px-8">
           <div>
             <div className="flex items-center gap-2.5">
-              <img src="/icon.png" alt="Autotrade" width={28} height={28} className="rounded-md" />
-              <span className="font-display text-base font-bold">Autotrade</span>
+              <img
+                src="/icon.png"
+                alt="Autotrade"
+                width={28}
+                height={28}
+                className="rounded-md shadow-[var(--shadow-gold-glow)]"
+              />
+              <span className="font-display text-base font-extrabold text-gold">Autotrade</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-ink-muted">
               Precision terminal for AI-driven trading.
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold/60">
+              Obsidian Console
             </p>
           </div>
           <nav className="flex flex-wrap gap-x-8 gap-y-3" aria-label="Footer">
@@ -663,17 +879,20 @@ export function Landing() {
               <a
                 key={link.href}
                 href={link.href}
-                className="min-h-[44px] text-sm text-ink-secondary transition-colors hover:text-ink"
+                className="min-h-[44px] text-sm font-semibold text-ink-secondary transition-colors hover:text-gold"
               >
                 {link.label}
               </a>
             ))}
-            <a href="/sign-in" className="min-h-[44px] text-sm text-ink-secondary transition-colors hover:text-ink">
+            <a
+              href="/sign-in"
+              className="min-h-[44px] text-sm font-semibold text-ink-secondary transition-colors hover:text-gold"
+            >
               Sign in
             </a>
           </nav>
         </div>
-        <div className="border-t border-border">
+        <div className="border-t border-white/[0.06]">
           <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-ink-muted md:px-8">
             © 2026 Autotrade. All rights reserved. Trading involves risk of loss. Not financial advice.
           </p>

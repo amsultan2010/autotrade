@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import * as Sentry from '@sentry/nextjs';
+import { motion, useReducedMotion } from 'framer-motion';
 import { AuthProvider } from '@/src/state/auth';
 import { SubscriptionProvider } from '@/src/components/subscription/SubscriptionProvider';
+import { AmbientFx } from '@/src/components/AmbientFx';
+import { DataTicker } from '@/src/components/DataTicker';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { OnboardingExperience } from '@/src/components/onboarding/OnboardingExperience';
 import { ProductTour } from '@/src/components/onboarding/ProductTour';
-import { Button } from '@/src/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -31,7 +33,7 @@ const NAV: Array<{ href: string; label: string; Icon: LucideIcon; tour?: string 
   { href: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard, tour: 'nav-dashboard' },
   { href: '/watchlist', label: 'Watchlist', Icon: Star, tour: 'nav-watchlist' },
   { href: '/charts', label: 'Charts', Icon: BarChart3 },
-  { href: '/history', label: 'History', Icon: History, tour: 'nav-history' },
+  { href: '/history', label: 'Trade History', Icon: History, tour: 'nav-history' },
   { href: '/account', label: 'Account', Icon: UserCircle, tour: 'nav-account' },
   { href: '/settings', label: 'Settings', Icon: Settings, tour: 'nav-settings' },
 ];
@@ -63,12 +65,11 @@ function NavLink({
       aria-current={active ? 'page' : undefined}
       {...(tour ? { 'data-tour': tour } : {})}
       className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors motion-safe:duration-200',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-        compact && 'flex-col gap-1 px-2 py-2 text-[10px]',
+        'nav-item-premium flex items-center gap-3 px-3 py-2.5 text-sm font-semibold',
+        compact && 'flex-col gap-1 px-1 py-2 text-[9px]',
         active
-          ? 'bg-accent-muted text-accent'
-          : 'text-ink-secondary hover:bg-surface-overlay hover:text-ink',
+          ? 'active text-gold'
+          : 'text-ink-secondary hover:bg-white/[0.03] hover:text-ink',
       )}
     >
       <Icon className={cn('shrink-0', compact ? 'h-5 w-5' : 'h-[18px] w-[18px]')} aria-hidden />
@@ -81,30 +82,36 @@ function SidebarFooter() {
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
   const { entitlements, openUpgradeModal } = useSubscription();
-
   const email = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
   const showUpgrade = entitlements?.effectiveTier === 'free';
 
   return (
     <div className="mt-auto space-y-3 border-t border-border p-4">
       {showUpgrade && (
-        <Button
-          className="w-full"
-          size="sm"
+        <button
+          type="button"
+          className="btn-gold flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm"
           onClick={() => openUpgradeModal('Upgrade to unlock live trading and faster scans')}
         >
           <Sparkles className="h-4 w-4" aria-hidden />
-          Upgrade plan
-        </Button>
+          Upgrade now
+        </button>
       )}
-      <div className="flex items-center gap-3 rounded-lg bg-surface-overlay p-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-muted text-sm font-bold text-accent">
+      <div className="material-inset flex items-center gap-3 p-3">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+          style={{
+            background: `color-mix(in oklab, ${tierDisplayColor(entitlements?.effectiveTier ?? 'free')} 20%, transparent)`,
+            color: tierDisplayColor(entitlements?.effectiveTier ?? 'free'),
+            boxShadow: `0 0 16px color-mix(in oklab, ${tierDisplayColor(entitlements?.effectiveTier ?? 'free')} 35%, transparent)`,
+          }}
+        >
           {email[0]?.toUpperCase() ?? '?'}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">{email}</p>
+          <p className="truncate text-sm font-semibold text-ink">{email}</p>
           <p
-            className="text-xs font-semibold"
+            className="text-xs font-bold uppercase tracking-wide"
             style={{ color: tierDisplayColor(entitlements?.effectiveTier ?? 'free') }}
           >
             {tierDisplayLabel(entitlements?.effectiveTier ?? 'free')}
@@ -114,7 +121,7 @@ function SidebarFooter() {
           type="button"
           onClick={() => void signOut()}
           aria-label="Sign out"
-          className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+          className="material-button p-2 text-ink-muted hover:text-ink"
         >
           <LogOut className="h-4 w-4" />
         </button>
@@ -126,6 +133,7 @@ function SidebarFooter() {
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user: clerkUser } = useUser();
   const pathname = usePathname();
+  const reduce = useReducedMotion();
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
   const role = (clerkUser?.publicMetadata?.role as string | undefined) ?? 'USER';
@@ -143,15 +151,28 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <SubscriptionProvider>
         <OnboardingExperience />
         <ProductTour />
+        <AmbientFx dim />
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>
-        <div className="flex min-h-dvh bg-bg">
-          {/* Desktop sidebar */}
-          <aside className="hidden w-[var(--sidebar-w)] shrink-0 flex-col border-r border-border bg-surface md:flex">
-            <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-              <img src="/icon.png" alt="" width={32} height={32} className="rounded-lg" />
-              <span className="font-display text-lg font-bold tracking-tight">Autotrade</span>
+        <div className="relative flex min-h-dvh">
+          <aside className="app-sidebar hidden w-[var(--sidebar-w)] shrink-0 flex-col md:flex">
+            <div className="flex h-[72px] items-center gap-3 border-b border-border px-5">
+              <motion.img
+                src="/icon.png"
+                alt=""
+                width={36}
+                height={36}
+                className="rounded-xl shadow-[var(--shadow-gold-glow)]"
+                animate={reduce ? undefined : { rotate: [0, 2, -2, 0] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <div>
+                <span className="font-display text-lg font-extrabold tracking-tight text-ink">
+                  Autotrade
+                </span>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold">Obsidian Console</p>
+              </div>
             </div>
             <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
               {allNav.map((n) => (
@@ -168,26 +189,24 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarFooter />
           </aside>
 
-          {/* Main content */}
-          <div className="flex min-w-0 flex-1 flex-col">
-            {/* Mobile header */}
-            <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-4 md:hidden">
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            <header className="flex h-14 items-center justify-between border-b border-border bg-surface/80 px-4 backdrop-blur-md md:hidden">
               <Link href="/dashboard" className="flex items-center gap-2">
-                <img src="/icon.png" alt="" width={28} height={28} className="rounded-md" />
+                <img src="/icon.png" alt="" width={28} height={28} className="rounded-lg" />
                 <span className="font-display font-bold">Autotrade</span>
               </Link>
             </header>
 
             <main
               id="main-content"
-              className="flex-1 overflow-y-auto pb-[calc(var(--mobile-nav-h)+16px)] md:pb-0"
+              className="relative flex-1 overflow-y-auto pb-[calc(var(--mobile-nav-h)+16px)] md:pb-0"
             >
+              <DataTicker />
               <ErrorBoundary>{children}</ErrorBoundary>
             </main>
 
-            {/* Mobile bottom nav — Fitts's Law: large targets */}
             <nav
-              className="fixed inset-x-0 bottom-0 z-20 flex h-[var(--mobile-nav-h)] items-stretch justify-around border-t border-border bg-surface/95 px-1 backdrop-blur-md md:hidden"
+              className="fixed inset-x-0 bottom-0 z-20 flex h-[var(--mobile-nav-h)] items-stretch justify-around border-t border-border bg-surface/95 px-1 backdrop-blur-xl md:hidden"
               aria-label="Mobile"
             >
               {allNav.slice(0, 5).map((n) => (
@@ -211,8 +230,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useUser();
-
   if (!isLoaded || !isSignedIn) return null;
-
   return <AppShell>{children}</AppShell>;
 }

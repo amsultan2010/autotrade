@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { ErrorCodes } from '@autotrade/shared';
 import { reportTrackedError } from '@/lib/error-tracking';
 import { ErrorFallback } from '@/src/components/ErrorFallback';
+import './globals.css';
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   const tracked = useMemo(

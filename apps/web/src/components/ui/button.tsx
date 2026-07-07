@@ -4,22 +4,20 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.98]',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-bold transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default:
-          'bg-accent text-bg hover:bg-accent-hover shadow-sm',
+        default: 'btn-gold',
         destructive:
-          'bg-negative text-ink hover:brightness-110',
+          'bg-negative text-ink border border-negative/50 hover:brightness-110 shadow-lg',
         outline:
-          'border border-border-strong bg-transparent text-ink-secondary hover:bg-surface-overlay hover:text-ink',
+          'material-button text-ink-secondary hover:text-gold',
         ghost:
-          'bg-transparent text-ink-secondary hover:bg-surface-overlay hover:text-ink',
+          'bg-transparent text-ink-secondary hover:bg-white/[0.04] hover:text-ink',
         secondary:
-          'bg-surface-overlay text-ink border border-border hover:border-border-strong',
-        link:
-          'text-accent underline-offset-4 hover:underline',
+          'material-panel text-ink border-0 px-4 py-2',
+        link: 'text-gold underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-10 px-4 py-2 min-h-[44px]',

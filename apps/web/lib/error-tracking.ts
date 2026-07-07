@@ -90,13 +90,6 @@ export function captureAppError(
         scope.setTag('sentry_event_id', eventId);
       }
     });
-  } else if (process.env.NODE_ENV === 'development') {
-    console.error('[error-tracking] Sentry disabled .  no DSN configured', {
-      code: resolvedCode,
-      refId,
-      message,
-      context,
-    });
   }
 
   capturePostHog(resolvedCode, refId, context);

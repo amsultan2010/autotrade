@@ -1,24 +1,30 @@
-# Autotrade Design System — Lumen
+# Autotrade Design System — Obsidian Terminal
 
-**Direction**: Modern fintech console — clean surfaces, sky accent, data-first density.
+**Direction**: Skeuomorphic maximalism — obsidian surfaces, gold accents, instrument-panel density, living FX.
 
 ## Tokens
-- Background: `#09090b` (bg-bg)
-- Surface: `#111113` / `#1a1a1f`
-- Accent: `#38bdf8` (sky)
-- Positive P&L: `#34d399`
-- Negative: `#f87171`
+- Background: `#06060a`
+- Surface: `#0c0c12` / `#12121a`
+- Gold accent: `#d4af37`
+- Positive P&L: `#00c896`
+- Negative: `#ff3b52`
+
+## Material classes
+- `.material-panel` — raised console panel with gradient border
+- `.material-inset` — recessed readout
+- `.material-button` — physical press button
+- `.btn-gold` — primary gold CTA with depth
+- `.hud-corners` — corner bracket accents
+
+## Atmospheric FX
+- `AmbientFx` — constellation particles + scanlines + grain + vignette
+- `ConstellationBg` — canvas particle network + data rain
 
 ## Typography
-- Display: Plus Jakarta Sans
+- Display: Syne
 - UI: Inter
 - Data: IBM Plex Mono
 
-## Layout
-- Sidebar: 260px desktop
-- Mobile nav: 72px bottom bar
-- 8px spacing grid
-
-## Components
-- Shared layout: `src/components/layout/PageShell.tsx`
-- shadcn/Radix: `src/components/ui/*`
+## Motion
+- framer-motion for page reveals, card hover, hero stagger
+- Respects `prefers-reduced-motion`

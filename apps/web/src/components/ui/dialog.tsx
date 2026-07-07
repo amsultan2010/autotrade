@@ -34,8 +34,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2',
-        'bg-surface border border-line-2 rounded-[var(--r-lg)] p-6 shadow-2xl',
+        'material-panel fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 p-6 shadow-[var(--shadow-material)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -44,7 +43,7 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-ink-3 hover:text-ink transition-colors">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-ink-muted hover:text-gold transition-colors">
         <X size={16} />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -75,7 +74,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-ink-2', className)}
+    className={cn('text-sm text-ink-secondary', className)}
     {...props}
   />
 ));
