@@ -1,5 +1,5 @@
 /**
- * Legacy Postgres broker sync .  no-op. Broker credentials live in Convex only.
+ * Legacy broker sync hook — no-op. Credentials are stored in Supabase via /api/v1/broker/connect.
  */
 import { NextResponse } from 'next/server';
 

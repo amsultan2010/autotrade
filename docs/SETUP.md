@@ -1,56 +1,50 @@
 # Production setup checklist
 
-You **are** using Supabase (database + auth JWT for RLS). A **Supabase migration** is just the SQL in `supabase/migrations/` applied to that Postgres database — not a separate product or a move away from Supabase.
+You **are** using Supabase (database + auth JWT for RLS). Apply SQL in `supabase/migrations/` to your Postgres project.
 
-You **do not** need Railway unless you want the trading bot running 24/7 in the cloud. Railway was only the suggested host for `apps/worker`. The website runs on **Vercel**; the database on **Supabase**.
+You **do not** need a separate worker host unless you want scans outside Vercel cron. The website runs on **Vercel**; the database on **Supabase**.
 
 ## Architecture
 
 | Piece | Host | Status |
 |-------|------|--------|
-| Website + API (`apps/web`) | Vercel | Root dir set to `apps/web` |
-| Database | Supabase project `Autotrade` | Live data; migration `003` applied |
-| Bot scheduler (`apps/worker`) | Your machine or a VPS | Optional; not on Railway unless you choose |
+| Website + API (`apps/web`) | Vercel | Root dir `apps/web` |
+| Database | Supabase | Apply migrations `001`–`005` |
+| Bot scheduler | Vercel cron → `/api/internal/bot/scan-all` every 5 min | Configure `CRON_SECRET` |
+| Optional worker (`apps/worker`) | VPS / Render / local | For always-on scans beyond cron |
 
 ## One-time dashboard steps
 
 ### 1. Supabase
-- Project already has your users/trades data.
-- Migrations `001`–`003` should be applied (worker needs `scan_locks` + `idempotency_keys` from `003`).
+- Apply migrations `001` through `005` (includes `scan_locks`, signals `created_at` fix, Resend contact id).
+- Remove any legacy `CONVEX_*` env vars from Vercel.
 
 ### 2. Clerk
-- Create webhook: `https://tryautotrade.com/api/v1/webhooks/clerk` (or your Vercel URL while testing).
-- Copy **Signing secret** → `CLERK_WEBHOOK_SECRET` in Vercel env + `apps/web/.env.local`.
+- Webhook: `https://tryautotrade.com/api/v1/webhooks/clerk`
+- Copy signing secret → `CLERK_WEBHOOK_SECRET`
 - JWT template named `supabase` for Supabase third-party auth (if not already).
 
-### 3. Vercel (project `autotrade`)
-- **Root Directory**: `apps/web` (updated).
-- Copy all vars from `apps/web/.env.example` into Vercel → Settings → Environment Variables (Production + Preview).
-- Remove any legacy `CONVEX_*` variables.
+### 3. Vercel
+- **Root Directory**: `apps/web`
+- Copy vars from `apps/web/.env.example` (Production **and** Preview).
+- Required: `CRON_SECRET`, `BOT_INTERNAL_SECRET`, `BROKER_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`).
 - Redeploy after env is complete.
 
-### 4. Stripe (if `BILLING_ENABLED=true`)
+### 4. Stripe (later — when `BILLING_ENABLED=true`)
 - Webhook: `https://tryautotrade.com/api/v1/webhooks/stripe`
 
-### 5. Worker (optional, for always-on bot)
-- Run locally: `pnpm dev:worker` (needs same env as web for Supabase + Alpaca).
-- For production 24/7: deploy `apps/worker` to Render, Fly.io, a VPS, **or** Railway — your choice.
+### 5. Optional worker
+- `pnpm dev:worker` locally with same Supabase + Alpaca env as web.
 
 ## Verify locally
 
 ```bash
-pnpm install
-cp apps/web/.env.example apps/web/.env.local   # fill keys
+cp apps/web/.env.example apps/web/.env.local
+# fill secrets
 bash scripts/validate-env.sh
-pnpm --filter @autotrade/shared build
-pnpm dev:web    # http://localhost:3000
-pnpm dev:worker # http://localhost:8080/health
+pnpm dev:web
 ```
 
-## Verify production
+Health check: `GET /api/health` → `{ ok: true }`
 
-1. Vercel deployment succeeds (not `ERROR`).
-2. Sign in with Clerk on production URL.
-3. Dashboard loads trades/signals from Supabase.
-4. Worker health responds if you run the worker somewhere.
-
+Cron auth: Vercel sends `Authorization: Bearer $CRON_SECRET` to cron routes.

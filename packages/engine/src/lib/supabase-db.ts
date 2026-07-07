@@ -1,6 +1,6 @@
 /**
  * Supabase-backed persistence for the bot engine.
- * Replaces the secret-guarded Convex engineData HTTP client.
+ * Supabase-backed engine data access (service role).
  */
 import crypto from 'node:crypto';
 import {

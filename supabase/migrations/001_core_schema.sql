@@ -1,4 +1,4 @@
--- Autotrade core schema (mirrors web/convex/schema.ts)
+-- Autotrade core schema (Supabase / Postgres)
 -- UUID primary keys, snake_case columns, Clerk subject on clerk_id
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

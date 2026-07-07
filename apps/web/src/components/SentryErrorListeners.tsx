@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { ErrorCodes } from '@autotrade/shared';
 import { captureAppError } from '@/lib/error-tracking';
 
-function isNoisyConvexClientError(err: unknown): boolean {
+function isNoisyLegacyClientError(err: unknown): boolean {
   const msg =
     err instanceof Error
       ? err.message
@@ -22,7 +22,7 @@ export function SentryErrorListeners() {
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
       const err = event.error ?? event.message;
-      if (isNoisyConvexClientError(err)) return;
+      if (isNoisyLegacyClientError(err)) return;
       captureAppError(ErrorCodes.UI_UNHANDLED, err, {
         route: window.location.pathname,
         source: event.filename,
@@ -33,7 +33,7 @@ export function SentryErrorListeners() {
     };
 
     const onRejection = (event: PromiseRejectionEvent) => {
-      if (isNoisyConvexClientError(event.reason)) return;
+      if (isNoisyLegacyClientError(event.reason)) return;
       captureAppError(ErrorCodes.UI_UNHANDLED, event.reason, {
         route: window.location.pathname,
         kind: 'unhandledrejection',

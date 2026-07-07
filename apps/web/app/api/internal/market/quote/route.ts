@@ -1,5 +1,5 @@
 /**
- * Internal quote endpoint for Convex trade actions (no session cookie).
+ * Internal quote endpoint for worker trade actions (no session cookie).
  * Protected by BOT_INTERNAL_SECRET.
  */
 import { type NextRequest, NextResponse } from 'next/server';

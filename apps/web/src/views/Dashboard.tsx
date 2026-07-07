@@ -32,9 +32,10 @@ import {
   DataTable,
 } from '@/src/components/layout/PageShell';
 import { Button } from '@/src/components/ui/button';
+import { DashboardSkeleton } from '@/src/components/DashboardSkeleton';
 
-// ─── Convex data shapes ───────────────────────────────────────────────────────
-interface ConvexBotStatus {
+// ─── Dashboard data shapes ────────────────────────────────────────────────────
+interface BotStatusSnapshot {
   mode: string;
   running: boolean;
   openTrades: number;
@@ -44,7 +45,7 @@ interface ConvexBotStatus {
   canUsePaperTrading?: boolean;
   entitled?: boolean;
 }
-interface ConvexSignal {
+interface SignalSnapshot {
   id?: string;
   createdAt: number;
   ticker: string;
@@ -53,7 +54,7 @@ interface ConvexSignal {
   confidence: number;
   entryReason: string;
 }
-interface ConvexPerf {
+interface PerfSnapshot {
   winRate: number;
   totalPnl: number;
   weeklyPnl: number;
@@ -69,7 +70,7 @@ interface ConvexPerf {
   avgLoss?: number | null;
   maxDrawdown?: number;
 }
-interface ConvexBreakdown {
+interface BreakdownSnapshot {
   byStrategy: Array<{ key: string; trades: number; wins: number; totalPnl: number; winRate: number }>;
   bySymbol: Array<{ key: string; trades: number; wins: number; totalPnl: number; winRate: number }>;
 }
@@ -404,7 +405,7 @@ type ActivityItem =
   | { kind: 'trade'; id: string; at: number; symbol: string; strategy: string; result: string; pnl?: number }
   | { kind: 'signal'; id: string; at: number; symbol: string; action: string; strategy: string; confidence: number };
 
-function buildRecentActivity(closed: TradeItem[], signalRows: ConvexSignal[]): ActivityItem[] {
+function buildRecentActivity(closed: TradeItem[], signalRows: SignalSnapshot[]): ActivityItem[] {
   const items: ActivityItem[] = [
     ...closed.map((t) => ({
       kind: 'trade' as const,
@@ -574,7 +575,7 @@ export function Dashboard() {
     };
   }, [brokerConnected, authLoading, isAuthenticated, tab]);
 
-  const signals: ConvexSignal[] = (signalRows ?? []).map((s) => ({
+  const signals: SignalSnapshot[] = (signalRows ?? []).map((s) => ({
     id: s.id,
     createdAt: s.createdAt,
     ticker: s.ticker,
@@ -783,9 +784,7 @@ export function Dashboard() {
             )}
           </AlertBanner>
         )}
-        {dataLoading && (
-          <p className="text-sm text-ink-secondary">Loading your account data…</p>
-        )}
+        {dataLoading && <DashboardSkeleton />}
         {!dataLoading && botStatus?.mode === 'DISABLED' && (
           <AlertBanner variant="info">
             Bot is stopped. Tap <strong>Start Bot</strong> to begin automatic scans of your watchlist.

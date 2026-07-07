@@ -23,7 +23,7 @@ export interface DisplayPosition extends BrokerPositionView {
   tradeId?: string;
 }
 
-/** Merge Alpaca snapshot positions with Convex open trades for a unified dashboard view. */
+/** Merge Alpaca snapshot positions with Supabase open trades for a unified dashboard view. */
 export function mergeOpenPositions(
   brokerPositions: BrokerPositionView[],
   openTrades: OpenTradeView[],
@@ -95,7 +95,7 @@ export function countWinningOpenTrades(
   ).length;
 }
 
-/** Count unified open positions (broker snapshot + Convex open trades). */
+/** Count unified open positions (broker snapshot + Supabase open trades). */
 export function countOpenPositions(
   brokerPositions: BrokerPositionView[],
   openTrades: OpenTradeView[],

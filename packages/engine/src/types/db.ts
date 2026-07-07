@@ -1,4 +1,4 @@
-/** Convex-backed record shapes for the engine. */
+/** Supabase-backed record shapes for the engine. */
 
 export type BotMode = 'DISABLED' | 'PAPER' | 'LIVE';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';

@@ -1,6 +1,6 @@
 /**
  * Internal endpoint .  closes an open Alpaca position for a user.
- * Called by Convex tradeActions.closeAtMarket when mode === 'LIVE'.
+ * Called by the execution engine when mode === 'LIVE'.
  * Protected by BOT_INTERNAL_SECRET .  never exposed to clients.
  */
 import { type NextRequest, NextResponse } from 'next/server';

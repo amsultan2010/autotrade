@@ -16,12 +16,12 @@ function isExpectedNoiseError(message: string): boolean {
   return false;
 }
 
-function isLegacyConvexError(message: string): boolean {
+function isLegacyBackendError(message: string): boolean {
   return /\[CONVEX [QMA]\([^)]+\)\]/.test(message);
 }
 
-function isNoisyConvexClientError(message: string): boolean {
-  return isLegacyConvexError(message);
+function isNoisyLegacyClientError(message: string): boolean {
+  return isLegacyBackendError(message);
 }
 
 function shouldDropSentryEvent(event: Sentry.ErrorEvent): boolean {
@@ -31,7 +31,7 @@ function shouldDropSentryEvent(event: Sentry.ErrorEvent): boolean {
     if (ex.value) parts.push(ex.value);
     if (ex.type) parts.push(ex.type);
   }
-  if (parts.some((p) => isLegacyConvexError(p) || isNoisyConvexClientError(p) || isExpectedNoiseError(p))) {
+  if (parts.some((p) => isLegacyBackendError(p) || isNoisyLegacyClientError(p) || isExpectedNoiseError(p))) {
     return true;
   }
   // Next.js dev HMR noise captured via console integration.

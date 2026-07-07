@@ -55,7 +55,7 @@ export async function openPaperTrade(params: {
   });
 }
 
-/** Submit an order via Alpaca (paper or live account) and record in Convex. */
+/** Submit an order via Alpaca (paper or live account) and record in Supabase. */
 export async function openBrokerTrade(params: {
   clerkId: string;
   signalId: string;
@@ -240,7 +240,7 @@ export async function monitorUserBrokerTrades(
       try {
         await broker.closePosition(trade.symbol);
       } catch {
-        /* still record close in Convex */
+        /* still record close in Supabase */
       }
       await applyClose(trade, exit.exitPrice, exit.hitStop);
       continue;

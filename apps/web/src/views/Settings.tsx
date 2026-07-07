@@ -93,7 +93,7 @@ const inputClassName =
 
 export function Settings() {
   const { isSignedIn: isAuthenticated, isLoaded: authLoaded } = useAuth();
-  const convexAuthLoading = !authLoaded;
+  const authLoading = !authLoaded;
   const { data: settingsData, loading: settingsLoading } = useBotSettings();
   const { data: userProfile } = useUserProfile();
   const { data: brokerData } = useBrokerStatus();
@@ -189,7 +189,7 @@ export function Settings() {
 
   async function save() {
     if (!local) return;
-    if (convexAuthLoading || !isAuthenticated) {
+    if (authLoading || !isAuthenticated) {
       setError('Connecting your session. Try again in a moment.');
       return;
     }
@@ -221,7 +221,7 @@ export function Settings() {
   }
 
   async function setMode(mode: Mode) {
-    if (convexAuthLoading || !isAuthenticated) {
+    if (authLoading || !isAuthenticated) {
       setError('Connecting your session. Try again in a moment.');
       return;
     }
@@ -236,6 +236,12 @@ export function Settings() {
     if (mode === 'LIVE' && !broker?.connected) {
       setError('Connect an Alpaca account first before enabling live trading.');
       return;
+    }
+    if (mode === 'LIVE') {
+      const acknowledged = window.confirm(
+        'Live trading uses real money and can result in losses. Read the Risk Disclosure at /risk-disclosure before continuing.\n\nEnable LIVE mode?',
+      );
+      if (!acknowledged) return;
     }
     setError(null);
     try {
@@ -294,6 +300,13 @@ export function Settings() {
             : billingEnabled
               ? 'Paper trading only · subscribe for live trading'
               : 'Paper trading only'}
+        </p>
+        <p className="mb-4 text-sm text-ink-muted">
+          Enabling LIVE routes real orders to Alpaca. Review the{' '}
+          <a href="/risk-disclosure" className="font-medium text-teal underline-offset-2 hover:underline">
+            risk disclosure
+          </a>{' '}
+          first.
         </p>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Execution mode">
           {modeOptions.map((m) => {

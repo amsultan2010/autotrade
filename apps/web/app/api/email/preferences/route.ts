@@ -5,7 +5,7 @@ import { syncWeeklyDigestPreference } from '@/lib/resend-audience';
 
 const schema = z.object({ enabled: z.boolean() });
 
-/** Sync weekly digest opt-in/out to Resend audience (Convex stores canonical preference). */
+/** Sync weekly digest opt-in/out to Resend audience (Supabase stores canonical preference). */
 export async function POST(req: Request) {
   try {
     const user = await requireUser();

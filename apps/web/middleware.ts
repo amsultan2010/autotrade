@@ -3,13 +3,16 @@ import * as Sentry from '@sentry/nextjs';
 
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/privacy',
+  '/terms',
+  '/risk-disclosure',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/v1/webhooks(.*)',
-  // Convex cron + server-side callers authenticate via x-internal-secret in the route handler.
+  '/api/health',
+  // Cron + internal callers authenticate via CRON_SECRET / x-internal-secret in route handlers.
   '/api/internal(.*)',
   '/api/email(.*)',
-  // Analytics / error tunnels must stay public (no Clerk session on beacon requests).
   '/ingest(.*)',
   '/api/monitoring',
   '/monitoring(.*)',

@@ -53,7 +53,7 @@ function formatChange(pct: number | null): string {
 
 export function Watchlist() {
   const { isLoaded: authLoaded } = useAuth();
-  const convexAuthLoading = !authLoaded;
+  const authLoading = !authLoaded;
   const { data: watchlistItems, loading: watchlistLoading } = useWatchlist();
 
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
@@ -287,7 +287,7 @@ export function Watchlist() {
       </div>
 
       <Panel className="[&>div:last-child]:p-0">
-        {convexAuthLoading || watchlistLoading ? (
+        {authLoading || watchlistLoading ? (
           <div className="p-5">
             <TableSkeleton rows={6} />
           </div>

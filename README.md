@@ -5,7 +5,7 @@ AI-powered automated trading platform with a premium skeuomorphic console UI.
 ## Stack
 
 - **Web**: Next.js 15, Clerk, Supabase, Stripe, Resend, Sentry, PostHog
-- **Worker**: Node 24 always-on scheduler (250ms tick, per-user scan intervals)
+- **Worker**: Node always-on scheduler (2s tick default, per-user scan intervals)
 - **Engine**: Strategy engine, Alpaca broker, paper simulator
 
 ## Monorepo

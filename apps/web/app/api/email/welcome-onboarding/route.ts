@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { deliverWelcomeEmail } from '@/lib/welcome-email';
 
-/** Fallback welcome email when Clerk webhook was missed .  idempotent via Convex claim. */
+/** Fallback welcome email when Clerk webhook was missed — idempotent via Supabase claim. */
 export async function POST() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

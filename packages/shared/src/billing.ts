@@ -41,8 +41,6 @@ export type LiveTradingTier = (typeof LIVE_TRADING_TIERS)[number];
 /** Dev/founder bypass tier — not sold via Stripe. */
 export const FOUNDER_TIER = 'founder' as const;
 
-const DEFAULT_FOUNDER_EMAIL = 'abdullahmsultan1@gmail.com';
-
 /** Internal team emails that can override plan tier for product testing. */
 export const FOUNDER_TEST_EMAILS = [
   'abdullahmsultan1@gmail.com',
@@ -70,8 +68,11 @@ export function isFounderTestEmail(email: string | null | undefined): boolean {
   return (FOUNDER_TEST_EMAILS as readonly string[]).includes(normalized);
 }
 
-export function founderLiveEmailEnv(): string {
-  return normalizeEmail(process.env.FOUNDER_LIVE_EMAIL ?? DEFAULT_FOUNDER_EMAIL);
+/** Optional env override for a single live-trading founder email (no hardcoded prod default). */
+export function founderLiveEmailEnv(): string | null {
+  const raw = process.env.FOUNDER_LIVE_EMAIL?.trim();
+  if (!raw) return null;
+  return normalizeEmail(raw);
 }
 
 export function isLiveTradingTier(tier: string | null | undefined): boolean {
@@ -93,7 +94,8 @@ export function getEffectiveTierFromSubscription(
   if (role === 'ADMIN' || role === 'DEVELOPER') return 'unlimited';
   if (isFounderTestEmail(email) && founderPlanOverride != null) return founderPlanOverride;
   if (isFounderTestEmail(email)) return 'unlimited';
-  if (email && normalizeEmail(email) === founderLiveEmailEnv()) return 'unlimited';
+  const founderLive = founderLiveEmailEnv();
+  if (founderLive && email && normalizeEmail(email) === founderLive) return 'unlimited';
   return resolveEffectiveTier(tier, status, currentPeriodEnd, legacyTier, legacyTierUntil);
 }
 

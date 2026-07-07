@@ -3,6 +3,10 @@
   "framework": "nextjs",
   "crons": [
     {
+      "path": "/api/internal/bot/scan-all",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/email/weekly-digest",
       "schedule": "0 8 * * 1"
     }

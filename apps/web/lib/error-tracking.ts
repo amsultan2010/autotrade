@@ -124,8 +124,8 @@ export function reportTrackedError(
 }
 
 export function formatUserError(err: unknown, fallback = 'Something went wrong'): string {
-  const convexMessage = err instanceof Error ? err.message : null;
-  if (convexMessage) return convexMessage;
+  const message = err instanceof Error ? err.message : null;
+  if (message) return message;
 
   if (err instanceof TrackedError) {
     return `[${err.code}] ${err.message} (ref: ${err.refId})`;

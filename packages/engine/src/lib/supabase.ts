@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
  * Server-only Supabase client for the engine.
  *
  * Holds the high-volume, append-only logs (signals, audit_logs) that would
- * otherwise blow the Convex quota. Uses the service-role key, so it MUST never
+ * Uses the service-role key, so it MUST never
  * run in a browser. RLS is enabled on these tables with no policies, so the
  * service role is the only thing that can read/write them.
  */

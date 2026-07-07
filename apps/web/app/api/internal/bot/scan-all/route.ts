@@ -43,6 +43,14 @@ async function recordBotCycle(meta: {
 }
 
 export async function POST(req: Request) {
+  return runScanAll(req);
+}
+
+export async function GET(req: Request) {
+  return runScanAll(req);
+}
+
+async function runScanAll(req: Request) {
   try {
     verifyCronAuth(req);
   } catch {

@@ -1,4 +1,4 @@
-/** Billing flags read from Vercel environment (mirror Convex deployment values). */
+/** Billing flags read from Vercel environment variables. */
 
 import { isFounderTestEmail, normalizePlanTier } from '@autotrade/shared';
 

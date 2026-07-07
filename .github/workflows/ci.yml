@@ -14,10 +14,12 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: bash scripts/check-boundaries.sh
+      - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm --filter @autotrade/shared build
       - run: pnpm --filter @autotrade/worker build
       - run: pnpm --filter @autotrade/web build
@@ -28,7 +30,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           SUPABASE_SERVICE_ROLE_KEY: placeholder
           BOT_INTERNAL_SECRET: ci_placeholder_secret_32_chars_minimum
-          BROKER_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          CRON_SECRET: ci_placeholder_cron_secret_32_chars
+          BROKER_ENCRYPTION_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
           NEXT_PUBLIC_APP_URL: http://localhost:3000
           MARKET_DATA_PROVIDER: alpaca
           BILLING_ENABLED: "false"

@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { tierDisplayColor, tierDisplayLabel } from '@autotrade/shared';
 import { useSubscription } from '@/src/components/subscription/SubscriptionProvider';
+import { useBotStatus } from '@/src/hooks/data';
+import { AppLoadingShell } from '@/src/components/AppLoadingShell';
 
 const NAV: Array<{ href: string; label: string; Icon: LucideIcon; tour?: string }> = [
   { href: '/dashboard', label: 'Dash', Icon: LayoutDashboard, tour: 'nav-dashboard' },
@@ -88,7 +90,11 @@ function RailLink({
   );
 }
 
-function StatusBar({ scanActive }: { scanActive: boolean }) {
+function StatusBar() {
+  const { data: botStatus } = useBotStatus();
+  const scanActive = botStatus?.running ?? false;
+  const mode = botStatus?.mode ?? '…';
+
   const [clock, setClock] = useState('');
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString('en-US', { hour12: false }));
@@ -104,12 +110,14 @@ function StatusBar({ scanActive }: { scanActive: boolean }) {
           <span className={cn('forge-led', !scanActive && 'opacity-40')} />
           SCAN {scanActive ? 'ACTIVE' : 'IDLE'}
         </span>
-        <span>LATENCY 12ms</span>
-        <span>UPTIME 99.2%</span>
+        <span>MODE {mode}</span>
+        {botStatus?.scanIntervalSeconds != null && (
+          <span>INTERVAL {botStatus.scanIntervalSeconds}s</span>
+        )}
       </div>
       <div className="flex items-center gap-4">
         <span>HYPERFORGE v0.1.1</span>
-        <span className="text-teal">{clock} UTC-4</span>
+        <span className="text-teal">{clock}</span>
       </div>
     </footer>
   );
@@ -245,7 +253,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             </main>
           </div>
 
-          <StatusBar scanActive />
+          <StatusBar />
 
           {/* ── Mobile deck ── */}
           <nav
@@ -257,7 +265,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 key={n.href}
                 href={n.href}
                 className={cn(
-                  'flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide',
+                  'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold uppercase tracking-wide',
                   pathname === n.href ? 'text-teal' : 'text-ink-muted',
                 )}
               >
@@ -283,6 +291,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useUser();
-  if (!isLoaded || !isSignedIn) return null;
+  if (!isLoaded) return <AppLoadingShell />;
+  if (!isSignedIn) return null;
   return <AppShell>{children}</AppShell>;
 }

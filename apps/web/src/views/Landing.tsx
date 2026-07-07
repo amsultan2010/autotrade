@@ -413,8 +413,19 @@ export function Landing() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-border py-8 text-center font-mono text-[10px] text-ink-muted">
-        © 2026 Autotrade · HyperForge · Not financial advice
+      <footer className="relative z-10 border-t border-border py-8 text-center text-sm text-ink-muted">
+        <nav className="mb-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <Link href="/privacy" className="hover:text-teal">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-teal">
+            Terms
+          </Link>
+          <Link href="/risk-disclosure" className="hover:text-teal">
+            Risk disclosure
+          </Link>
+        </nav>
+        <p>© 2026 Autotrade · HyperForge · Not financial advice</p>
       </footer>
     </div>
   );

@@ -18,12 +18,18 @@ require NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 require CLERK_SECRET_KEY
 require CLERK_WEBHOOK_SECRET
 require BOT_INTERNAL_SECRET
+require CRON_SECRET
 require NEXT_PUBLIC_APP_URL
 require MARKET_DATA_PROVIDER
 require BROKER_ENCRYPTION_KEY
 if [[ "${BILLING_ENABLED:-false}" == "true" ]]; then
   require STRIPE_SECRET_KEY
   require STRIPE_WEBHOOK_SECRET
+fi
+ZERO_KEY="0000000000000000000000000000000000000000000000000000000000000000"
+if [[ "${BROKER_ENCRYPTION_KEY:-}" == "$ZERO_KEY" ]]; then
+  echo "BROKER_ENCRYPTION_KEY must not be the all-zeros placeholder — generate with: openssl rand -hex 32"
+  exit 1
 fi
 if ((${#missing[@]})); then
   echo "Missing:"; printf "  - %s\n" "${missing[@]}"; exit 1

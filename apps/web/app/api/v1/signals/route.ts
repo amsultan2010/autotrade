@@ -18,10 +18,6 @@ function signalCreatedAtMs(value: unknown): number {
 
 /**
  * Recent signals for the current user, read from Supabase.
- *
- * Signals live in Supabase (not Convex) to keep the high-volume, append-only
- * log off the Convex quota. The dashboard polls this endpoint instead of using
- * a reactive Convex subscription.
  */
 export async function GET(req: NextRequest) {
   try {

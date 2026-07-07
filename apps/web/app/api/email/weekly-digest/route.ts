@@ -33,6 +33,14 @@ async function sendDigestForClerkId(clerkId: string, email: string) {
 }
 
 export async function POST(req: NextRequest) {
+  return handleWeeklyDigest(req);
+}
+
+export async function GET(req: NextRequest) {
+  return handleWeeklyDigest(req);
+}
+
+async function handleWeeklyDigest(req: NextRequest) {
   if (isCronOrBotAuth(req)) {
     try {
       const users = await listActiveUsers();
