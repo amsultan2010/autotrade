@@ -58,10 +58,10 @@ export function FounderSettingsPanel() {
             <FlaskConical size={16} strokeWidth={2} />
           </div>
           <div>
-            <h2 id="founder-settings-title" className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            <h2 id="founder-settings-title" className="text-sm font-semibold uppercase tracking-wider text-ink-muted md:text-base">
               Founder tools
             </h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+            <p className="mt-1 text-sm leading-relaxed text-ink-secondary md:text-base">
               Simulate how the app behaves for each subscription tier. Changes apply instantly across
               the dashboard, bot, and billing gates.
             </p>
@@ -73,7 +73,7 @@ export function FounderSettingsPanel() {
         <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-surface-raised px-4 py-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-xs text-ink-muted">App sees you as</span>
-            <Badge variant="default" className="w-fit text-[10px]">
+            <Badge variant="default" className="w-fit text-xs">
               {tierLabel(founder.effectiveTier)}
             </Badge>
           </div>
@@ -126,7 +126,7 @@ export function FounderSettingsPanel() {
                     />
                   )}
                 </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-secondary">
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
                   {option.description}
                 </p>
                 <div className="mt-3 h-4">

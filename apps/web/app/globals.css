@@ -19,7 +19,7 @@
   --color-border-strong: rgb(0 200 150 / 0.22);
 
   --color-ink: #e8f4fc;
-  --color-ink-secondary: #7a9bb8;
+  --color-ink-secondary: #94b4cc;
   --color-ink-muted: #3d5570;
 
   --color-teal: #00c896;
@@ -144,11 +144,20 @@ html {
 
 body {
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.6;
   background: var(--color-bg);
   color: var(--color-ink);
   min-height: 100dvh;
+}
+
+/* Readable app copy — dashboard, settings, tables */
+.app-readable {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.app-readable :where(.text-xs) {
+  font-size: 0.8125rem;
 }
 
 button { font-family: inherit; cursor: pointer; }

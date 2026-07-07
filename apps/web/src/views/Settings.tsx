@@ -277,6 +277,15 @@ export function Settings() {
         </AlertBanner>
       )}
 
+      {/* Broker + founder — top priority */}
+      <Panel className="p-0 [&_.panel]:rounded-none [&_.panel]:border-0 [&_.panel]:bg-transparent [&_.panel]:shadow-none">
+        <AlpacaConnectPanel broker={broker} liveEntitled={sub.entitled} onError={setError} />
+      </Panel>
+
+      <Panel className="p-0 [&_.founder-settings-panel]:rounded-none [&_.founder-settings-panel]:border-0 [&_.founder-settings-panel]:bg-transparent [&_.founder-settings-panel]:shadow-none">
+        <FounderSettingsPanel />
+      </Panel>
+
       {/* 1. Execution mode */}
       <Panel title="Execution mode">
         <p className="mb-4 text-sm text-ink-secondary">
@@ -541,12 +550,7 @@ export function Settings() {
         onChange={(ids) => set('disabledStrategies', ids)}
       />
 
-      {/* 6. Alpaca connect */}
-      <Panel className="p-0 [&_.panel]:rounded-none [&_.panel]:border-0 [&_.panel]:bg-transparent [&_.panel]:shadow-none">
-        <AlpacaConnectPanel broker={broker} liveEntitled={sub.entitled} onError={setError} />
-      </Panel>
-
-      {/* 7. Email digest + founder settings */}
+      {/* Email digest */}
       <Panel title="Email">
         <p className="mb-4 text-sm leading-relaxed text-ink-secondary">
           Welcome emails send once when you create an account. Weekly digests arrive Monday mornings with
@@ -576,10 +580,6 @@ export function Settings() {
           />
           <span className="text-sm text-ink">Send me the Autotrade weekly digest</span>
         </label>
-      </Panel>
-
-      <Panel className="p-0 [&_.founder-settings-panel]:rounded-none [&_.founder-settings-panel]:border-0 [&_.founder-settings-panel]:bg-transparent [&_.founder-settings-panel]:shadow-none">
-        <FounderSettingsPanel />
       </Panel>
     </PageShell>
   );
@@ -780,7 +780,7 @@ function MasterFiltersSection({
                 <span className="text-sm font-semibold text-ink">{s.displayName}</span>
                 <Badge variant={on ? 'success' : 'muted'}>{on ? 'on' : 'off'}</Badge>
               </div>
-              <p className="text-xs leading-relaxed text-ink-secondary">{s.description}</p>
+              <p className="text-sm leading-relaxed text-ink-secondary">{s.description}</p>
             </button>
           );
         })}
@@ -823,7 +823,7 @@ function StrategyGroup({
                 {s.isExperimental && <Badge variant="warning">experimental</Badge>}
                 {s.source === 'legacy' && <Badge variant="muted">legacy</Badge>}
               </div>
-              <p className="text-xs leading-relaxed text-ink-secondary">{s.description}</p>
+              <p className="text-sm leading-relaxed text-ink-secondary">{s.description}</p>
               {s.bestRegimes.length > 0 && (
                 <p className="mt-2 text-xs text-ink-muted">
                   Best in: {s.bestRegimes.slice(0, 3).join(', ')}
@@ -930,7 +930,7 @@ function ScanIntervalSlider({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium uppercase tracking-wider text-ink-muted">{label}</span>
+      <span className="text-sm font-medium text-ink-muted">{label}</span>
       {children}
     </label>
   );

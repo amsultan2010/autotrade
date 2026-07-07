@@ -68,8 +68,8 @@ function AlpacaKeyCard({
       <CardContent className="p-5">
         <header className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-ink">{title}</h3>
-            <p className="mt-0.5 text-xs text-ink-secondary">{subtitle}</p>
+            <h3 className="text-base font-semibold text-ink">{title}</h3>
+            <p className="mt-0.5 text-sm text-ink-secondary">{subtitle}</p>
           </div>
           {connected && (
             <Badge variant="pos" className="shrink-0">
@@ -177,12 +177,12 @@ export function AlpacaConnectPanel({
         data-tour="alpaca-connect"
       >
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            Alpaca accounts
-          </h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted md:text-base">
+          Alpaca accounts
+        </h2>
         </div>
         <div className="space-y-4 p-5">
-          <p className="text-sm leading-relaxed text-ink-secondary">
+          <p className="text-sm leading-relaxed text-ink-secondary md:text-base">
             Save separate API keys for paper and live trading. Switch execution mode in Settings
             without re-entering keys. Without paper keys, PAPER mode uses the built-in simulator.
           </p>
@@ -229,12 +229,12 @@ export function AlpacaConnectPanel({
       data-tour="alpaca-connect"
     >
       <div className="border-b border-border px-5 py-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted md:text-base">
           Connect Alpaca paper
         </h2>
       </div>
       <div className="space-y-4 p-5">
-        <p className="text-sm leading-relaxed text-ink-secondary">
+        <p className="text-sm leading-relaxed text-ink-secondary md:text-base">
           Free plans use paper trading only. Connect Alpaca paper keys to mirror bot trades in your
           brokerage sandbox, or use the built-in simulator without keys.
         </p>

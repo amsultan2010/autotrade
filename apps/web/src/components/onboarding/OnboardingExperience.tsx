@@ -147,7 +147,7 @@ export function OnboardingExperience() {
               <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Your AI trading <span className="text-accent">co-pilot</span>
               </h1>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-secondary">
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-secondary md:text-base">
                 Autotrade scans markets, generates high-confidence signals, and executes trades on
                 your behalf, with full risk controls and a paper sandbox to learn safely.
               </p>
@@ -160,8 +160,8 @@ export function OnboardingExperience() {
                         <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-muted text-accent">
                           <Icon size={18} strokeWidth={2} aria-hidden />
                         </div>
-                        <h3 className="text-sm font-semibold text-ink">{f.title}</h3>
-                        <p className="mt-1 text-xs leading-relaxed text-ink-secondary">{f.desc}</p>
+                        <h3 className="text-base font-semibold text-ink">{f.title}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{f.desc}</p>
                       </CardContent>
                     </Card>
                   );
@@ -176,7 +176,7 @@ export function OnboardingExperience() {
               <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 From scan to trade in seconds
               </h1>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-secondary">
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-secondary md:text-base">
                 You start with a $100,000 simulator. Connect Alpaca paper trading when you want real
                 broker fills. No code required.
               </p>
@@ -187,8 +187,8 @@ export function OnboardingExperience() {
                       {s.n}
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold text-ink">{s.title}</h3>
-                      <p className="mt-0.5 text-sm text-ink-secondary">{s.desc}</p>
+                      <h3 className="text-base font-semibold text-ink">{s.title}</h3>
+                      <p className="mt-0.5 text-sm text-ink-secondary md:text-base">{s.desc}</p>
                     </div>
                   </li>
                 ))}
@@ -202,16 +202,18 @@ export function OnboardingExperience() {
               <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Connect Alpaca paper trading
               </h1>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-secondary">
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-secondary md:text-base">
                 Optional but recommended: mirror bot trades in Alpaca&apos;s free paper sandbox. You
                 can skip and use the simulator, then connect later in Settings.
               </p>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                <AlpacaSetupGuide />
+              <div className="mt-6 flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-4">
+                <div className="min-w-0">
+                  <AlpacaSetupGuide />
+                </div>
                 <Card className="bg-surface-raised">
                   <CardContent className="space-y-4 p-5">
-                    <h2 className="text-sm font-semibold text-ink">Paste your keys</h2>
+                    <h2 className="text-base font-semibold text-ink">Paste your keys</h2>
                     {error && (
                       <div
                         className="rounded-lg border border-negative/30 bg-negative-muted px-3 py-2 text-sm text-ink-secondary"

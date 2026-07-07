@@ -39,6 +39,14 @@ const NAV: Array<{ href: string; label: string; Icon: LucideIcon; tour?: string 
   { href: '/settings', label: 'Config', Icon: Settings, tour: 'nav-settings' },
 ];
 
+const MOBILE_NAV = [
+  NAV[0], // Dash
+  NAV[1], // Watch
+  NAV[3], // History
+  NAV[4], // Account
+  NAV[5], // Config
+] as const;
+
 const ADMIN_NAV: { href: string; label: string; Icon: LucideIcon; tour?: string } = {
   href: '/admin',
   label: 'Admin',
@@ -70,7 +78,7 @@ function RailLink({
       )}
     >
       <Icon className="h-5 w-5" aria-hidden />
-      <span className="font-mono text-[8px] font-bold uppercase tracking-wider opacity-70 group-hover:opacity-100">
+      <span className="font-mono text-[10px] font-bold uppercase tracking-wider opacity-80 group-hover:opacity-100">
         {label}
       </span>
       {active && (
@@ -152,7 +160,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 <p className="font-display text-sm font-bold uppercase tracking-widest text-ink">
                   Autotrade
                 </p>
-                <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-teal">
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-teal">
                   HyperForge Console
                 </p>
               </div>
@@ -188,9 +196,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                   {email[0]?.toUpperCase() ?? '?'}
                 </div>
                 <div className="hidden min-w-0 md:block">
-                  <p className="max-w-[120px] truncate font-mono text-[10px] text-ink">{email}</p>
+                  <p className="max-w-[120px] truncate text-xs text-ink">{email}</p>
                   <p
-                    className="font-mono text-[9px] font-bold uppercase"
+                    className="text-[11px] font-bold uppercase"
                     style={{ color: tierDisplayColor(entitlements?.effectiveTier ?? 'free') }}
                   >
                     {tierDisplayLabel(entitlements?.effectiveTier ?? 'free')}
@@ -244,12 +252,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             className="fixed inset-x-0 bottom-0 z-40 flex h-[var(--mobile-nav-h)] items-stretch justify-around border-t border-border bg-surface/95 px-1 backdrop-blur-xl md:hidden"
             aria-label="Mobile"
           >
-            {allNav.slice(0, 5).map((n) => (
+            {MOBILE_NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 className={cn(
-                  'flex flex-1 flex-col items-center justify-center gap-0.5 font-mono text-[8px] font-bold uppercase',
+                  'flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide',
                   pathname === n.href ? 'text-teal' : 'text-ink-muted',
                 )}
               >

@@ -15,7 +15,7 @@ export function PageShell({
   const reduce = useReducedMotion();
   return (
     <motion.div
-      className={cn('relative mx-auto w-full max-w-[1520px] px-3 pb-[calc(var(--status-h)+24px)] pt-4 md:px-6 md:pb-8 md:pt-5', className)}
+      className={cn('relative mx-auto w-full max-w-[1520px] px-3 pb-[calc(var(--mobile-nav-h)+16px)] pt-4 app-readable md:px-6 md:pb-8 md:pt-5', className)}
       initial={reduce ? false : 'hidden'}
       animate="show"
       variants={forgeStagger}
@@ -50,7 +50,7 @@ export function PageHeader({
       <div className="min-w-0">
         <div className="mb-2 flex items-center gap-3">
           <span className="forge-led" aria-hidden />
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-teal">
+          <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-teal">
             {code ?? 'SYS://CONSOLE'}
           </p>
         </div>
@@ -58,7 +58,7 @@ export function PageHeader({
           {title}
         </h1>
         {description && (
-          <p className="mt-2 max-w-2xl font-mono text-xs text-ink-secondary md:text-sm">{description}</p>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-secondary md:text-base">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -94,7 +94,7 @@ export function StatCard({
       )}
     >
       <span className="forge-bracket" aria-hidden />
-      <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ink-muted">{label}</p>
+      <p className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">{label}</p>
       <p
         className={cn(
           'mt-2 font-mono text-2xl font-bold tabular-nums text-ink',
@@ -106,7 +106,7 @@ export function StatCard({
       >
         {value}
       </p>
-      {hint && <div className="mt-1.5 font-mono text-[10px] text-ink-secondary">{hint}</div>}
+      {hint && <div className="mt-1.5 text-xs text-ink-secondary md:text-sm">{hint}</div>}
     </motion.div>
   );
 }
@@ -152,7 +152,7 @@ export function Panel({
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-raised/40 px-4 py-3 md:px-5">
           {title && (
-            <h2 className="font-display text-xs font-bold uppercase tracking-[0.14em] text-teal">
+            <h2 className="font-display text-sm font-bold uppercase tracking-[0.12em] text-teal md:text-base">
               {title}
             </h2>
           )}
@@ -180,7 +180,7 @@ export function EmptyState({
       </div>
       <p className="font-display text-xl font-bold uppercase tracking-wide text-ink">{title}</p>
       {description && (
-        <p className="mt-2 max-w-sm font-mono text-xs text-ink-secondary">{description}</p>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-ink-secondary">{description}</p>
       )}
       {action && <div className="mt-8">{action}</div>}
     </div>
@@ -200,7 +200,7 @@ export function SegmentedControl<T extends string>({
 }) {
   return (
     <div
-      className={cn('forge-inset inline-flex gap-0.5 p-1', size === 'sm' && 'text-[10px]')}
+      className={cn('forge-inset inline-flex gap-0.5 p-1 text-sm', size === 'sm' && 'text-xs')}
       role="tablist"
     >
       {options.map((opt) => (
@@ -237,7 +237,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider',
+        'inline-flex items-center gap-1.5 rounded border px-2.5 py-0.5 font-mono text-xs font-bold uppercase tracking-wider',
         variant === 'default' && 'border-teal/30 bg-teal-muted text-teal',
         variant === 'success' && 'border-positive/30 bg-positive-muted text-positive',
         variant === 'warning' && 'border-warning/30 bg-warning-muted text-warning',
@@ -260,7 +260,7 @@ export function DataTable({
 }) {
   return (
     <div className={cn('overflow-x-auto', className)}>
-      <table className="w-full min-w-[480px] border-collapse font-mono text-xs [&_th]:border-b [&_th]:border-border [&_th]:pb-2 [&_th]:text-left [&_th]:text-[9px] [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-widest [&_th]:text-ink-muted [&_tr:hover]:bg-teal/[0.03] [&_td]:border-b [&_td]:border-border/40 [&_td]:py-2.5">
+      <table className="w-full min-w-[480px] border-collapse text-sm [&_th]:border-b [&_th]:border-border [&_th]:pb-2.5 [&_th]:text-left [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-muted [&_tr:hover]:bg-teal/[0.03] [&_td]:border-b [&_td]:border-border/40 [&_td]:py-3 [&_td]:text-ink">
         {children}
       </table>
     </div>
@@ -279,7 +279,7 @@ export function AlertBanner({
   return (
     <div
       className={cn(
-        'forge-inset flex items-start gap-3 px-4 py-3 font-mono text-xs',
+        'forge-inset flex items-start gap-3 px-4 py-3 text-sm leading-relaxed',
         variant === 'info' && 'border-teal/20 text-ink-secondary',
         variant === 'warning' && 'border-warning/20 text-ink-secondary',
         variant === 'error' && 'border-red/25 text-ink-secondary',
