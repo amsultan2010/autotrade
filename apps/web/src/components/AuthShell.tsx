@@ -34,16 +34,16 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             animate={reduce ? undefined : { y: [0, -4, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           />
-          <span className="font-display text-2xl font-extrabold tracking-tight">Autotrade</span>
+          <span className="font-display text-2xl font-semibold tracking-tight">Autotrade</span>
           <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-gold">
-            Obsidian Console
+            Trading you control
           </span>
         </a>
 
         <div className="material-panel p-8 sm:p-10">
           <span className="hud-corners" aria-hidden />
           <p className="mb-6 text-center text-sm leading-relaxed text-ink-secondary">
-            Precision terminal for AI-driven trading. Paper first, live when you are ready.
+            AI-driven trading with paper-first onboarding. Go live when you are ready.
           </p>
           {children}
         </div>

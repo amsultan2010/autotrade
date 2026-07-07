@@ -42,16 +42,17 @@ export function useSupabaseTable<T extends object>(
   );
 
   useEffect(() => {
-    if (!enabled || !isLoaded || !isSignedIn || !clerkId) {
+    if (!enabled || !isLoaded || !isSignedIn || !clerkId || !supabase) {
       setLoading(false);
       return;
     }
 
+    const client = supabase;
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      let query = supabase.from(table).select(select).eq('clerk_id', clerkId!);
+      let query = client.from(table).select(select).eq('clerk_id', clerkId!);
       if (orderBy) {
         query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
       }
@@ -70,7 +71,7 @@ export function useSupabaseTable<T extends object>(
     void load();
 
     const channelName = `rt:${table}:${clerkId}:${instanceId}`;
-    const channel = supabase.channel(channelName);
+    const channel = client.channel(channelName);
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table, filter: `clerk_id=eq.${clerkId}` },
@@ -82,7 +83,7 @@ export function useSupabaseTable<T extends object>(
 
     return () => {
       cancelled = true;
-      void supabase.removeChannel(channel);
+      void client.removeChannel(channel);
     };
   }, [supabase, table, select, orderKey, enabled, isLoaded, isSignedIn, clerkId, instanceId]);
 

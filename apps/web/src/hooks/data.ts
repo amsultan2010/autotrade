@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { useSupabaseTable } from './useSupabaseTable';
 import { useApiQuery } from './useApiQuery';
 
 export interface BotSettingsRow extends Record<string, unknown> {

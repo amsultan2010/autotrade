@@ -208,19 +208,19 @@ function HeroDashboard() {
       <div className="material-panel relative overflow-hidden shadow-[var(--shadow-elevated)]">
         <span className="hud-corners" aria-hidden />
 
-        <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <div className="flex gap-1.5" aria-hidden>
             <span className="h-2.5 w-2.5 rounded-full bg-negative/70 shadow-[0_0_8px_rgba(255,59,82,0.5)]" />
             <span className="h-2.5 w-2.5 rounded-full bg-warning/70 shadow-[0_0_8px_rgba(240,165,0,0.5)]" />
             <span className="h-2.5 w-2.5 rounded-full bg-positive/70 shadow-[0_0_8px_rgba(0,200,150,0.5)]" />
           </div>
           <span className="mx-auto font-mono text-[10px] uppercase tracking-widest text-ink-muted">
-            autotrade — obsidian terminal
+            autotrade — live dashboard
           </span>
         </div>
 
         <div className="grid gap-0 sm:grid-cols-[140px_1fr]">
-          <div className="hidden border-r border-white/[0.06] bg-[#08080e] p-4 sm:block">
+          <div className="hidden border-r border-border bg-surface-raised p-4 sm:block">
             <div className="mb-4 flex items-center gap-2">
               <img
                 src="/icon.png"
@@ -238,7 +238,7 @@ function HeroDashboard() {
                   className={cn(
                     'rounded-md px-3 py-2 text-xs font-semibold',
                     i === 0
-                      ? 'bg-gold-muted text-gold shadow-[inset_3px_0_0_#d4af37]'
+                      ? 'bg-gold-muted text-gold shadow-[inset_3px_0_0_#e85d04]'
                       : 'text-ink-muted',
                   )}
                 >
@@ -267,13 +267,13 @@ function HeroDashboard() {
               <svg viewBox="0 0 400 160" className="h-full w-full" preserveAspectRatio="none" aria-hidden>
                 <defs>
                   <linearGradient id="lp-chart-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00c896" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#00c896" stopOpacity="0" />
+                    <stop offset="0%" stopColor="#0d9488" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#0d9488" stopOpacity="0" />
                   </linearGradient>
                   <linearGradient id="lp-chart-line" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#00c896" />
-                    <stop offset="50%" stopColor="#d4af37" />
-                    <stop offset="100%" stopColor="#00c896" />
+                    <stop offset="0%" stopColor="#0d9488" />
+                    <stop offset="50%" stopColor="#e85d04" />
+                    <stop offset="100%" stopColor="#0d9488" />
                   </linearGradient>
                 </defs>
                 {[40, 80, 120].map((y) => (
@@ -283,7 +283,7 @@ function HeroDashboard() {
                     y1={y}
                     x2="400"
                     y2={y}
-                    stroke="rgba(212,175,55,0.06)"
+                    stroke="rgba(232,93,4,0.08)"
                     strokeWidth="1"
                   />
                 ))}
@@ -461,7 +461,7 @@ export function Landing() {
           {tickerItems.map((t, i) => (
             <span
               key={i}
-              className="flex shrink-0 items-center gap-3 border-r border-white/[0.06] px-6 py-2.5 font-mono text-xs"
+              className="flex shrink-0 items-center gap-3 border-r border-border px-6 py-2.5 font-mono text-xs"
             >
               <span className="font-bold text-gold">{t.sym}</span>
               <span className="tabular-nums text-ink-secondary">${t.price}</span>
@@ -474,7 +474,7 @@ export function Landing() {
       </div>
 
       {/* ── Sticky nav ── */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#06060a]/75 backdrop-blur-xl backdrop-saturate-150">
+      <header className="sticky top-0 z-50 border-b border-border bg-surface/80 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-8">
           <a href="#" className="group flex min-h-[44px] items-center gap-2.5">
             <motion.img
@@ -483,7 +483,7 @@ export function Landing() {
               width={32}
               height={32}
               className="rounded-lg shadow-[var(--shadow-gold-glow)]"
-              animate={reduce ? undefined : { boxShadow: ['0 0 12px rgba(212,175,55,0.3)', '0 0 28px rgba(212,175,55,0.6)', '0 0 12px rgba(212,175,55,0.3)'] }}
+              animate={reduce ? undefined : { boxShadow: ['0 0 12px rgba(232,93,4,0.2)', '0 0 28px rgba(255,122,26,0.45)', '0 0 12px rgba(232,93,4,0.2)'] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             />
             <span className="font-display text-lg font-extrabold tracking-tight text-ink transition-colors group-hover:text-gold">
@@ -496,7 +496,7 @@ export function Landing() {
               <a
                 key={link.href}
                 href={link.href}
-                className="min-h-[44px] rounded-lg px-4 py-2 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white/[0.04] hover:text-gold"
+                className="min-h-[44px] rounded-lg px-4 py-2 text-sm font-semibold text-ink-secondary transition-colors hover:bg-surface-raised hover:text-gold"
               >
                 {link.label}
               </a>
@@ -522,7 +522,7 @@ export function Landing() {
         {mobileOpen && (
           <motion.div
             id="mobile-menu"
-            className="border-t border-white/[0.06] bg-[#0c0c12]/95 px-4 py-4 backdrop-blur-xl md:hidden"
+            className="border-t border-border bg-surface/95 px-4 py-4 backdrop-blur-xl md:hidden"
             initial={reduce ? false : { opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
@@ -532,14 +532,14 @@ export function Landing() {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="min-h-[44px] rounded-lg px-4 py-3 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white/[0.04] hover:text-gold"
+                  className="min-h-[44px] rounded-lg px-4 py-3 text-sm font-semibold text-ink-secondary transition-colors hover:bg-surface-raised hover:text-gold"
                   onClick={() => setMobileOpen(false)}
                 >
                   {link.label}
                 </a>
               ))}
             </nav>
-            <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.06] pt-4">
+            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
               <AuthButtons className="flex-col [&_button]:w-full [&_a]:w-full" />
             </div>
           </motion.div>
@@ -552,12 +552,12 @@ export function Landing() {
           <div className="lp-hero-glow left-1/4 top-0 -translate-x-1/2 opacity-50" aria-hidden />
           <div
             className="pointer-events-none absolute right-0 top-1/3 h-[500px] w-[500px] rounded-full opacity-20 blur-3xl"
-            style={{ background: 'radial-gradient(circle, #00c896, transparent 65%)' }}
+            style={{ background: 'radial-gradient(circle, #0d9488, transparent 65%)' }}
             aria-hidden
           />
           <div
             className="pointer-events-none absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full opacity-15 blur-3xl"
-            style={{ background: 'radial-gradient(circle, #d4af37, transparent 65%)' }}
+            style={{ background: 'radial-gradient(circle, #ff8c42, transparent 65%)' }}
             aria-hidden
           />
 
@@ -574,27 +574,27 @@ export function Landing() {
               >
                 <span className="live-dot" aria-hidden />
                 <span className="text-xs font-bold uppercase tracking-widest text-ink-secondary">
-                  AI-Powered Algorithmic Trading
+                  Trading you control
                 </span>
               </motion.div>
 
               <motion.h1
                 variants={fadeUp}
-                className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl"
+                className="font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl"
               >
-                Trade Smarter.{' '}
-                <span className="bg-gradient-to-r from-[#f0d060] via-[#d4af37] to-[#c9a227] bg-clip-text text-transparent">
-                  React Faster.
+                Trade smarter.{' '}
+                <span className="bg-gradient-to-r from-[#ff8c42] via-[#e85d04] to-[#c44d02] bg-clip-text text-transparent">
+                  React faster.
                 </span>{' '}
-                <span className="text-ink">Win Bigger.</span>
+                <span className="text-ink">Win bigger.</span>
               </motion.h1>
 
               <motion.p
                 variants={fadeUp}
                 className="max-w-xl text-base leading-relaxed text-ink-secondary md:text-lg"
               >
-                Autotrade fuses institutional-grade AI signals with lightning-fast execution,
-                giving individual traders the edge once reserved for hedge funds.
+                Autotrade brings institutional-grade AI signals and lightning execution to your
+                desk — paper first, live when you are ready. No complexity, just clarity.
               </motion.p>
 
               <motion.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -639,7 +639,7 @@ export function Landing() {
         {/* ── Stats band ── */}
         <SectionReveal id="stats" aria-label="Platform stats">
           <div className="mx-auto max-w-6xl px-4 py-12 md:px-8">
-            <div className="material-inset grid grid-cols-2 divide-x divide-white/[0.05] md:grid-cols-4">
+            <div className="material-inset grid grid-cols-2 divide-x divide-border md:grid-cols-4">
               {STATS.map((s, i) => (
                 <motion.div
                   key={s.label}
@@ -692,7 +692,7 @@ export function Landing() {
         {/* ── Features ── */}
         <SectionReveal
           id="features"
-          className="border-t border-white/[0.06] px-4 py-20 md:px-8 md:py-24"
+          className="border-t border-border px-4 py-20 md:px-8 md:py-24"
         >
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 text-center">
@@ -743,7 +743,7 @@ export function Landing() {
         {/* ── FAQ ── */}
         <SectionReveal
           id="faq"
-          className="border-t border-white/[0.06] bg-[#08080e]/50 px-4 py-20 md:px-8 md:py-24"
+          className="border-t border-border bg-surface-raised/50 px-4 py-20 md:px-8 md:py-24"
         >
           <div className="mx-auto max-w-2xl">
             <div className="mb-12 text-center">
@@ -794,10 +794,10 @@ export function Landing() {
         </SectionReveal>
 
         {/* ── Footer CTA ── */}
-        <section className="relative overflow-hidden border-t border-white/[0.06]">
+        <section className="relative overflow-hidden border-t border-border">
           <div className="lp-hero-glow left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-70" aria-hidden />
           <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-gold/[0.04] via-transparent to-positive/[0.03]"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-gold/[0.06] via-transparent to-teal/[0.04]"
             aria-hidden
           />
 
@@ -811,16 +811,16 @@ export function Landing() {
             <span className="material-inset inline-flex px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-ink-secondary">
               No credit card required to start
             </span>
-            <h2 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
-              Ready to Let the{' '}
-              <span className="bg-gradient-to-r from-[#f0d060] to-[#d4af37] bg-clip-text text-transparent">
-                Algorithm
-              </span>{' '}
-              Work?
+            <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-ink md:text-5xl">
+              Ready to step into{' '}
+              <span className="bg-gradient-to-r from-[#ff8c42] to-[#e85d04] bg-clip-text text-transparent">
+                Autotrade
+              </span>
+              ?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-secondary">
-              Join thousands of traders who&apos;ve replaced emotional decision-making with
-              data-driven precision. Start with paper trading, go live when you&apos;re ready.
+              Join traders who replaced guesswork with data-driven precision. Start with paper
+              trading — go live when you are ready.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               {isSignedIn ? (
@@ -854,7 +854,7 @@ export function Landing() {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="relative z-10 border-t border-white/[0.06] bg-[#08080e]/80 backdrop-blur-sm">
+      <footer className="relative z-10 border-t border-border bg-surface/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 md:flex-row md:items-start md:justify-between md:px-8">
           <div>
             <div className="flex items-center gap-2.5">
@@ -868,10 +868,10 @@ export function Landing() {
               <span className="font-display text-base font-extrabold text-gold">Autotrade</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-ink-muted">
-              Precision terminal for AI-driven trading.
+              Premium AI trading — warm, intuitive, built for you.
             </p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold/60">
-              Obsidian Console
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold/70">
+              Trading you control
             </p>
           </div>
           <nav className="flex flex-wrap gap-x-8 gap-y-3" aria-label="Footer">
@@ -892,7 +892,7 @@ export function Landing() {
             </a>
           </nav>
         </div>
-        <div className="border-t border-white/[0.06]">
+        <div className="border-t border-border">
           <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-ink-muted md:px-8">
             © 2026 Autotrade. All rights reserved. Trading involves risk of loss. Not financial advice.
           </p>

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from 're
 import { useAuth, useUser } from '@clerk/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { isSupabaseBrowserConfigured } from '@/lib/supabase-env';
 
 const SupabaseCtx = createContext<SupabaseClient | null>(null);
 
@@ -42,13 +43,20 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   getTokenRef.current = getToken;
 
   const clientRef = useRef<SupabaseClient | null>(null);
-  if (isLoaded && !clientRef.current) {
+  if (isLoaded && !clientRef.current && isSupabaseBrowserConfigured()) {
     clientRef.current = createSupabaseBrowserClient((opts) => getTokenRef.current(opts));
   }
 
   const client = clientRef.current;
 
-  if (!client) return <>{children}</>;
+  if (!client) {
+    return (
+      <>
+        {isSignedIn && <UserSync />}
+        {children}
+      </>
+    );
+  }
 
   return (
     <SupabaseCtx.Provider value={client}>
@@ -58,8 +66,6 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useSupabase(): SupabaseClient {
-  const client = useContext(SupabaseCtx);
-  if (!client) throw new Error('useSupabase must be used within SupabaseProvider');
-  return client;
+export function useSupabase(): SupabaseClient | null {
+  return useContext(SupabaseCtx);
 }

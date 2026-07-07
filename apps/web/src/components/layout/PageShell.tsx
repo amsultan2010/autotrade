@@ -50,8 +50,8 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">Console</p>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">Workspace</p>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
           <span className="bg-gradient-to-r from-ink via-ink to-gold bg-clip-text text-transparent">
             {title}
           </span>
@@ -251,7 +251,7 @@ export function DataTable({
 }) {
   return (
     <div className={cn('overflow-x-auto', className)}>
-      <table className="w-full min-w-[480px] border-collapse text-sm [&_th]:border-b [&_th]:border-border [&_th]:pb-2 [&_th]:text-left [&_th]:text-[10px] [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-muted [&_tr:hover]:bg-white/[0.02] [&_td]:py-3 [&_td]:border-b [&_td]:border-border/50">
+      <table className="w-full min-w-[480px] border-collapse text-sm [&_th]:border-b [&_th]:border-border [&_th]:pb-2 [&_th]:text-left [&_th]:text-[10px] [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-muted [&_tr:hover]:bg-surface-raised/60 [&_td]:py-3 [&_td]:border-b [&_td]:border-border/50">
         {children}
       </table>
     </div>

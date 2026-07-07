@@ -1,23 +1,21 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { dark } from '@clerk/ui/themes';
-import { IBM_Plex_Mono, Inter, Syne } from 'next/font/google';
+import { DM_Sans, Fraunces, IBM_Plex_Mono } from 'next/font/google';
 import { PostHogProvider } from '@/lib/posthog';
 import { PostHogPageView } from '@/lib/posthog-pageview';
 import { SentryErrorListeners } from '@/components/SentryErrorListeners';
 import { AppProviders } from '@/components/providers';
 import './globals.css';
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-dm-sans',
   display: 'swap',
 });
 
-const syne = Syne({
+const fraunces = Fraunces({
   subsets: ['latin'],
-  variable: '--font-syne',
-  weight: ['600', '700', '800'],
+  variable: '--font-fraunces',
   display: 'swap',
 });
 
@@ -31,8 +29,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Autotrade — Obsidian Trading Console',
-  description: 'AI-powered automated trading with premium instrument-panel UI',
+  title: 'Autotrade — AI Trading, Built for You',
+  description: 'Premium AI-powered trading with warm, intuitive controls and institutional-grade signals',
   icons: {
     icon: [
       { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
@@ -51,22 +49,21 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${syne.variable} ${ibmPlexMono.variable}`}>
+    <html lang="en" className={`${dmSans.variable} ${fraunces.variable} ${ibmPlexMono.variable}`}>
       <body className="min-h-dvh bg-bg text-ink antialiased">
         <ClerkProvider
           appearance={{
-            theme: dark,
             variables: {
-              colorBackground: '#0c0c12',
-              colorInputBackground: '#12121a',
-              colorInputText: '#f4f8fd',
-              colorText: '#f4f8fd',
-              colorTextSecondary: '#9eb0c4',
-              colorPrimary: '#d4af37',
-              colorDanger: '#ff3b52',
-              colorSuccess: '#00c896',
-              colorNeutral: '#9eb0c4',
-              borderRadius: '12px',
+              colorBackground: '#ffffff',
+              colorInputBackground: '#f5f0e8',
+              colorInputText: '#1c1917',
+              colorText: '#1c1917',
+              colorTextSecondary: '#57534e',
+              colorPrimary: '#e85d04',
+              colorDanger: '#dc2626',
+              colorSuccess: '#15803d',
+              colorNeutral: '#a8a29e',
+              borderRadius: '14px',
               fontFamily: 'var(--font-sans)',
               fontFamilyButtons: 'var(--font-sans)',
               fontSize: '15px',

@@ -1,14 +1,8 @@
 'use client';
 
-import { ConstellationBg } from '@/src/components/ConstellationBg';
-import { ScanlineOverlay } from '@/src/components/ScanlineOverlay';
+import { SunriseAmbient } from '@/src/components/SunriseAmbient';
 
-/** Full-screen atmospheric layers: particles, grain, vignette, scanlines. */
+/** Full-screen warm atmospheric layers — golden hour, soft grain, lens warmth. */
 export function AmbientFx({ dim = false }: { dim?: boolean }) {
-  return (
-    <>
-      <ConstellationBg dim={dim} zIndex={0} />
-      <ScanlineOverlay />
-    </>
-  );
+  return <SunriseAmbient subtle={dim} />;
 }

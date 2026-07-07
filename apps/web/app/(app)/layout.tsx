@@ -69,7 +69,7 @@ function NavLink({
         compact && 'flex-col gap-1 px-1 py-2 text-[9px]',
         active
           ? 'active text-gold'
-          : 'text-ink-secondary hover:bg-white/[0.03] hover:text-ink',
+          : 'text-ink-secondary hover:bg-surface-raised hover:text-ink',
       )}
     >
       <Icon className={cn('shrink-0', compact ? 'h-5 w-5' : 'h-[18px] w-[18px]')} aria-hidden />
@@ -171,7 +171,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="font-display text-lg font-extrabold tracking-tight text-ink">
                   Autotrade
                 </span>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold">Obsidian Console</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold">Trading Console</p>
               </div>
             </div>
             <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">

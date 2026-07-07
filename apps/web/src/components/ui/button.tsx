@@ -12,9 +12,9 @@ const buttonVariants = cva(
         destructive:
           'bg-negative text-ink border border-negative/50 hover:brightness-110 shadow-lg',
         outline:
-          'material-button text-ink-secondary hover:text-gold',
+          'material-button text-ink-secondary hover:text-gold hover:border-gold/30',
         ghost:
-          'bg-transparent text-ink-secondary hover:bg-white/[0.04] hover:text-ink',
+          'bg-transparent text-ink-secondary hover:bg-surface-raised hover:text-ink',
         secondary:
           'material-panel text-ink border-0 px-4 py-2',
         link: 'text-gold underline-offset-4 hover:underline',
