@@ -1,0 +1,88 @@
+import type { Metadata } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
+import { dark } from '@clerk/ui/themes';
+import { IBM_Plex_Mono, Inter, Syne } from 'next/font/google';
+import { PostHogProvider } from '@/lib/posthog';
+import { PostHogPageView } from '@/lib/posthog-pageview';
+import { SentryErrorListeners } from '@/components/SentryErrorListeners';
+import { AppProviders } from '@/components/providers';
+import './globals.css';
+import './scan-account-theme.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const syne = Syne({
+  subsets: ['latin'],
+  variable: '--font-syne',
+  weight: ['600', '700', '800'],
+  display: 'swap',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  variable: '--font-ibm-mono',
+  weight: ['400', '500', '600'],
+  display: 'swap',
+});
+
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Autotrade',
+  description: 'AI-powered automated trading bot',
+  icons: {
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.png', sizes: '1024x1024', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
+    apple: '/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'Autotrade',
+    description: 'AI-powered automated trading bot',
+    siteName: 'Autotrade',
+    images: [{ url: '/icon.png', width: 1024, height: 1024, alt: 'Autotrade' }],
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${inter.variable} ${syne.variable} ${ibmPlexMono.variable}`}>
+      <body className={inter.className}>
+        <ClerkProvider
+          appearance={{
+            theme: dark,
+            variables: {
+              colorBackground: '#0a0a0c',
+              colorInputBackground: '#090c10',
+              colorInputText: '#f4f8fd',
+              colorText: '#f4f8fd',
+              colorTextSecondary: '#a8bece',
+              colorPrimary: '#d4af37',
+              colorDanger: '#ff3b52',
+              colorSuccess: '#c9a227',
+              colorNeutral: '#a8bece',
+              borderRadius: '8px',
+              fontFamily: 'var(--font-sans)',
+              fontFamilyButtons: 'var(--font-sans)',
+              fontSize: '15px',
+            },
+          }}
+        >
+          <AppProviders>
+            <PostHogProvider>
+              <SentryErrorListeners />
+              <PostHogPageView />
+              {children}
+            </PostHogProvider>
+          </AppProviders>
+        </ClerkProvider>
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,30 @@
+/**
+ * Engine package root — internal use (worker, engine internals).
+ * Web and other external consumers must use `@autotrade/engine/public`.
+ */
+export * from './config/env';
+export * from './config/defaults';
+export * from './config/popular';
+export * from './lib/errors';
+export * from './lib/validate';
+export * from './lib/audit';
+export * from './lib/jwt';
+export * from './lib/crypto';
+export * from './lib/secrets';
+export * from './lib/alpaca';
+export * from './lib/broker-credentials';
+export * from './lib/stripe';
+export * from './middleware/subscription';
+export * from './services/analysis/index';
+export * from './services/decision/index';
+export * from './services/risk/index';
+export * from './services/learning/index';
+export * from './services/execution/paper.engine';
+export * from './services/marketdata/index';
+export * from './services/auth.service';
+export * from './services/subscription.service';
+export * from './services/trades.service';
+export * from './workers/scanLoop';
+export * from './workers/liveEngine';
+
+export * as strategyEngine from './services/strategy-engine';

@@ -1,0 +1,56 @@
+{
+  "$comment": "Example Strategy Engine config. Maps to StrategyEngineConfig in config.ts. Everything except 'mode' is optional.",
+
+  "mode": "balanced",
+  "$comment_mode": "conservative | balanced | aggressive | paper_only | strategy_specific | auto. Each preset sets minConfidence + risk thresholds.",
+
+  "highRiskMode": false,
+  "$comment_highRiskMode": "When true, the engine may trade extreme-volatility regimes (size is still reduced by the risk engine).",
+
+  "enabledStrategies": "all",
+  "$comment_enabledStrategies": "'all' or a list of internalNames, e.g. ['trend_following_v2','breakout_v1','legacy_trend_breakout'].",
+
+  "disabledStrategies": [],
+  "$comment_disabledStrategies": "Force these off regardless of the enabled list.",
+
+  "includeExperimental": false,
+  "$comment_includeExperimental": "Include experimental strategies (news_event_v1, sentiment_v1, stat_arb_pairs_v1, vwap_intraday_v1). They abstain unless their data inputs are provided.",
+
+  "minConfidence": 60,
+  "$comment_minConfidence": "Optional override of the mode preset's confidence floor (0-100).",
+
+  "thresholds": {
+    "minRR": 1.5,
+    "maxSpreadPct": 0.8,
+    "minRelativeVolume": 0.5,
+    "extremeVolAtrPct": 6
+  },
+  "$comment_thresholds": "Optional partial override of the mode's risk thresholds.",
+
+  "manualStrategy": null,
+  "$comment_manualStrategy": "Required only when mode = 'strategy_specific'; the internalName to pin, e.g. 'momentum_v2'.",
+
+  "$availableStrategies": {
+    "legacy": [
+      "legacy_trend_breakout",
+      "legacy_pullback_continuation",
+      "legacy_mean_reversion",
+      "legacy_crypto_momentum",
+      "legacy_decision_engine"
+    ],
+    "new": [
+      "trend_following_v2",
+      "momentum_v2",
+      "mean_reversion_v2",
+      "breakout_v1",
+      "pullback_in_trend_v1",
+      "market_regime_overlay_v1"
+    ],
+    "experimental": [
+      "news_event_v1",
+      "sentiment_v1",
+      "stat_arb_pairs_v1",
+      "vwap_intraday_v1"
+    ]
+  }
+}
