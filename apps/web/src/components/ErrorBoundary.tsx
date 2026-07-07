@@ -1,5 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
-import { ErrorCodes, toTrackedError, type TrackedError } from '@autotrade/shared';
+import { ErrorCodes, type TrackedError } from '@autotrade/shared';
 import { reportTrackedError } from '@/lib/error-tracking';
 import { ErrorFallback } from '@/src/components/ErrorFallback';
 
@@ -9,15 +9,10 @@ interface State { error: TrackedError | null }
 export class ErrorBoundary extends Component<Props, State> {
   override state: State = { error: null };
 
-  static getDerivedStateFromError(error: Error): State {
-    return {
-      error: toTrackedError(error, ErrorCodes.UI_RENDER, error.message),
-    };
-  }
-
   override componentDidCatch(error: Error, info: ErrorInfo) {
     const tracked = reportTrackedError(ErrorCodes.UI_RENDER, error, {
       componentStack: info.componentStack,
+      route: typeof window !== 'undefined' ? window.location.pathname : undefined,
     });
     this.setState({ error: tracked });
   }

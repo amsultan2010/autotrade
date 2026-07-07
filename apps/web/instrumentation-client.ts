@@ -5,7 +5,7 @@ const isProd = process.env.NODE_ENV === 'production';
 
 Sentry.init({
   ...getBaseSentryOptions(),
-  tunnel: '/monitoring',
+  tunnel: '/api/monitoring',
   replaysSessionSampleRate: isProd ? 0.05 : 0,
   replaysOnErrorSampleRate: isProd ? 1.0 : 0,
   integrations: [
@@ -14,8 +14,6 @@ Sentry.init({
       blockAllMedia: false,
     }),
     Sentry.browserTracingIntegration(),
-    Sentry.captureConsoleIntegration({ levels: ['error'] }),
-    Sentry.globalHandlersIntegration(),
   ],
 });
 

@@ -11,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/email(.*)',
   // Analytics / error tunnels must stay public (no Clerk session on beacon requests).
   '/ingest(.*)',
+  '/api/monitoring',
   '/monitoring(.*)',
 ]);
 
@@ -26,5 +27,8 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  matcher: ['/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)', '/(api|trpc)(.*)'],
+  matcher: [
+    '/((?!monitoring|_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+  ],
 };

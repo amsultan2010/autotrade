@@ -29,6 +29,7 @@ export function SentryErrorListeners() {
         line: event.lineno,
         column: event.colno,
       });
+      void import('@sentry/nextjs').then(({ flush }) => flush(2000)).catch(() => undefined);
     };
 
     const onRejection = (event: PromiseRejectionEvent) => {
@@ -37,6 +38,7 @@ export function SentryErrorListeners() {
         route: window.location.pathname,
         kind: 'unhandledrejection',
       });
+      void import('@sentry/nextjs').then(({ flush }) => flush(2000)).catch(() => undefined);
     };
 
     window.addEventListener('error', onError);

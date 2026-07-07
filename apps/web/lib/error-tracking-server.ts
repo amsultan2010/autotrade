@@ -1,8 +1,10 @@
 import 'server-only';
 
+import * as Sentry from '@sentry/nextjs';
 import type { ErrorCode } from '@autotrade/shared';
 import { captureError } from '@/lib/analytics';
 import { captureAppError, type CaptureContext } from '@/lib/error-tracking';
+import { isSentryEnabled } from '@/lib/sentry-env';
 
 /** Server routes: Sentry + PostHog Node. Do not import from client components. */
 export function captureAppErrorServer(
@@ -11,6 +13,9 @@ export function captureAppErrorServer(
   context?: CaptureContext,
 ): string {
   const refId = captureAppError(code, err, context);
+  if (isSentryEnabled()) {
+    void Sentry.flush(2000);
+  }
   captureError(typeof context?.userId === 'string' ? context.userId : undefined, {
     errorCode: code,
     refId,

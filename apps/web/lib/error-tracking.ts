@@ -85,9 +85,17 @@ export function captureAppError(
       });
 
       const exception = err instanceof Error ? err : new Error(`[${resolvedCode}] ${message}`);
+      const taggedMessage = `[${resolvedCode}] ${message} (ref: ${refId})`;
+      if (!exception.message.includes(refId)) {
+        exception.message = taggedMessage;
+      }
+
       const eventId = Sentry.captureException(exception);
       if (eventId && typeof window === 'undefined') {
         scope.setTag('sentry_event_id', eventId);
+      }
+      if (typeof window !== 'undefined') {
+        void Sentry.flush(2000);
       }
     });
   }
