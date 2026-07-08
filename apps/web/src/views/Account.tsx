@@ -1,9 +1,10 @@
 'use client';
 
-import { useUser } from '@clerk/nextjs';
-import { Crown, Loader2, RefreshCw, Sparkles, XCircle } from 'lucide-react';
+import { useClerk, useUser } from '@clerk/nextjs';
+import { Crown, Loader2, LogOut, RefreshCw, Sparkles, XCircle } from 'lucide-react';
 import { tierDisplayColor, tierDisplayLabel, type PlanTier } from '@autotrade/shared';
 import { useSubscription } from '@/src/components/subscription/SubscriptionProvider';
+import { FounderSettingsPanel } from '@/src/components/settings/FounderSettingsPanel';
 import {
   PageShell,
   PageHeader,
@@ -52,6 +53,7 @@ function daysRemaining(periodEnd: number | null): number | null {
 
 export function Account() {
   const { user } = useUser();
+  const { signOut } = useClerk();
   const {
     entitlements,
     openUpgradeModal,
@@ -218,6 +220,26 @@ export function Account() {
             </p>
           </div>
         </div>
+      </Panel>
+
+      <Panel
+        className="p-0 [&_.founder-settings-panel]:rounded-none [&_.founder-settings-panel]:border-0 [&_.founder-settings-panel]:bg-transparent [&_.founder-settings-panel]:shadow-none"
+      >
+        <FounderSettingsPanel />
+      </Panel>
+
+      <Panel title="Session">
+        <p className="mb-4 text-sm text-ink-secondary">
+          Sign out of HyperForge on this device. You can sign back in anytime.
+        </p>
+        <button
+          type="button"
+          onClick={() => void signOut({ redirectUrl: '/' })}
+          className="btn-forge-danger touch-target inline-flex items-center gap-2 px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-wider"
+        >
+          <LogOut className="h-4 w-4" aria-hidden />
+          Sign out
+        </button>
       </Panel>
     </PageShell>
   );

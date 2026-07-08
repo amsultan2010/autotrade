@@ -25,7 +25,6 @@ import { formatUserError, reportTrackedError } from '@/lib/error-tracking';
 import { cn } from '@/lib/utils';
 import { getPresetTheme } from '@/src/lib/presetThemes';
 import { AlpacaConnectPanel } from '@/src/components/alpaca/AlpacaConnectPanel';
-import { FounderSettingsPanel } from '@/src/components/settings/FounderSettingsPanel';
 import { useAuth } from '@clerk/nextjs';
 import { useSubscription, useUpgradeGate } from '@/src/components/subscription/SubscriptionProvider';
 import {
@@ -315,13 +314,9 @@ export function Settings() {
         </ForgeInstrumentRack>
       )}
 
-      {/* Broker + founder — top priority */}
+      {/* Broker — top priority */}
       <Panel className="p-0 [&_.panel]:rounded-none [&_.panel]:border-0 [&_.panel]:bg-transparent [&_.panel]:shadow-none">
         <AlpacaConnectPanel broker={broker} liveEntitled={sub.entitled} onError={setError} />
-      </Panel>
-
-      <Panel className="p-0 [&_.founder-settings-panel]:rounded-none [&_.founder-settings-panel]:border-0 [&_.founder-settings-panel]:bg-transparent [&_.founder-settings-panel]:shadow-none">
-        <FounderSettingsPanel />
       </Panel>
 
       {/* 1. Execution mode */}

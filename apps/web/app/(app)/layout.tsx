@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import * as Sentry from '@sentry/nextjs';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AuthProvider } from '@/src/state/auth';
@@ -23,7 +23,6 @@ import {
   Shield,
   Sparkles,
   UserCircle,
-  LogOut,
   Radio,
   type LucideIcon,
 } from 'lucide-react';
@@ -126,7 +125,6 @@ function StatusBar() {
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { user: clerkUser } = useUser();
-  const { signOut } = useClerk();
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const { entitlements, openUpgradeModal } = useSubscription();
@@ -196,7 +194,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                   <span className="hidden md:inline">Upgrade</span>
                 </button>
               )}
-              <div className="forge-inset flex items-center gap-1.5 px-1.5 py-1 md:gap-2 md:px-2">
+              <Link
+                href="/account"
+                className="forge-inset flex items-center gap-1.5 px-1.5 py-1 transition-colors hover:border-teal/40 md:gap-2 md:px-2"
+                title="Account"
+              >
                 <div
                   className="flex h-7 w-7 items-center justify-center rounded font-mono text-[10px] font-bold"
                   style={{
@@ -215,15 +217,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                     {tierDisplayLabel(entitlements?.effectiveTier ?? 'free')}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  aria-label="Sign out"
-                  className="forge-button touch-target p-2 text-ink-muted hover:text-red md:p-1.5"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              </Link>
             </div>
           </header>
 
