@@ -4,15 +4,11 @@
  */
 import { type NextRequest, NextResponse } from 'next/server';
 import { quoteForUser } from '@/lib/market-data-server';
+import { isBotAuth } from '@/lib/internal-auth';
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.BOT_INTERNAL_SECRET;
-  return !!secret && req.headers.get('x-internal-secret') === secret;
-}
-
-/** POST { clerkId, symbol } .  latest price for trade close / cash out. */
+/** POST { clerkId, symbol } — latest price for trade close / cash out. */
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isBotAuth(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

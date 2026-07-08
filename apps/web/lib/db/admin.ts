@@ -103,6 +103,19 @@ export async function setUserRole(actorClerkId: string, clerkId: string, role: '
   if (!data) throw new NotFoundError('User not found');
   const { error } = await getSupabaseServer().from('users').update({ role }).eq('clerk_id', clerkId);
   if (error) throw new Error(error.message);
+
+  // Keep Clerk publicMetadata in sync so UI and analytics match Supabase (source of truth for APIs).
+  try {
+    const { createClerkClient } = await import('@clerk/nextjs/server');
+    const { env } = await import('@autotrade/engine/public');
+    if (env.CLERK_SECRET_KEY) {
+      const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
+      await clerk.users.updateUser(clerkId, { publicMetadata: { role } });
+    }
+  } catch (err) {
+    console.error('Failed to sync Clerk role metadata', err);
+  }
+
   await writeAudit({ actorClerkId, action: 'USER_ROLE_CHANGE', target: clerkId, meta: { role } });
   return { id: clerkId, role };
 }

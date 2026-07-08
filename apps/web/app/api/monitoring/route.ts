@@ -1,9 +1,17 @@
-import { type NextRequest, NextResponse } from 'next/server';
-
 /**
  * Proxies browser Sentry envelopes to ingest (ad-blocker safe).
- * Replaces the fragile Next.js rewrite tunnel which 404'd on Vercel.
+ * Host is allowlisted to prevent open-proxy / SSRF abuse.
  */
+import { type NextRequest, NextResponse } from 'next/server';
+
+const ALLOWED_HOST_SUFFIXES = ['.ingest.sentry.io', '.ingest.us.sentry.io'];
+
+function isAllowedSentryHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === 'ingest.sentry.io' || h === 'ingest.us.sentry.io') return true;
+  return ALLOWED_HOST_SUFFIXES.some((suffix) => h.endsWith(suffix));
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text();
@@ -16,8 +24,19 @@ export async function POST(req: NextRequest) {
     if (!envelopeHeader.dsn) return NextResponse.json({ error: 'missing dsn' }, { status: 400 });
 
     const dsn = new URL(envelopeHeader.dsn);
+    if (dsn.protocol !== 'https:') {
+      return NextResponse.json({ error: 'invalid dsn protocol' }, { status: 400 });
+    }
+    if (!isAllowedSentryHost(dsn.hostname)) {
+      return NextResponse.json({ error: 'dsn host not allowed' }, { status: 400 });
+    }
+
     const projectId = dsn.pathname.replace(/^\//, '');
-    const upstream = `https://${dsn.host}/api/${projectId}/envelope/`;
+    if (!/^\d+$/.test(projectId)) {
+      return NextResponse.json({ error: 'invalid project id' }, { status: 400 });
+    }
+
+    const upstream = `https://${dsn.hostname}/api/${projectId}/envelope/`;
 
     const upstreamRes = await fetch(upstream, {
       method: 'POST',

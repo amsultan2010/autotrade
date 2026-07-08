@@ -458,7 +458,7 @@ export function FounderSettingsPanel() {
         </div>
         <div className="mt-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            Authorized founder emails
+            Your founder access
           </p>
           <ul className="flex flex-wrap gap-2">
             {founder.allowedFounderEmails.map((email) => (
@@ -469,6 +469,9 @@ export function FounderSettingsPanel() {
               </li>
             ))}
           </ul>
+          <p className="mt-2 text-xs text-ink-muted">
+            Allowlist is configured via the FOUNDER_EMAILS environment variable (not exposed in the UI).
+          </p>
         </div>
       </Section>
     </section>

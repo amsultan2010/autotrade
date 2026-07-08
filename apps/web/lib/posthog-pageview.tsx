@@ -17,7 +17,6 @@ function PageViewTracker() {
       posthog.identify(user.id, {
         email: user.primaryEmailAddress?.emailAddress,
         name: user.fullName,
-        role: user.publicMetadata?.role,
         created_at: user.createdAt,
         username: user.username,
       });

@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { tierDisplayColor, tierDisplayLabel } from '@autotrade/shared';
 import { useSubscription } from '@/src/components/subscription/SubscriptionProvider';
-import { useBotStatus } from '@/src/hooks/data';
+import { useBotStatus, useUserProfile } from '@/src/hooks/data';
 import { AppLoadingShell } from '@/src/components/AppLoadingShell';
 import { MobileHudStatus } from '@/src/components/layout/MobileHudStatus';
 
@@ -130,9 +130,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const { entitlements, openUpgradeModal } = useSubscription();
+  const { data: profile } = useUserProfile();
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
-  const role = (clerkUser?.publicMetadata?.role as string | undefined) ?? 'USER';
+  // Supabase role is authoritative for admin APIs; do not trust Clerk publicMetadata alone.
+  const role = profile?.role ?? 'USER';
   const isAdmin = role === 'ADMIN' || role === 'DEVELOPER';
   const allNav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
   const showUpgrade = entitlements?.effectiveTier === 'free';

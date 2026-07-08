@@ -1,7 +1,6 @@
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { isFounderEmail, isBillingEnabled, useLaunchPrices } from '@/lib/billing';
 import { getEffectiveTier } from '@/lib/entitlements';
-import { FOUNDER_TEST_EMAILS } from '@autotrade/shared';
 import { mapUser, type UserRow, type UserRecord } from './row-mappers';
 import { ensureUserRecords } from './bootstrap';
 import { getSubscriptionByClerkId } from './subscriptions';
@@ -182,7 +181,8 @@ export async function getFounderSettings(clerkId: string) {
     weeklyDigestEnabled: user.weeklyDigestEnabled !== false,
     billingEnabled: isBillingEnabled(),
     useLaunchPrices: useLaunchPrices(),
-    allowedFounderEmails: [...FOUNDER_TEST_EMAILS],
+    /** Only the caller's own email — never the full allowlist. */
+    allowedFounderEmails: isFounderEmail(user.email) ? [user.email] : [],
   };
 }
 

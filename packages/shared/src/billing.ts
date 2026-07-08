@@ -41,15 +41,21 @@ export type LiveTradingTier = (typeof LIVE_TRADING_TIERS)[number];
 /** Dev/founder bypass tier — not sold via Stripe. */
 export const FOUNDER_TIER = 'founder' as const;
 
-/** Internal team emails that can override plan tier for product testing. */
-export const FOUNDER_TEST_EMAILS = [
-  'abdullahmsultan1@gmail.com',
-  'connortorres2027@gmail.com',
-  'prestonhk13@gmail.com',
-] as const;
-
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Founder allowlist from env (comma-separated). No hardcoded emails in source.
+ * Example: FOUNDER_EMAILS=you@example.com,teammate@example.com
+ */
+export function founderEmailsFromEnv(): string[] {
+  const raw = process.env.FOUNDER_EMAILS?.trim();
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((e) => normalizeEmail(e))
+    .filter(Boolean);
 }
 
 /** True when Stripe checkout and paid tiers are active. */
@@ -65,7 +71,7 @@ export function useLaunchPricesEnv(): boolean {
 export function isFounderTestEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   const normalized = normalizeEmail(email);
-  return (FOUNDER_TEST_EMAILS as readonly string[]).includes(normalized);
+  return founderEmailsFromEnv().includes(normalized);
 }
 
 /** Optional env override for a single live-trading founder email (no hardcoded prod default). */

@@ -33,7 +33,8 @@ const schema = z.object({
     .string()
     .default('false')
     .transform((v) => v === 'true'),
-  FOUNDER_LIVE_EMAIL: z.string().default('abdullahmsultan1@gmail.com'),
+  FOUNDER_LIVE_EMAIL: z.string().optional(),
+  FOUNDER_EMAILS: z.string().optional(),
 
   // Stripe — optional unless BILLING_ENABLED=true.
   STRIPE_SECRET_KEY: z.string().optional(),

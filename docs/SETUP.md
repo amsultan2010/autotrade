@@ -9,14 +9,14 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 | Piece | Host | Status |
 |-------|------|--------|
 | Website + API (`apps/web`) | Vercel | Root dir `apps/web` |
-| Database | Supabase | Apply migrations `001`–`005` |
+| Database | Supabase | Apply migrations `001`–`007` |
 | Bot scheduler | Vercel cron (daily backup) + optional `apps/worker` | Hobby plan: max 1×/day cron; deploy worker for real scan intervals |
 | Optional worker (`apps/worker`) | VPS / Render / local | For always-on scans beyond cron |
 
 ## One-time dashboard steps
 
 ### 1. Supabase
-- Apply migrations `001` through `005` (includes `scan_locks`, signals `created_at` fix, Resend contact id).
+- Apply migrations `001` through `007` (includes `scan_locks`, RLS hardening, drop legacy PascalCase tables).
 - Remove any legacy `CONVEX_*` env vars from Vercel.
 
 ### 2. Clerk
@@ -28,6 +28,7 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 - **Root Directory**: `apps/web`
 - Copy vars from `apps/web/.env.example` (Production **and** Preview).
 - Required: `CRON_SECRET`, `BOT_INTERNAL_SECRET`, `BROKER_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`).
+- Optional: `FOUNDER_EMAILS` (comma-separated), `FOUNDER_LIVE_EMAIL`, `SUPABASE_URL` (defaults to `NEXT_PUBLIC_SUPABASE_URL`).
 - Redeploy after env is complete.
 
 ### 4. Stripe (later — when `BILLING_ENABLED=true`)

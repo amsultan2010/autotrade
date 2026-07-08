@@ -5,15 +5,11 @@
  */
 import { type NextRequest, NextResponse } from 'next/server';
 import { loadBrokerForClerkId } from '@/lib/broker-server';
+import { isBotAuth } from '@/lib/internal-auth';
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.BOT_INTERNAL_SECRET;
-  return !!secret && req.headers.get('x-internal-secret') === secret;
-}
-
-/** POST { clerkId, symbol } .  close position in Alpaca, return exit price. */
+/** POST { clerkId, symbol } — close position in Alpaca, return exit price. */
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isBotAuth(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

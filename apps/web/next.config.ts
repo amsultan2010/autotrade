@@ -19,7 +19,8 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.tryautotrade.com https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+      // unsafe-inline required by Clerk; avoid unsafe-eval in production builds.
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"} https://clerk.tryautotrade.com https://*.clerk.accounts.dev https://challenges.cloudflare.com`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://img.clerk.com https://tryautotrade.com",
       "font-src 'self'",
