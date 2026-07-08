@@ -38,6 +38,12 @@ import {
 } from '@/src/components/layout/PageShell';
 import { Button } from '@/src/components/ui/button';
 import {
+  ForgeInstrumentRack,
+  ForgeDial,
+  ForgeMeterBank,
+} from '@/src/components/forge/ForgeInstruments';
+import { ForgeLCD } from '@/src/components/forge/ForgePrimitives';
+import {
   useBillingStatus,
   useBotSettings,
   useBrokerStatus,
@@ -263,6 +269,7 @@ export function Settings() {
       <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-bg/95 px-4 py-4 backdrop-blur-sm md:-mx-8 md:px-8">
         <PageHeader
           title="Settings"
+          code="SYS://CONFIG"
           description="Configure execution mode, risk limits, and trading strategies."
           actions={
             <>
@@ -281,6 +288,31 @@ export function Settings() {
         <AlertBanner variant="error" onDismiss={() => setError(null)}>
           {error}
         </AlertBanner>
+      )}
+
+      {local && (
+        <ForgeInstrumentRack title="Bot configuration" code="CFG://BOT">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ForgeLCD label="Mode" value={local.mode} variant={local.mode === 'LIVE' ? 'red' : 'teal'} />
+            <ForgeLCD label="Scan" value={formatScanInterval(local.scanIntervalSeconds)} variant="amber" />
+            <div className="forge-inset flex items-center justify-center rounded-lg p-3">
+              <ForgeDial
+                label="Risk load"
+                value={local.riskLevel}
+                pct={local.riskLevel === 'HIGH' ? 85 : local.riskLevel === 'MEDIUM' ? 55 : 28}
+                color={local.riskLevel === 'HIGH' ? '#ff3b52' : '#00c896'}
+                size="sm"
+              />
+            </div>
+            <div className="forge-inset flex items-center justify-center rounded-lg p-3">
+              <ForgeMeterBank
+                label="Strategies"
+                active={Math.min(12, local.stockStrategies.length + local.cryptoStrategies.length)}
+                color="#38bdf8"
+              />
+            </div>
+          </div>
+        </ForgeInstrumentRack>
       )}
 
       {/* Broker + founder — top priority */}
@@ -873,8 +905,23 @@ function ScanIntervalSlider({
     onChange(sec);
   }
 
+  const scanPct = Math.round(
+    ((MAX_SCAN_INTERVAL_SECONDS - resolved) / (MAX_SCAN_INTERVAL_SECONDS - MIN_SCAN_INTERVAL_SECONDS)) * 100,
+  );
+
   return (
     <div style={{ ['--scan-accent' as string]: accent }}>
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="forge-inset flex shrink-0 items-center justify-center rounded-lg p-3">
+          <ForgeDial
+            label="Scan freq"
+            value={formatScanInterval(resolved)}
+            pct={scanPct}
+            color={accent}
+            size="sm"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm text-ink-secondary">Between scans</span>
         <strong className="font-mono text-base tabular-nums text-ink">{formatScanInterval(resolved)}</strong>
@@ -935,6 +982,8 @@ function ScanIntervalSlider({
             </button>
           );
         })}
+      </div>
+        </div>
       </div>
     </div>
   );

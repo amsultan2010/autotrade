@@ -15,7 +15,14 @@ import {
   EmptyState,
   SegmentedControl,
   AlertBanner,
+  StatCard,
 } from '@/src/components/layout/PageShell';
+import {
+  ForgeInstrumentRack,
+  ForgeChartBezel,
+  ForgeDial,
+} from '@/src/components/forge/ForgeInstruments';
+import { ForgeLCD } from '@/src/components/forge/ForgePrimitives';
 import { cn } from '@/lib/utils';
 
 function buildMarkers(trades: Array<{
@@ -49,7 +56,7 @@ function buildMarkers(trades: Array<{
 }
 
 const selectClassName = cn(
-  'h-10 min-w-[140px] rounded-lg border border-border-strong bg-surface px-3 py-2',
+  'forge-inset h-10 min-w-[140px] rounded-lg border border-border-strong bg-surface px-3 py-2',
   'font-mono text-sm text-ink',
   'transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20',
 );
@@ -93,6 +100,15 @@ export function Charts() {
     return () => { cancelled = true; };
   }, [symbol, tf]);
 
+  const lastClose = candles.length > 0 ? candles[candles.length - 1]!.c : null;
+  const firstOpen = candles.length > 0 ? candles[0]!.o : null;
+  const changePct =
+    lastClose != null && firstOpen != null && firstOpen !== 0
+      ? ((lastClose - firstOpen) / firstOpen) * 100
+      : null;
+  const high = candles.length > 0 ? Math.max(...candles.map((c) => c.h)) : null;
+  const low = candles.length > 0 ? Math.min(...candles.map((c) => c.l)) : null;
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-3">
       <select
@@ -117,9 +133,43 @@ export function Charts() {
 
   return (
     <PageShell>
-      <PageHeader title="Charts" actions={headerActions} />
+      <PageHeader title="Charts" code="SYS://CHARTS" actions={headerActions} />
 
-      <Panel className="mt-6">
+      {symbol && candles.length > 0 && (
+        <ForgeInstrumentRack title="Market telemetry" code="FEED://OHLCV" className="mb-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ForgeLCD label="Symbol" value={symbol} variant="teal" />
+            <ForgeLCD
+              label="Last"
+              value={lastClose != null ? lastClose.toFixed(2) : '--'}
+              unit="USD"
+              variant="teal"
+            />
+            <div className="forge-inset flex items-center justify-center rounded-lg p-3">
+              <ForgeDial
+                label="Range Δ"
+                value={changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}` : '--'}
+                unit="%"
+                pct={changePct != null ? Math.min(100, Math.abs(changePct) * 10) : 0}
+                color={changePct != null && changePct >= 0 ? '#34d399' : '#f87171'}
+                size="sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <ForgeLCD label="High" value={high != null ? high.toFixed(2) : '--'} variant="amber" />
+              <ForgeLCD label="Low" value={low != null ? low.toFixed(2) : '--'} variant="red" />
+            </div>
+          </div>
+        </ForgeInstrumentRack>
+      )}
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <StatCard label="Timeframe" value={tf} variant="teal" />
+        <StatCard label="Candles" value={candles.length || '--'} hint={loading ? 'Refreshing…' : 'OHLCV bars'} />
+        <StatCard label="Trade markers" value={markers.length} hint="Entries & exits on chart" />
+      </div>
+
+      <Panel className="mt-2">
         {authLoading || (isAuthenticated && watchlist == null) ? (
           <div aria-label="Loading" role="status" className="space-y-4">
             <Skeleton height={28} width="40%" />
@@ -154,7 +204,9 @@ export function Charts() {
               {loading && <span> · refreshing…</span>}
             </p>
 
-            <PriceChart candles={candles} markers={markers} />
+            <ForgeChartBezel label={`Candlestick feed · ${symbol} · ${tf}`}>
+              <PriceChart candles={candles} markers={markers} />
+            </ForgeChartBezel>
 
             <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4 text-xs text-ink-muted">
               <span className="inline-flex items-center gap-1.5">

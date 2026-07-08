@@ -16,6 +16,12 @@ import {
 } from '@/src/components/layout/PageShell';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
+import {
+  ForgeInstrumentRack,
+  ForgeDial,
+  ForgeMeterBank,
+} from '@/src/components/forge/ForgeInstruments';
+import { ForgeLCD } from '@/src/components/forge/ForgePrimitives';
 import { api } from '../api/client';
 import { TableSkeleton } from '../components/Skeleton';
 
@@ -159,8 +165,23 @@ export function Watchlist() {
     <PageShell>
       <PageHeader
         title="Watchlist"
+        code="SYS://WATCH"
         description={`${rows.length} symbols · stocks trade US hours · crypto (BTC/USD) 24/7`}
       />
+
+      <ForgeInstrumentRack title="Feed status" code="SCAN://UNIVERSE" className="mb-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <ForgeLCD label="Tracked" value={String(rows.length)} variant="teal" />
+          <ForgeLCD label="Live feeds" value={String(liveCount)} variant={liveCount > 0 ? 'teal' : 'amber'} />
+          <div className="forge-inset flex items-center justify-center rounded-lg p-3">
+            <ForgeMeterBank
+              label="Quote load"
+              active={Math.min(12, liveCount + Math.ceil(rows.length / 3))}
+              color="#00c896"
+            />
+          </div>
+        </div>
+      </ForgeInstrumentRack>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatCard label="Symbols" value={rows.length} />
@@ -179,6 +200,7 @@ export function Watchlist() {
 
       <div className="relative mb-6" data-tour="watchlist-search">
         <Input
+          className="forge-inset border-teal/20 bg-surface font-mono"
           placeholder="Click to browse, or search any symbol (AAPL, SPY, BTC/USD)…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -197,7 +219,7 @@ export function Watchlist() {
         {dropdownOpen && (
           <div
             id="watchlist-search-dropdown"
-            className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-border bg-surface-raised shadow-[var(--shadow-card)]"
+            className="absolute z-50 mt-2 max-h-[min(360px,50dvh)] w-full overflow-y-auto rounded-xl border border-teal/20 bg-surface-raised shadow-[var(--shadow-card)]"
             role="listbox"
             aria-label={showSearch ? 'Symbol search results' : 'Popular symbols'}
           >

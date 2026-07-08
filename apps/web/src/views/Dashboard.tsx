@@ -33,6 +33,14 @@ import {
 } from '@/src/components/layout/PageShell';
 import { Button } from '@/src/components/ui/button';
 import { DashboardSkeleton } from '@/src/components/DashboardSkeleton';
+import {
+  ForgeInstrumentRack,
+  ForgeTelemetryRow,
+  ForgeBarChart,
+  ForgeDonut,
+  ForgeChartBezel,
+  ForgeMeterBank,
+} from '@/src/components/forge/ForgeInstruments';
 
 // ─── Dashboard data shapes ────────────────────────────────────────────────────
 interface BotStatusSnapshot {
@@ -361,7 +369,7 @@ function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: bo
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-lg border p-2 text-center',
+        'forge-inset flex flex-col items-center justify-center rounded-md border p-2 text-center',
         large ? 'min-h-[72px]' : 'min-h-[52px]',
       )}
       style={{ background: bg, borderColor: border }}
@@ -733,6 +741,7 @@ export function Dashboard() {
     <PageShell data-tour="dashboard">
       <PageHeader
         title="Dashboard"
+        code="SYS://COMMAND"
         description="Live portfolio, signals, and bot controls at a glance."
         actions={
           <div data-tour="bot-controls">
@@ -812,6 +821,20 @@ export function Dashboard() {
         )}
       </div>
 
+      {/* Instrument telemetry rack */}
+      {!dataLoading && (
+        <ForgeInstrumentRack title="Command telemetry" code="SYS://COMMAND">
+          <ForgeTelemetryRow
+            scanLoad={botRunning ? 78 : 12}
+            winRate={winRate}
+            exposure={Math.min(100, Math.round(((openPositionCount ?? livePositions.length) / Math.max(1, watchlistCount || 1)) * 100))}
+            signalCount={signals.length}
+            equityLabel="Net equity"
+            equityValue={equity > 0 ? money(equity).replace('$', '') : '--'}
+          />
+        </ForgeInstrumentRack>
+      )}
+
       {/* Stat cards */}
       {!dataLoading && (
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -860,6 +883,68 @@ export function Dashboard() {
               trend="down"
             />
           )}
+        </div>
+      )}
+
+      {/* Analytics telemetry row */}
+      {!dataLoading && (
+        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+          <Panel title="Strategy P&L" dense>
+            <ForgeChartBezel label="Closed trade distribution">
+              <ForgeBarChart
+                height={100}
+                items={topStrategies.slice(0, 6).map((s) => ({
+                  label: formatStrategyLabel(s.key).slice(0, 8),
+                  value: s.totalPnl,
+                  color: s.totalPnl >= 0 ? '#34d399' : '#f87171',
+                }))}
+              />
+            </ForgeChartBezel>
+          </Panel>
+          <Panel title="Win / Loss" dense>
+            <div className="flex items-center justify-around gap-4 py-2">
+              <ForgeDonut
+                wins={perfData?.wins ?? 0}
+                losses={perfData?.losses ?? 0}
+                label="Closed trades"
+              />
+              <div className="space-y-3">
+                <ForgeMeterBank
+                  label="Bull signals"
+                  active={signals.filter((s) => s.action === 'BUY').length}
+                  color="#34d399"
+                />
+                <ForgeMeterBank
+                  label="Bear signals"
+                  active={signals.filter((s) => s.action !== 'BUY').length}
+                  color="#f87171"
+                />
+              </div>
+            </div>
+          </Panel>
+          <Panel title="Regime analytics" dense>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="forge-lcd p-3">
+                <p className="forge-lcd-label">Regime</p>
+                <p className={cn(
+                  'mt-1 font-mono text-lg font-bold',
+                  regime === 'Bullish' && 'text-positive',
+                  regime === 'Bearish' && 'text-negative',
+                  regime !== 'Bullish' && regime !== 'Bearish' && 'text-ink',
+                )}>
+                  {regime}
+                </p>
+              </div>
+              <div className="forge-lcd p-3">
+                <p className="forge-lcd-label">Avg conf</p>
+                <p className="mt-1 font-mono text-lg font-bold text-teal tabular-nums">{avgConfidence}%</p>
+              </div>
+              <div className="col-span-2 forge-inset rounded-lg p-2">
+                <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={200} height={36} />
+                <p className="mt-1 text-center font-mono text-[9px] uppercase tracking-widest text-ink-muted">Confidence trend</p>
+              </div>
+            </div>
+          </Panel>
         </div>
       )}
 
@@ -941,7 +1026,11 @@ export function Dashboard() {
             )}
           </p>
           <div className="mt-4 h-48">
-            <PortfolioChart data={equityCurve} labels={chartLabels} />
+            <ForgeChartBezel label={`Equity curve · ${tab}`}>
+              <div className="h-44">
+                <PortfolioChart data={equityCurve} labels={chartLabels} />
+              </div>
+            </ForgeChartBezel>
           </div>
         </Panel>
 
@@ -960,9 +1049,11 @@ export function Dashboard() {
               <span className="text-sm font-semibold text-accent">Upgrade to unlock</span>
             </div>
           )}
-          <div className="mx-auto h-40 w-40">
-            <ConfidenceGauge value={avgConfidence} />
-          </div>
+          <ForgeChartBezel label="Neural confidence arc">
+            <div className="mx-auto h-40 w-40">
+              <ConfidenceGauge value={avgConfidence} />
+            </div>
+          </ForgeChartBezel>
           <div className="mt-4 flex items-center justify-between text-sm">
             <span className="text-ink-secondary">Signal Regime</span>
             <span className={cn(

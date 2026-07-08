@@ -621,6 +621,99 @@ input, select, textarea { font-family: inherit; }
   overflow: hidden;
 }
 
+/* ── Instrument dials & VU meters ─────────────────────────────── */
+.forge-dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+}
+.forge-dial-sm .forge-dial-bezel { width: 56px; height: 56px; }
+.forge-dial-bezel {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.forge-dial-bezel .forge-knob {
+  width: 36px;
+  height: 36px;
+  position: absolute;
+  z-index: 2;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.forge-dial-arc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.forge-dial-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  text-align: center;
+}
+.forge-dial-value {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.forge-dial-unit { font-size: 0.65rem; opacity: 0.75; margin-left: 1px; }
+
+.forge-meter-bank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 48px;
+}
+.forge-meter-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+.forge-meter-strip {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  height: 72px;
+  padding: 4px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.5);
+  border: 1px solid rgb(0 200 150 / 0.12);
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 0.6);
+}
+.forge-meter-seg {
+  width: 14px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.06);
+}
+.forge-meter-seg-on { opacity: 1; }
+.forge-meter-readout {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-ink-secondary);
+}
+
+.forge-chart-bezel .forge-inset {
+  box-shadow:
+    inset 0 0 32px rgb(0 0 0 / 0.65),
+    inset 0 2px 0 rgb(255 255 255 / 0.04);
+}
+
+.forge-panel-rivets .forge-rivet { z-index: 2; }
+
 .lp-hero-split {
   display: grid;
   min-height: calc(100dvh - var(--hud-h));

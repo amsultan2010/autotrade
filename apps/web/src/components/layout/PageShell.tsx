@@ -85,13 +85,15 @@ export function StatCard({
       variants={reduce ? undefined : forgeFadeUp}
       whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.18 } }}
       className={cn(
-        'forge-plate relative p-4',
+        'forge-plate forge-panel-rivets relative p-4',
         variant === 'danger' && 'border-red/20',
         variant === 'teal' && 'border-teal/25',
         className,
       )}
     >
       <span className="forge-bracket" aria-hidden />
+      <span className="forge-rivet forge-rivet-tl" aria-hidden />
+      <span className="forge-rivet forge-rivet-tr" aria-hidden />
       <p className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">{label}</p>
       <p
         className={cn(
@@ -140,7 +142,7 @@ export function Panel({
       initial={false}
       variants={reduce ? undefined : forgeFadeUp}
       className={cn(
-        'forge-plate relative',
+        'forge-plate forge-panel-rivets relative',
         'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-teal/30 before:to-transparent',
         className,
       )}
@@ -152,6 +154,8 @@ export function Panel({
       onKeyDown={onKeyDown}
     >
       <span className="forge-bracket" aria-hidden />
+      <span className="forge-rivet forge-rivet-tl" aria-hidden />
+      <span className="forge-rivet forge-rivet-tr" aria-hidden />
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-raised/40 px-4 py-3 md:px-5">
           {title && (

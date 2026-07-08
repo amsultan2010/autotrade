@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUserProfile, dataApi } from '@/src/hooks/data';
 import { cn } from '@/lib/utils';
@@ -14,11 +14,121 @@ interface Rect {
   height: number;
 }
 
+type Placement = 'top' | 'bottom' | 'left' | 'right';
+
 function measureTarget(selector: string): Rect | null {
   const el = document.querySelector(selector);
   if (!el) return null;
   const r = el.getBoundingClientRect();
   return { top: r.top, left: r.left, width: r.width, height: r.height };
+}
+
+function scrollTargetIntoView(selector: string) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
+function computeTooltipStyle(
+  spotlight: Rect,
+  placement: Placement,
+  tooltipW: number,
+  tooltipH: number,
+): { top: number; left: number; transform: string } {
+  const margin = 12;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const hudH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-h')) || 56;
+  const statusH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--status-h')) || 0;
+  const mobileNavH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-nav-h')) || 0;
+  const safeTop = hudH + margin;
+  const safeBottom = vh - (window.innerWidth >= 768 ? statusH : mobileNavH) - margin;
+
+  let top = 0;
+  let left = 0;
+  let transform = '';
+
+  switch (placement) {
+    case 'top':
+      top = spotlight.top - margin;
+      left = spotlight.left + spotlight.width / 2;
+      transform = 'translate(-50%, -100%)';
+      break;
+    case 'bottom':
+      top = spotlight.top + spotlight.height + margin;
+      left = spotlight.left + spotlight.width / 2;
+      transform = 'translate(-50%, 0)';
+      break;
+    case 'left':
+      top = spotlight.top + spotlight.height / 2;
+      left = spotlight.left - margin;
+      transform = 'translate(-100%, -50%)';
+      break;
+    case 'right':
+      top = spotlight.top + spotlight.height / 2;
+      left = spotlight.left + spotlight.width + margin;
+      transform = 'translate(0, -50%)';
+      break;
+  }
+
+  // Approximate box after transform for clamping
+  let boxLeft = left;
+  let boxTop = top;
+  let boxW = tooltipW;
+  let boxH = tooltipH;
+
+  if (transform.includes('-50%')) {
+    if (transform.startsWith('translate(-50%')) {
+      boxLeft = left - tooltipW / 2;
+    }
+    if (transform.includes(', -50%)') || transform === 'translate(-50%, -50%)') {
+      boxTop = top - tooltipH / 2;
+    }
+    if (transform === 'translate(-50%, -100%)') {
+      boxTop = top - tooltipH;
+    }
+  }
+  if (transform === 'translate(-100%, -50%)') {
+    boxLeft = left - tooltipW;
+    boxTop = top - tooltipH / 2;
+  }
+  if (transform === 'translate(0, -50%)') {
+    boxTop = top - tooltipH / 2;
+  }
+
+  const shiftX = Math.min(0, margin - boxLeft) + Math.max(0, boxLeft + boxW + margin - vw);
+  const shiftY = Math.min(0, safeTop - boxTop) + Math.max(0, boxTop + boxH + margin - safeBottom);
+
+  if (shiftX !== 0) {
+    left += shiftX;
+    if (transform.includes('-50%') && transform.startsWith('translate(-50%')) {
+      transform = transform.replace('-50%', '0');
+      if (transform === 'translate(0, -100%)') transform = 'translate(0, -100%)';
+      else if (transform === 'translate(0, 0)') transform = 'translate(0, 0)';
+    }
+  }
+
+  if (shiftY !== 0) {
+    top += shiftY;
+  }
+
+  // Final hard clamp
+  boxLeft = transform.includes('-50%') && transform.startsWith('translate(-50%')
+    ? left - tooltipW / 2
+    : transform === 'translate(-100%, -50%)'
+      ? left - tooltipW
+      : left;
+  boxTop =
+    transform === 'translate(-50%, -100%)'
+      ? top - tooltipH
+      : transform.includes('-50%)') && transform.includes(', -50%)')
+        ? top - tooltipH / 2
+        : top;
+
+  left = Math.min(Math.max(left, margin + (transform.startsWith('translate(-50%') ? tooltipW / 2 : 0)), vw - margin - (transform.startsWith('translate(-50%') ? tooltipW / 2 : tooltipW));
+  top = Math.min(Math.max(top, safeTop + (transform === 'translate(-50%, -100%)' ? tooltipH : transform.includes('-50%)') ? tooltipH / 2 : 0)), safeBottom);
+
+  return { top, left, transform };
 }
 
 export function ProductTour() {
@@ -34,6 +144,8 @@ export function ProductTour() {
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [dismissing, setDismissing] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const step = TOUR_STEPS[stepIndex];
   const isLast = stepIndex === TOUR_STEPS.length - 1;
@@ -59,6 +171,8 @@ export function ProductTour() {
       return;
     }
 
+    scrollTargetIntoView(step.target);
+
     let attempts = 0;
     const tryMeasure = () => {
       const r = measureTarget(step.target);
@@ -75,6 +189,35 @@ export function ProductTour() {
     const t = window.setTimeout(tryMeasure, 120);
     return () => window.clearTimeout(t);
   }, [active, step, pathname, router, stepIndex]);
+
+  useLayoutEffect(() => {
+    if (!active || !rect || !tooltipRef.current) return;
+
+    const update = () => {
+      const el = tooltipRef.current;
+      if (!el || !rect) return;
+      const pad = 10;
+      const spotlight = {
+        top: rect.top - pad,
+        left: rect.left - pad,
+        width: rect.width + pad * 2,
+        height: rect.height + pad * 2,
+      };
+      const placement = (step?.placement ?? 'bottom') as Placement;
+      const { top, left, transform } = computeTooltipStyle(
+        spotlight,
+        placement,
+        el.offsetWidth,
+        el.offsetHeight,
+      );
+      setTooltipStyle({ top, left, transform });
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(tooltipRef.current);
+    return () => ro.disconnect();
+  }, [active, rect, step]);
 
   useEffect(() => {
     if (!active) return;
@@ -117,13 +260,6 @@ export function ProductTour() {
       }
     : null;
 
-  const tooltipTop = spotlight
-    ? step.placement === 'top'
-      ? spotlight.top - 12
-      : spotlight.top + spotlight.height + 16
-    : '50%';
-  const tooltipLeft = spotlight ? spotlight.left + spotlight.width / 2 : '50%';
-
   return (
     <div className="fixed inset-0 z-[200]" role="dialog" aria-modal="true" aria-label="Product tour">
       <button
@@ -150,24 +286,12 @@ export function ProductTour() {
       {!spotlight && <div className="absolute inset-0 bg-bg/85 backdrop-blur-sm" aria-hidden />}
 
       <div
+        ref={tooltipRef}
         className={cn(
-          'absolute z-10 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-border bg-surface-raised p-5 shadow-2xl',
+          'absolute z-10 max-h-[min(280px,calc(100dvh-var(--hud-h)-var(--mobile-nav-h)-48px))] w-[min(360px,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-5 shadow-2xl',
           !spotlight && 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
         )}
-        style={
-          spotlight
-            ? {
-                top: typeof tooltipTop === 'number' ? tooltipTop : undefined,
-                left: typeof tooltipLeft === 'number' ? tooltipLeft : undefined,
-                transform:
-                  typeof tooltipTop === 'number'
-                    ? step.placement === 'top'
-                      ? 'translate(-50%, -100%)'
-                      : 'translateX(-50%)'
-                    : undefined,
-              }
-            : undefined
-        }
+        style={spotlight ? tooltipStyle : undefined}
       >
         <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
           Tour · {stepIndex + 1} / {TOUR_STEPS.length}
