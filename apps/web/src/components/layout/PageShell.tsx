@@ -14,7 +14,10 @@ export function PageShell({
 }) {
   return (
     <div
-      className={cn('relative mx-auto w-full max-w-[1520px] px-3 pb-[calc(var(--mobile-nav-h)+16px)] pt-4 app-readable md:px-6 md:pb-8 md:pt-5', className)}
+      className={cn(
+        'relative mx-auto w-full max-w-[1520px] overflow-x-clip px-3 pb-mobile-nav pt-3 app-readable md:px-6 md:pb-8 md:pt-5',
+        className,
+      )}
     >
       {children}
     </div>
@@ -40,25 +43,29 @@ export function PageHeader({
       initial={false}
       variants={reduce ? undefined : forgeFadeUp}
       className={cn(
-        'mb-6 flex flex-col gap-4 border-b border-border pb-5 md:mb-8 md:flex-row md:items-end md:justify-between',
+        'mb-5 flex flex-col gap-4 border-b border-border pb-4 md:mb-8 md:flex-row md:items-end md:justify-between md:pb-5',
         className,
       )}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-center gap-3">
           <span className="forge-led" aria-hidden />
           <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-teal">
             {code ?? 'SYS://CONSOLE'}
           </p>
         </div>
-        <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-ink md:text-4xl">
+        <h1 className="font-display text-xl font-bold uppercase tracking-wide text-ink sm:text-2xl md:text-4xl">
           {title}
         </h1>
         {description && (
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-secondary md:text-base">{description}</p>
         )}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto [&_button]:min-h-[44px]">
+          {actions}
+        </div>
+      )}
     </motion.header>
   );
 }
@@ -199,15 +206,17 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   size = 'default',
+  className,
 }: {
   options: readonly T[];
   value: T;
   onChange: (v: T) => void;
   size?: 'sm' | 'default';
+  className?: string;
 }) {
   return (
     <div
-      className={cn('forge-inset inline-flex gap-0.5 p-1 text-sm', size === 'sm' && 'text-xs')}
+      className={cn('forge-inset inline-flex max-w-full gap-0.5 overflow-x-auto p-1 text-sm', size === 'sm' && 'text-xs', className)}
       role="tablist"
     >
       {options.map((opt) => (
@@ -218,7 +227,7 @@ export function SegmentedControl<T extends string>({
           aria-selected={value === opt}
           onClick={() => onChange(opt)}
           className={cn(
-            'rounded px-3 py-1.5 font-mono font-bold uppercase tracking-wider transition-all motion-safe:duration-200',
+            'min-h-[36px] shrink-0 rounded px-3 py-1.5 font-mono font-bold uppercase tracking-wider transition-all motion-safe:duration-200',
             size === 'sm' && 'px-2 py-1',
             value === opt
               ? 'bg-teal-muted text-teal shadow-[inset_0_1px_0_rgb(0_255_208/0.12)]'

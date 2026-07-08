@@ -22,7 +22,11 @@ function useLenisEnabled(): boolean {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   if (reduce) return false;
-  return pathname === '/';
+  if (pathname !== '/') return false;
+  if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+    return false;
+  }
+  return true;
 }
 
 export function SmoothScroll({ children }: { children: ReactNode }) {

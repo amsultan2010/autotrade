@@ -110,9 +110,9 @@ export function Charts() {
   const low = candles.length > 0 ? Math.min(...candles.map((c) => c.l)) : null;
 
   const headerActions = (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
       <select
-        className={selectClassName}
+        className={cn(selectClassName, 'w-full sm:min-w-[140px] sm:w-auto')}
         value={symbol}
         onChange={(e) => setSymbol(e.target.value)}
         aria-label="Symbol"
@@ -122,12 +122,14 @@ export function Charts() {
           <option key={s} value={s}>{s}</option>
         ))}
       </select>
-      <SegmentedControl
-        options={TIMEFRAMES}
-        value={tf}
-        onChange={setTf}
-        size="sm"
-      />
+      <div className="mobile-scroll-x w-full sm:w-auto">
+        <SegmentedControl
+          options={TIMEFRAMES}
+          value={tf}
+          onChange={setTf}
+          size="sm"
+        />
+      </div>
     </div>
   );
 

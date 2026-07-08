@@ -40,7 +40,7 @@ export function DataTicker({ compact = false }: { compact?: boolean }) {
             key={`${item.sym}-${i}`}
             className={cn(
               'flex shrink-0 items-center border-r border-border font-mono tabular-nums',
-              compact ? 'gap-2 px-4 text-xs' : 'gap-3 px-6 text-sm sm:px-8',
+              compact ? 'gap-1.5 px-3 text-[10px]' : 'gap-2 px-4 text-xs sm:gap-3 sm:px-6 sm:text-sm',
             )}
           >
             <span className="font-bold text-teal">{item.sym}</span>

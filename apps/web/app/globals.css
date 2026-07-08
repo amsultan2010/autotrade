@@ -71,7 +71,9 @@
   --rail-w: 68px;
   --status-h: 32px;
   --sidebar-w: 260px;
-  --mobile-nav-h: 72px;
+  --mobile-nav-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
 
   --animate-shimmer: shimmer 2.2s ease-in-out infinite;
   --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
@@ -390,7 +392,8 @@ input, select, textarea { font-family: inherit; }
     inset 0 -1px 0 rgb(0 0 0 / 0.5),
     0 8px 32px rgb(0 0 0 / 0.45);
   backdrop-filter: blur(20px);
-  height: var(--hud-h);
+  height: calc(var(--hud-h) + var(--safe-top));
+  padding-top: var(--safe-top);
   transform: translateZ(0);
   contain: layout style;
 }
@@ -713,6 +716,68 @@ input, select, textarea { font-family: inherit; }
 }
 
 .forge-panel-rivets .forge-rivet { z-index: 2; }
+
+/* ── Mobile / touch (Laws of UX: Fitts, proximity, chunking) ─── */
+@media (max-width: 767px) {
+  :root {
+    --hud-h: 48px;
+    --mobile-nav-h: calc(56px + var(--safe-bottom));
+  }
+
+  .forge-plate { border-radius: var(--radius-md); }
+  .forge-deck .p-4 { padding: 0.875rem; }
+  .forge-dial-bezel { width: 52px; height: 52px; }
+  .forge-dial-bezel .forge-knob { width: 30px; height: 30px; }
+  .forge-lcd-value { font-size: 1.1rem; }
+  .forge-rivet { width: 6px; height: 6px; }
+  .forge-rivet-tl, .forge-rivet-tr { top: 8px; }
+  .forge-rivet-bl, .forge-rivet-br { bottom: 8px; }
+  .forge-rivet-tl, .forge-rivet-bl { left: 8px; }
+  .forge-rivet-tr, .forge-rivet-br { right: 8px; }
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.mobile-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.mobile-chip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.pb-mobile-nav {
+  padding-bottom: calc(var(--mobile-nav-h) + 12px);
+}
+
+.lp-pipeline-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2.5rem 1rem;
+}
+
+@media (min-width: 768px) {
+  .lp-pipeline-stack { display: none; }
+}
+
+.lp-pipeline-pin {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .lp-pipeline-pin { display: block; }
+}
 
 .lp-hero-split {
   display: grid;

@@ -266,7 +266,7 @@ export function Settings() {
 
   return (
     <PageShell className="space-y-6">
-      <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-bg/95 px-4 py-4 backdrop-blur-sm md:-mx-8 md:px-8">
+      <div className="sticky top-[calc(var(--hud-h)+var(--safe-top))] z-20 -mx-3 border-b border-border bg-bg/95 px-3 py-3 backdrop-blur-sm md:-mx-6 md:px-6 md:py-4">
         <PageHeader
           title="Settings"
           code="SYS://CONFIG"

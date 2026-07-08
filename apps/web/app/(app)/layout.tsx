@@ -31,6 +31,7 @@ import { tierDisplayColor, tierDisplayLabel } from '@autotrade/shared';
 import { useSubscription } from '@/src/components/subscription/SubscriptionProvider';
 import { useBotStatus } from '@/src/hooks/data';
 import { AppLoadingShell } from '@/src/components/AppLoadingShell';
+import { MobileHudStatus } from '@/src/components/layout/MobileHudStatus';
 
 const NAV: Array<{ href: string; label: string; Icon: LucideIcon; tour?: string }> = [
   { href: '/dashboard', label: 'Dash', Icon: LayoutDashboard, tour: 'nav-dashboard' },
@@ -44,8 +45,8 @@ const NAV: Array<{ href: string; label: string; Icon: LucideIcon; tour?: string 
 const MOBILE_NAV = [
   NAV[0], // Dash
   NAV[1], // Watch
+  NAV[2], // Charts
   NAV[3], // History
-  NAV[4], // Account
   NAV[5], // Config
 ] as const;
 
@@ -153,8 +154,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
         <div className="relative flex min-h-dvh flex-col">
           {/* ── Top HUD ── */}
-          <header className="cmd-hud fixed inset-x-0 top-0 z-40 flex items-center gap-3 px-3 md:px-4">
-            <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
+          <header className="cmd-hud fixed inset-x-0 top-0 z-40 flex items-center gap-2 px-3 md:gap-3 md:px-4">
+            <Link href="/dashboard" className="touch-target flex min-w-0 items-center gap-2">
               <motion.img
                 src="/icon.png"
                 alt=""
@@ -164,11 +165,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 animate={reduce ? undefined : { rotate: [0, 1, -1, 0] }}
                 transition={{ duration: 6, repeat: Infinity }}
               />
-              <div className="hidden sm:block">
-                <p className="font-display text-sm font-bold uppercase tracking-widest text-ink">
+              <div className="min-w-0 sm:block">
+                <p className="truncate font-display text-sm font-bold uppercase tracking-widest text-ink">
                   Autotrade
                 </p>
-                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-teal">
+                <p className="hidden font-mono text-[10px] uppercase tracking-[0.16em] text-teal sm:block">
                   HyperForge Console
                 </p>
               </div>
@@ -186,14 +187,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               {showUpgrade && (
                 <button
                   type="button"
-                  className="btn-forge-primary hidden px-3 py-1.5 sm:flex"
+                  className="btn-forge-primary touch-target hidden px-3 py-1.5 sm:flex"
                   onClick={() => openUpgradeModal('Upgrade to unlock live trading')}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  Upgrade
+                  <span className="hidden md:inline">Upgrade</span>
                 </button>
               )}
-              <div className="forge-inset flex items-center gap-2 px-2 py-1">
+              <div className="forge-inset flex items-center gap-1.5 px-1.5 py-1 md:gap-2 md:px-2">
                 <div
                   className="flex h-7 w-7 items-center justify-center rounded font-mono text-[10px] font-bold"
                   style={{
@@ -216,7 +217,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={() => void signOut()}
                   aria-label="Sign out"
-                  className="forge-button p-1.5 text-ink-muted hover:text-red"
+                  className="forge-button touch-target p-2 text-ink-muted hover:text-red md:p-1.5"
                 >
                   <LogOut className="h-3.5 w-3.5" />
                 </button>
@@ -224,9 +225,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <div className="flex flex-1 pt-[var(--hud-h)]">
+          <div className="flex flex-1 pt-[calc(var(--hud-h)+var(--safe-top))]">
             {/* ── Icon rail ── */}
-            <aside className="cmd-rail fixed bottom-[var(--mobile-nav-h)] left-0 top-[var(--hud-h)] z-30 hidden flex-col items-center gap-1 py-3 md:flex">
+            <aside className="cmd-rail fixed bottom-[var(--mobile-nav-h)] left-0 top-[calc(var(--hud-h)+var(--safe-top))] z-30 hidden flex-col items-center gap-1 py-3 md:flex">
               <nav className="flex flex-1 flex-col gap-0.5 px-1.5" aria-label="Main">
                 {allNav.map((n) => (
                   <RailLink
@@ -244,10 +245,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             {/* ── Main viewport ── */}
             <main
               id="main-content"
-              className="relative min-w-0 flex-1 md:ml-[var(--rail-w)] md:pb-[var(--status-h)]"
+              className="relative min-w-0 flex-1 overflow-x-clip md:ml-[var(--rail-w)] md:pb-[var(--status-h)]"
             >
+              <MobileHudStatus />
               <div className="md:hidden">
-                <DataTicker />
+                <DataTicker compact />
               </div>
               <ErrorBoundary>{children}</ErrorBoundary>
             </main>
@@ -257,20 +259,23 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
           {/* ── Mobile deck ── */}
           <nav
-            className="fixed inset-x-0 bottom-0 z-40 flex h-[var(--mobile-nav-h)] items-stretch justify-around border-t border-border bg-surface/95 px-1 backdrop-blur-xl md:hidden"
+            className="fixed inset-x-0 bottom-0 z-40 flex min-h-[var(--mobile-nav-h)] items-stretch justify-around border-t border-border bg-surface/95 px-0.5 pt-1 backdrop-blur-xl md:hidden"
+            style={{ paddingBottom: 'max(4px, var(--safe-bottom))' }}
             aria-label="Mobile"
           >
             {MOBILE_NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
+                aria-current={pathname === n.href ? 'page' : undefined}
+                {...(n.tour ? { 'data-tour': n.tour } : {})}
                 className={cn(
-                  'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold uppercase tracking-wide',
+                  'touch-target flex min-h-[48px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[9px] font-bold uppercase tracking-wide sm:text-[10px]',
                   pathname === n.href ? 'text-teal' : 'text-ink-muted',
                 )}
               >
-                <n.Icon className="h-5 w-5" />
-                {n.label}
+                <n.Icon className="h-5 w-5 shrink-0" aria-hidden />
+                <span className="truncate">{n.label}</span>
               </Link>
             ))}
           </nav>

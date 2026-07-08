@@ -316,17 +316,17 @@ export function ForgeTelemetryRow({
   equityValue: string;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div className="forge-inset flex items-center justify-around gap-2 rounded-lg p-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+      <div className="forge-inset grid grid-cols-2 items-center gap-2 rounded-lg p-2.5 sm:flex sm:justify-around sm:p-3">
         <ForgeDial label="Scan load" value={`${scanLoad}`} unit="%" pct={scanLoad} color="#00ffd0" size="sm" />
         <ForgeDial label="Win rate" value={`${winRate}`} unit="%" pct={winRate} color="#34d399" size="sm" />
       </div>
-      <div className="forge-inset flex items-center justify-around gap-2 rounded-lg p-3">
+      <div className="forge-inset grid grid-cols-2 items-center gap-2 rounded-lg p-2.5 sm:flex sm:justify-around sm:p-3">
         <ForgeDial label="Exposure" value={`${exposure}`} unit="%" pct={exposure} color="#38bdf8" size="sm" />
         <ForgeGauge label="Signals" pct={Math.min(signalCount * 8, 100)} color="#00c896" />
       </div>
-      <ForgeLCD label={equityLabel} value={equityValue} variant="teal" className="h-full" />
-      <div className="forge-inset flex items-center justify-center rounded-lg p-3">
+      <ForgeLCD label={equityLabel} value={equityValue} variant="teal" className="min-h-[88px]" />
+      <div className="forge-inset flex items-center justify-center rounded-lg p-2.5 sm:p-3">
         <ForgeMeterBank label="Throughput" active={Math.min(12, Math.ceil(signalCount / 2) + (scanLoad > 50 ? 4 : 0))} color="#00c896" />
       </div>
     </div>

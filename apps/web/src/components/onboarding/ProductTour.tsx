@@ -38,11 +38,13 @@ function computeTooltipStyle(
   const margin = 12;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const hudH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-h')) || 56;
+  const hudH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-h')) || 48;
+  const safeTop = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
+  const safeBottom = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom')) || 0;
   const statusH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--status-h')) || 0;
   const mobileNavH = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-nav-h')) || 0;
-  const safeTop = hudH + margin;
-  const safeBottom = vh - (window.innerWidth >= 768 ? statusH : mobileNavH) - margin;
+  const safeTopTotal = hudH + safeTop + 28;
+  const safeBottomEdge = vh - (window.innerWidth >= 768 ? statusH : mobileNavH) - margin - safeBottom;
 
   let top = 0;
   let left = 0;
@@ -97,7 +99,7 @@ function computeTooltipStyle(
   }
 
   const shiftX = Math.min(0, margin - boxLeft) + Math.max(0, boxLeft + boxW + margin - vw);
-  const shiftY = Math.min(0, safeTop - boxTop) + Math.max(0, boxTop + boxH + margin - safeBottom);
+  const shiftY = Math.min(0, safeTopTotal - boxTop) + Math.max(0, boxTop + boxH + margin - safeBottomEdge);
 
   if (shiftX !== 0) {
     left += shiftX;
@@ -126,7 +128,7 @@ function computeTooltipStyle(
         : top;
 
   left = Math.min(Math.max(left, margin + (transform.startsWith('translate(-50%') ? tooltipW / 2 : 0)), vw - margin - (transform.startsWith('translate(-50%') ? tooltipW / 2 : tooltipW));
-  top = Math.min(Math.max(top, safeTop + (transform === 'translate(-50%, -100%)' ? tooltipH : transform.includes('-50%)') ? tooltipH / 2 : 0)), safeBottom);
+  top = Math.min(Math.max(top, safeTopTotal + (transform === 'translate(-50%, -100%)' ? tooltipH : transform.includes('-50%)') ? tooltipH / 2 : 0)), safeBottomEdge);
 
   return { top, left, transform };
 }

@@ -10,6 +10,7 @@ import {
   type MotionValue,
   type Variants,
 } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -74,7 +75,7 @@ export function ForgePinned({
   );
 }
 
-/** Step-through pinned section — one panel at a time as you scroll. */
+/** Step-through pinned section — one panel at a time as you scroll (desktop). Mobile gets a vertical stack. */
 export function ForgeStepPin<T extends { step: string; title: string }>({
   steps,
   height = '420vh',
@@ -91,16 +92,37 @@ export function ForgeStepPin<T extends { step: string; title: string }>({
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const [active, setActive] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
 
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    if (reduce) return;
+    if (reduce || isMobile) return;
     const idx = Math.min(steps.length - 1, Math.floor(v * steps.length));
     setActive(idx);
   });
 
+  if (reduce || isMobile) {
+    return (
+      <div id={id} className={className}>
+        <div className="lp-pipeline-stack">
+          {steps.map((step, i) => (
+            <div key={step.step}>{renderStep(step, i, true)}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div ref={ref} id={id} className={className} style={{ height }}>
+    <div ref={ref} id={id} className={cn(className, 'lp-pipeline-pin')} style={{ height }}>
       <div className="sticky top-0 flex min-h-dvh items-center py-20">
         <div className="relative w-full">
           {steps.map((step, i) => (

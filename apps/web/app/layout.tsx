@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/ui/themes';
 import { Chakra_Petch, IBM_Plex_Sans, JetBrains_Mono } from 'next/font/google';
@@ -30,6 +30,12 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const dynamic = 'force-dynamic';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'Autotrade — HyperForge Trading Console',

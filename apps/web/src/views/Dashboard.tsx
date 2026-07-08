@@ -744,10 +744,11 @@ export function Dashboard() {
         code="SYS://COMMAND"
         description="Live portfolio, signals, and bot controls at a glance."
         actions={
-          <div data-tour="bot-controls">
+          <div data-tour="bot-controls" className="w-full sm:w-auto">
             <Button
               variant={botRunning ? 'destructive' : 'default'}
               size="sm"
+              className="w-full min-h-[44px] sm:w-auto"
               disabled={busy || !botControlsReady}
               onClick={() => void toggle()}
             >
@@ -758,7 +759,7 @@ export function Dashboard() {
       />
 
       {/* Top status bar */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      <div className="mobile-chip-row mb-5 md:mb-6 md:flex md:flex-wrap md:items-center md:gap-2">
         <Badge variant={botRunning ? 'success' : 'muted'} pulse={botRunning}>
           {modeLabel}
         </Badge>
@@ -902,7 +903,7 @@ export function Dashboard() {
             </ForgeChartBezel>
           </Panel>
           <Panel title="Win / Loss" dense>
-            <div className="flex items-center justify-around gap-4 py-2">
+            <div className="flex flex-col items-center gap-4 py-2 sm:flex-row sm:justify-around">
               <ForgeDonut
                 wins={perfData?.wins ?? 0}
                 losses={perfData?.losses ?? 0}

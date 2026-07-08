@@ -100,23 +100,25 @@ function AuthButtons({ className }: { className?: string }) {
 
 function CommandDeck() {
   return (
-    <ForgeReveal className="forge-deck relative z-10 py-10 md:py-14">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 md:flex-row md:justify-between">
+    <ForgeReveal className="forge-deck relative z-10 py-8 md:py-14">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 md:flex-row md:justify-between md:gap-8">
         <div className="text-center md:text-left">
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-teal">Command Deck</p>
-          <h2 className="mt-2 font-display text-2xl font-bold uppercase tracking-wide md:text-3xl">
-            Physical controls.<br />Digital precision.
+          <h2 className="mt-2 font-display text-xl font-bold uppercase tracking-wide sm:text-2xl md:text-3xl">
+            Physical controls.<br className="hidden sm:block" /> Digital precision.
           </h2>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-6">
+        <div className="grid w-full max-w-sm grid-cols-3 gap-4 sm:flex sm:max-w-none sm:flex-wrap sm:items-center sm:justify-center sm:gap-6">
           {['SCAN', 'ROUTE', 'RISK'].map((label, i) => (
             <div key={label} className="flex flex-col items-center gap-2">
-              <div className="forge-knob" style={{ transform: `rotate(${i * 45}deg)` }} aria-hidden />
+              <div className="scale-90 sm:scale-100" aria-hidden>
+                <div className="forge-knob" style={{ transform: `rotate(${i * 45}deg)` }} />
+              </div>
               <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-ink-muted">{label}</span>
             </div>
           ))}
-          <ForgeLCD label="System load" value="34" unit="%" variant="teal" />
-          <ForgeLCD label="Alerts" value="0" variant="red" />
+          <ForgeLCD label="System load" value="34" unit="%" variant="teal" className="col-span-3 sm:col-span-1" />
+          <ForgeLCD label="Alerts" value="0" variant="red" className="col-span-3 sm:col-span-1" />
         </div>
       </div>
     </ForgeReveal>
@@ -158,12 +160,35 @@ export function Landing() {
             ))}
           </nav>
           <div className="hidden md:block"><AuthButtons /></div>
-          <button type="button" className="forge-button flex h-10 w-10 items-center justify-center md:hidden" onClick={() => setMenuOpen((o) => !o)}>
+          <button
+            type="button"
+            className="forge-button touch-target flex h-11 w-11 items-center justify-center md:hidden"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
         {menuOpen && (
           <div className="border-t border-border px-4 py-4 md:hidden">
+            <nav className="mb-4 flex flex-col gap-1" aria-label="Mobile">
+              {[
+                { label: 'Deck', href: '#deck' },
+                { label: 'Pipeline', href: '#pipeline' },
+                { label: 'Modules', href: '#modules' },
+                { label: 'Vault', href: '#vault' },
+              ].map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="touch-target rounded-md px-3 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-ink-muted hover:bg-surface-overlay hover:text-teal"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
             <AuthButtons className="flex-col [&_button]:w-full [&_a]:w-full" />
           </div>
         )}
@@ -172,14 +197,14 @@ export function Landing() {
       <main id="main" className="relative z-10">
         {/* ── HERO: asymmetric instrument tower + massive type ── */}
         <section className="lp-hero-split border-b border-border">
-          <div className="relative flex flex-col justify-center border-b border-border p-6 lg:border-b-0 lg:border-r lg:p-10">
+          <div className="relative order-2 flex flex-col justify-center border-b border-border p-5 sm:p-6 lg:order-1 lg:border-b-0 lg:border-r lg:p-10">
             <p className="lp-vertical-label absolute right-4 top-1/2 hidden -translate-y-1/2 lg:block">
               Instrument stack · v0.1.1
             </p>
             <InstrumentTower />
           </div>
 
-          <div className="relative flex flex-col justify-center overflow-hidden px-6 py-16 lg:px-12 lg:py-20">
+          <div className="relative order-1 flex flex-col justify-center overflow-hidden px-5 py-12 sm:px-6 sm:py-14 lg:order-2 lg:px-12 lg:py-20">
             <motion.div
               initial={reduce ? false : 'hidden'}
               animate="show"
@@ -202,11 +227,11 @@ export function Landing() {
               <motion.p variants={forgeFadeUp} className="mt-6 max-w-md font-mono text-sm leading-relaxed text-ink-secondary">
                 A maximalist trading forge — skeuomorphic controls, institutional AI, and execution fast enough to matter.
               </motion.p>
-              <motion.div variants={forgeFadeUp} className="mt-8 flex flex-wrap gap-3">
+              <motion.div variants={forgeFadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 {!isLoaded ? (
-                  <div className="h-12 w-44 animate-pulse rounded-md bg-surface/80" aria-hidden />
+                  <div className="h-12 w-full max-w-xs animate-pulse rounded-md bg-surface/80 sm:w-44" aria-hidden />
                 ) : isSignedIn ? (
-                  <Button size="lg" asChild>
+                  <Button size="lg" className="w-full sm:w-auto" asChild>
                     <Link href="/dashboard">
                       Launch Console <ArrowRight className="h-4 w-4" />
                     </Link>
@@ -214,18 +239,18 @@ export function Landing() {
                 ) : (
                   <>
                     <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
-                      <Button size="lg">
+                      <Button size="lg" className="w-full sm:w-auto">
                         Create Account <ArrowRight className="h-4 w-4" />
                       </Button>
                     </SignUpButton>
                     <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-                      <Button variant="outline" size="lg">
+                      <Button variant="outline" size="lg" className="w-full sm:w-auto">
                         Sign In
                       </Button>
                     </SignInButton>
                   </>
                 )}
-                <Button variant="outline" size="lg" asChild>
+                <Button variant="outline" size="lg" className="w-full sm:w-auto" asChild>
                   <a href="#pipeline">View Pipeline</a>
                 </Button>
               </motion.div>
@@ -256,21 +281,21 @@ export function Landing() {
         <ForgeStepPin
           id="pipeline"
           steps={PIPELINE}
-          height="480vh"
+          height="320vh"
           className="border-b border-border"
           renderStep={(step, _i, active) => (
-            <div className="mx-auto w-full max-w-3xl px-4">
-              <ForgePlate className="p-8 md:p-12" glow={step.color === '#ff3b52' ? 'red' : 'teal'}>
-                <div className="mb-6 flex items-center justify-between">
+            <div className="mx-auto w-full max-w-3xl px-3 sm:px-4">
+              <ForgePlate className="p-5 sm:p-8 md:p-12" glow={step.color === '#ff3b52' ? 'red' : 'teal'}>
+                <div className="mb-4 flex items-center justify-between sm:mb-6">
                   <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">
                     Pipeline stage {step.step}
                   </span>
                   <span className={cn('forge-led', active && 'animate-glow-pulse')} />
                 </div>
-                <p className="font-mono text-5xl font-bold tabular-nums md:text-7xl" style={{ color: step.color }}>
+                <p className="font-mono text-4xl font-bold tabular-nums sm:text-5xl md:text-7xl" style={{ color: step.color }}>
                   {step.step}
                 </p>
-                <h2 className="mt-4 font-display text-3xl font-bold uppercase tracking-wide md:text-4xl">
+                <h2 className="mt-3 font-display text-2xl font-bold uppercase tracking-wide sm:mt-4 sm:text-3xl md:text-4xl">
                   {step.title}
                 </h2>
                 <p className="mt-4 font-mono text-sm leading-relaxed text-ink-secondary md:text-base">
@@ -308,7 +333,7 @@ export function Landing() {
               { Icon: Sparkles, title: 'Paper Sim', stat: '$100k virtual', accent: '#00ffd0' },
               { Icon: Radar, title: 'Live Radar', stat: '5,142 symbols', accent: '#38bdf8' },
             ].map((card) => (
-              <ForgePlate key={card.title} className="w-[300px] shrink-0 p-6" glow="teal">
+              <ForgePlate key={card.title} className="w-[min(280px,85vw)] shrink-0 p-5 sm:w-[300px] sm:p-6" glow="teal">
                 <card.Icon className="mb-4 h-7 w-7" style={{ color: card.accent }} />
                 <h3 className="font-display text-lg font-bold uppercase">{card.title}</h3>
                 <p className="mt-2 font-mono text-xs" style={{ color: card.accent }}>{card.stat}</p>
@@ -413,7 +438,7 @@ export function Landing() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-border py-8 text-center text-sm text-ink-muted">
+      <footer className="relative z-10 border-t border-border py-8 pb-[calc(2rem+var(--safe-bottom))] text-center text-sm text-ink-muted">
         <nav className="mb-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
           <Link href="/privacy" className="hover:text-teal">
             Privacy
