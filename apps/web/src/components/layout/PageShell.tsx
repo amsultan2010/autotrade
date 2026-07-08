@@ -15,7 +15,7 @@ export function PageShell({
   return (
     <div
       className={cn(
-        'relative mx-auto w-full max-w-[1520px] overflow-x-clip px-3 pb-mobile-nav pt-3 app-readable md:px-6 md:pb-8 md:pt-5',
+        'relative mx-auto w-full max-w-[1600px] overflow-x-clip px-3 pb-mobile-nav pt-3 app-readable md:px-6 md:pb-8 md:pt-5',
         className,
       )}
     >
@@ -92,7 +92,7 @@ export function StatCard({
       variants={reduce ? undefined : forgeFadeUp}
       whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.18 } }}
       className={cn(
-        'forge-plate forge-panel-rivets relative p-4',
+        'forge-plate forge-panel-rivets relative p-5 md:p-6',
         variant === 'danger' && 'border-red/20',
         variant === 'teal' && 'border-teal/25',
         className,
@@ -101,10 +101,10 @@ export function StatCard({
       <span className="forge-bracket" aria-hidden />
       <span className="forge-rivet forge-rivet-tl" aria-hidden />
       <span className="forge-rivet forge-rivet-tr" aria-hidden />
-      <p className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">{label}</p>
+      <p className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-ink-muted">{label}</p>
       <p
         className={cn(
-          'mt-2 font-mono text-2xl font-bold tabular-nums text-ink',
+          'mt-2.5 font-mono text-3xl font-bold tabular-nums text-ink md:text-4xl',
           trend === 'up' && 'text-positive',
           trend === 'down' && 'text-negative',
           variant === 'teal' && 'text-teal',
@@ -113,7 +113,7 @@ export function StatCard({
       >
         {value}
       </p>
-      {hint && <div className="mt-1.5 text-xs text-ink-secondary md:text-sm">{hint}</div>}
+      {hint && <div className="mt-2 text-sm text-ink-secondary md:text-base">{hint}</div>}
     </motion.div>
   );
 }
@@ -164,16 +164,16 @@ export function Panel({
       <span className="forge-rivet forge-rivet-tl" aria-hidden />
       <span className="forge-rivet forge-rivet-tr" aria-hidden />
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-raised/40 px-4 py-3 md:px-5">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-raised/40 px-5 py-3.5 md:px-6 md:py-4">
           {title && (
-            <h2 className="font-display text-sm font-bold uppercase tracking-[0.12em] text-teal md:text-base">
+            <h2 className="font-display text-base font-bold uppercase tracking-[0.12em] text-teal md:text-lg">
               {title}
             </h2>
           )}
           {action}
         </div>
       )}
-      <div className={cn(dense ? 'p-3 md:p-4' : 'p-4 md:p-5')}>{children}</div>
+      <div className={cn(dense ? 'p-4 md:p-5' : 'p-5 md:p-6')}>{children}</div>
     </motion.section>
   );
 }
@@ -276,7 +276,7 @@ export function DataTable({
 }) {
   return (
     <div className={cn('overflow-x-auto', className)}>
-      <table className="w-full min-w-[480px] border-collapse text-sm [&_th]:border-b [&_th]:border-border [&_th]:pb-2.5 [&_th]:text-left [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-muted [&_tr:hover]:bg-teal/[0.03] [&_td]:border-b [&_td]:border-border/40 [&_td]:py-3 [&_td]:text-ink">
+      <table className="w-full min-w-[480px] border-collapse text-base [&_th]:border-b [&_th]:border-border [&_th]:pb-3 [&_th]:text-left [&_th]:text-sm [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-muted [&_tr:hover]:bg-teal/[0.03] [&_td]:border-b [&_td]:border-border/40 [&_td]:py-3.5 [&_td]:text-ink">
         {children}
       </table>
     </div>

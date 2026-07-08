@@ -157,7 +157,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <div className="relative flex min-h-dvh flex-col">
           {/* ── Top HUD ── */}
           <header className="cmd-hud fixed inset-x-0 top-0 z-40 flex items-center gap-2 px-3 md:gap-3 md:px-4">
-            <Link href="/dashboard" className="touch-target flex min-w-0 items-center gap-2">
+            <Link href="/" className="touch-target flex min-w-0 items-center gap-2">
               <motion.img
                 src="/icon.png"
                 alt=""

@@ -157,11 +157,14 @@ body {
 
 /* Readable app copy — dashboard, settings, tables */
 .app-readable {
-  font-size: 0.9375rem;
-  line-height: 1.6;
+  font-size: 1.0625rem;
+  line-height: 1.65;
 }
 .app-readable :where(.text-xs) {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
+}
+.app-readable :where(.text-sm) {
+  font-size: 1rem;
 }
 
 button { font-family: inherit; cursor: pointer; }
@@ -565,7 +568,7 @@ input, select, textarea { font-family: inherit; }
 
 .forge-lcd-label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -573,13 +576,13 @@ input, select, textarea { font-family: inherit; }
 }
 .forge-lcd-value {
   font-family: var(--font-mono);
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-teal-bright);
   text-shadow: 0 0 12px color-mix(in oklab, #00c896 45%, transparent);
 }
 .forge-lcd-red .forge-lcd-value { color: var(--color-red-bright); text-shadow: 0 0 12px color-mix(in oklab, #ff3b52 40%, transparent); }
-.forge-lcd-unit { font-size: 0.75rem; margin-left: 2px; opacity: 0.7; }
+.forge-lcd-unit { font-size: 0.8125rem; margin-left: 2px; opacity: 0.7; }
 
 .forge-gauge { display: flex; flex-direction: column; align-items: center; }
 
@@ -629,21 +632,21 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  min-width: 72px;
+  gap: 6px;
+  min-width: 80px;
 }
-.forge-dial-sm .forge-dial-bezel { width: 56px; height: 56px; }
+.forge-dial-sm .forge-dial-bezel { width: 64px; height: 64px; }
 .forge-dial-bezel {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .forge-dial-bezel .forge-knob {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   position: absolute;
   z-index: 2;
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
@@ -656,7 +659,7 @@ input, select, textarea { font-family: inherit; }
 }
 .forge-dial-label {
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -665,21 +668,21 @@ input, select, textarea { font-family: inherit; }
 }
 .forge-dial-value {
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
-.forge-dial-unit { font-size: 0.65rem; opacity: 0.75; margin-left: 1px; }
+.forge-dial-unit { font-size: 0.75rem; opacity: 0.75; margin-left: 1px; }
 
 .forge-meter-bank {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  min-width: 48px;
+  min-width: 56px;
 }
 .forge-meter-label {
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -689,7 +692,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column-reverse;
   gap: 2px;
-  height: 72px;
+  height: 84px;
   padding: 4px;
   border-radius: 4px;
   background: rgb(0 0 0 / 0.5);
@@ -705,7 +708,7 @@ input, select, textarea { font-family: inherit; }
 .forge-meter-seg-on { opacity: 1; }
 .forge-meter-readout {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--color-ink-secondary);
 }
 
@@ -726,9 +729,9 @@ input, select, textarea { font-family: inherit; }
 
   .forge-plate { border-radius: var(--radius-md); }
   .forge-deck .p-4 { padding: 0.875rem; }
-  .forge-dial-bezel { width: 52px; height: 52px; }
-  .forge-dial-bezel .forge-knob { width: 30px; height: 30px; }
-  .forge-lcd-value { font-size: 1.1rem; }
+  .forge-dial-bezel { width: 60px; height: 60px; }
+  .forge-dial-bezel .forge-knob { width: 34px; height: 34px; }
+  .forge-lcd-value { font-size: 1.25rem; }
   .forge-rivet { width: 6px; height: 6px; }
   .forge-rivet-tl, .forge-rivet-tr { top: 8px; }
   .forge-rivet-bl, .forge-rivet-br { bottom: 8px; }

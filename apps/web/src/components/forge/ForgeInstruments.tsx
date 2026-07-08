@@ -235,10 +235,10 @@ export function ForgeDonut({
   }, [wins, losses, total, winPct]);
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <canvas ref={canvasRef} className="h-24 w-24" />
-      <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-ink-muted">{label}</p>
-      <p className="font-mono text-[10px] tabular-nums text-ink-secondary">
+    <div className="flex flex-col items-center gap-1.5">
+      <canvas ref={canvasRef} className="h-28 w-28" />
+      <p className="font-mono text-xs font-bold uppercase tracking-widest text-ink-muted">{label}</p>
+      <p className="font-mono text-sm tabular-nums text-ink-secondary">
         <span className="text-positive">{wins}W</span>
         {' · '}
         <span className="text-negative">{losses}L</span>
@@ -265,16 +265,16 @@ export function ForgeInstrumentRack({
       <span className="forge-rivet forge-rivet-tr" aria-hidden />
       <span className="forge-rivet forge-rivet-bl" aria-hidden />
       <span className="forge-rivet forge-rivet-br" aria-hidden />
-      <div className="border-b border-teal/10 bg-surface-raised/30 px-4 py-2.5 md:px-5">
+      <div className="border-b border-teal/10 bg-surface-raised/30 px-5 py-3 md:px-6">
         <div className="flex items-center gap-2">
           <span className="forge-led" aria-hidden />
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-teal">
+          <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-teal">
             {code ?? 'SYS://TELEMETRY'}
           </p>
-          <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-ink-muted">{title}</span>
+          <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-ink-muted">{title}</span>
         </div>
       </div>
-      <div className="p-4 md:p-5">{children}</div>
+      <div className="p-5 md:p-6">{children}</div>
     </div>
   );
 }
@@ -292,7 +292,7 @@ export function ForgeChartBezel({
   return (
     <div className={cn('forge-chart-bezel relative', className)}>
       {label && (
-        <p className="mb-2 font-mono text-[9px] font-bold uppercase tracking-widest text-ink-muted">{label}</p>
+        <p className="mb-2 font-mono text-xs font-bold uppercase tracking-widest text-ink-muted">{label}</p>
       )}
       <div className="forge-inset overflow-hidden rounded-lg p-1">{children}</div>
     </div>
@@ -316,17 +316,17 @@ export function ForgeTelemetryRow({
   equityValue: string;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-      <div className="forge-inset grid grid-cols-2 items-center gap-2 rounded-lg p-2.5 sm:flex sm:justify-around sm:p-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
+      <div className="forge-inset grid grid-cols-2 items-center gap-3 rounded-lg p-3.5 sm:flex sm:justify-around sm:p-4">
         <ForgeDial label="Scan load" value={`${scanLoad}`} unit="%" pct={scanLoad} color="#00ffd0" size="sm" />
         <ForgeDial label="Win rate" value={`${winRate}`} unit="%" pct={winRate} color="#34d399" size="sm" />
       </div>
-      <div className="forge-inset grid grid-cols-2 items-center gap-2 rounded-lg p-2.5 sm:flex sm:justify-around sm:p-3">
+      <div className="forge-inset grid grid-cols-2 items-center gap-3 rounded-lg p-3.5 sm:flex sm:justify-around sm:p-4">
         <ForgeDial label="Exposure" value={`${exposure}`} unit="%" pct={exposure} color="#38bdf8" size="sm" />
         <ForgeGauge label="Signals" pct={Math.min(signalCount * 8, 100)} color="#00c896" />
       </div>
-      <ForgeLCD label={equityLabel} value={equityValue} variant="teal" className="min-h-[88px]" />
-      <div className="forge-inset flex items-center justify-center rounded-lg p-2.5 sm:p-3">
+      <ForgeLCD label={equityLabel} value={equityValue} variant="teal" className="min-h-[104px]" />
+      <div className="forge-inset flex items-center justify-center rounded-lg p-3.5 sm:p-4">
         <ForgeMeterBank label="Throughput" active={Math.min(12, Math.ceil(signalCount / 2) + (scanLoad > 50 ? 4 : 0))} color="#00c896" />
       </div>
     </div>

@@ -369,13 +369,13 @@ function HeatmapTile({ sym, pct, large }: { sym: string; pct: number; large?: bo
   return (
     <div
       className={cn(
-        'forge-inset flex flex-col items-center justify-center rounded-md border p-2 text-center',
-        large ? 'min-h-[72px]' : 'min-h-[52px]',
+        'forge-inset flex flex-col items-center justify-center rounded-md border p-3 text-center',
+        large ? 'min-h-[88px]' : 'min-h-[64px]',
       )}
       style={{ background: bg, borderColor: border }}
     >
-      <span className="font-mono text-xs font-bold text-ink">{sym}</span>
-      <span className={cn('font-mono text-xs font-semibold tabular-nums', isUp ? 'text-positive' : 'text-negative')}>
+      <span className="font-mono text-sm font-bold text-ink">{sym}</span>
+      <span className={cn('font-mono text-sm font-semibold tabular-nums', isUp ? 'text-positive' : 'text-negative')}>
         {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
       </span>
     </div>
@@ -838,7 +838,7 @@ export function Dashboard() {
 
       {/* Stat cards */}
       {!dataLoading && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Portfolio"
             value={equity > 0 ? money(equity) : '--'}
@@ -889,11 +889,11 @@ export function Dashboard() {
 
       {/* Analytics telemetry row */}
       {!dataLoading && (
-        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <div className="mb-6 grid gap-5 lg:grid-cols-3">
           <Panel title="Strategy P&L" dense>
             <ForgeChartBezel label="Closed trade distribution">
               <ForgeBarChart
-                height={100}
+                height={120}
                 items={topStrategies.slice(0, 6).map((s) => ({
                   label: formatStrategyLabel(s.key).slice(0, 8),
                   value: s.totalPnl,
@@ -924,11 +924,11 @@ export function Dashboard() {
             </div>
           </Panel>
           <Panel title="Regime analytics" dense>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="forge-lcd p-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="forge-lcd p-4">
                 <p className="forge-lcd-label">Regime</p>
                 <p className={cn(
-                  'mt-1 font-mono text-lg font-bold',
+                  'mt-1 font-mono text-xl font-bold',
                   regime === 'Bullish' && 'text-positive',
                   regime === 'Bearish' && 'text-negative',
                   regime !== 'Bullish' && regime !== 'Bearish' && 'text-ink',
@@ -936,13 +936,13 @@ export function Dashboard() {
                   {regime}
                 </p>
               </div>
-              <div className="forge-lcd p-3">
+              <div className="forge-lcd p-4">
                 <p className="forge-lcd-label">Avg conf</p>
-                <p className="mt-1 font-mono text-lg font-bold text-teal tabular-nums">{avgConfidence}%</p>
+                <p className="mt-1 font-mono text-xl font-bold text-teal tabular-nums">{avgConfidence}%</p>
               </div>
-              <div className="col-span-2 forge-inset rounded-lg p-2">
-                <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={200} height={36} />
-                <p className="mt-1 text-center font-mono text-[9px] uppercase tracking-widest text-ink-muted">Confidence trend</p>
+              <div className="col-span-2 forge-inset rounded-lg p-3">
+                <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={200} height={40} />
+                <p className="mt-1.5 text-center font-mono text-[11px] uppercase tracking-widest text-ink-muted">Confidence trend</p>
               </div>
             </div>
           </Panel>
@@ -950,7 +950,7 @@ export function Dashboard() {
       )}
 
       {/* Row 1: Signal feed | Portfolio chart | AI confidence */}
-      <div className="mb-6 grid gap-4 lg:grid-cols-3">
+      <div className="mb-6 grid gap-5 lg:grid-cols-3">
         <Panel
           title="AI Signal Feed"
           data-tour="signals"
@@ -973,31 +973,31 @@ export function Dashboard() {
                 return (
                   <li
                     key={`${s.ticker}-${s.createdAt}`}
-                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    className="flex items-center gap-3 py-3.5 first:pt-0 last:pb-0"
                   >
                     <DataSparkline values={spark} up={sparkUp} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-ink">{s.ticker}</span>
+                        <span className="font-mono text-base font-bold text-ink">{s.ticker}</span>
                         <span className={cn(
-                          'text-xs font-semibold',
+                          'text-sm font-semibold',
                           s.action === 'BUY' ? 'text-positive' : 'text-negative',
                         )}>
                           {s.action === 'BUY' ? '▲' : '▼'} {s.action}
                         </span>
                       </div>
-                      <p className="text-xs text-ink-secondary">
+                      <p className="text-sm text-ink-secondary">
                         {s.strategy} · {Math.round(s.confidence)}%
                       </p>
                     </div>
-                    <span className="shrink-0 text-xs text-ink-muted">{minsAgo(s.createdAt)}</span>
+                    <span className="shrink-0 text-sm text-ink-muted">{minsAgo(s.createdAt)}</span>
                   </li>
                 );
               })}
             </ul>
           )}
           {signals.length > 0 && (
-            <p className="mt-3 text-xs text-ink-muted">Signals update live</p>
+            <p className="mt-3 text-sm text-ink-muted">Signals update live</p>
           )}
         </Panel>
 
@@ -1013,22 +1013,22 @@ export function Dashboard() {
             />
           }
         >
-          <p className="font-mono text-3xl font-bold tabular-nums text-ink">
+          <p className="font-mono text-4xl font-bold tabular-nums text-ink">
             {equity > 0 ? money(equity) : '--'}
           </p>
-          <p className="mt-1 text-xs text-ink-secondary">{portfolioLabel}</p>
-          <p className={cn('mt-2 text-sm font-semibold tabular-nums', dayGain >= 0 ? 'text-positive' : 'text-negative')}>
+          <p className="mt-1.5 text-sm text-ink-secondary">{portfolioLabel}</p>
+          <p className={cn('mt-2 text-base font-semibold tabular-nums', dayGain >= 0 ? 'text-positive' : 'text-negative')}>
             {dayGain >= 0 ? '▲' : '▼'} {Math.abs(dayGainPct).toFixed(2)}% (Today)
             <span className="ml-2 opacity-70">
               {dayGain >= 0 ? '+' : ''}{money(dayGain)}
             </span>
             {alpacaDayGain != null && (
-              <span className="ml-1.5 text-xs font-normal text-ink-muted">via Alpaca</span>
+              <span className="ml-1.5 text-sm font-normal text-ink-muted">via Alpaca</span>
             )}
           </p>
-          <div className="mt-4 h-48">
+          <div className="mt-4 h-56">
             <ForgeChartBezel label={`Equity curve · ${tab}`}>
-              <div className="h-44">
+              <div className="h-52">
                 <PortfolioChart data={equityCurve} labels={chartLabels} />
               </div>
             </ForgeChartBezel>
@@ -1047,15 +1047,15 @@ export function Dashboard() {
         >
           {!showAdvanced && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-bg/72 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-              <span className="text-sm font-semibold text-accent">Upgrade to unlock</span>
+              <span className="text-base font-semibold text-accent">Upgrade to unlock</span>
             </div>
           )}
           <ForgeChartBezel label="Neural confidence arc">
-            <div className="mx-auto h-40 w-40">
+            <div className="mx-auto h-48 w-48">
               <ConfidenceGauge value={avgConfidence} />
             </div>
           </ForgeChartBezel>
-          <div className="mt-4 flex items-center justify-between text-sm">
+          <div className="mt-4 flex items-center justify-between text-base">
             <span className="text-ink-secondary">Signal Regime</span>
             <span className={cn(
               'font-semibold',
@@ -1067,24 +1067,24 @@ export function Dashboard() {
             </span>
           </div>
           <div className="mt-3">
-            <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={120} height={28} />
+            <DataSparkline values={confidenceTrend} up={avgConfidence >= 50} width={120} height={32} />
           </div>
-          <p className="mt-3 text-xs text-ink-muted">
+          <p className="mt-3 text-sm text-ink-muted">
             Win rate {perfData ? `${winRate}%` : '--'} · {signals.length} recent signal{signals.length === 1 ? '' : 's'}
           </p>
         </Panel>
       </div>
 
       {/* Row 2: Strategy breakdown | Recent activity */}
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <div className="mb-6 grid gap-5 lg:grid-cols-2">
         <Panel
           title="Closed Trades by Strategy"
           action={
-            <span className="text-xs text-ink-muted">{closedTrades.length} closed</span>
+            <span className="text-sm text-ink-muted">{closedTrades.length} closed</span>
           }
         >
           {closedTradesLoading ? (
-            <p className="text-sm text-ink-secondary">Loading closed trades…</p>
+            <p className="text-base text-ink-secondary">Loading closed trades…</p>
           ) : topStrategies.length === 0 ? (
             <EmptyState
               title="No closed trades yet"
@@ -1093,7 +1093,7 @@ export function Dashboard() {
           ) : (
             <DataTable>
               <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-muted">
+                <tr className="border-b border-border text-left text-sm uppercase tracking-wider text-ink-muted">
                   <th className="pb-3 pr-4 font-medium">Strategy</th>
                   <th className="pb-3 pr-4 text-right font-medium">Trades</th>
                   <th className="pb-3 pr-4 text-right font-medium">Win%</th>
@@ -1103,16 +1103,16 @@ export function Dashboard() {
               <tbody>
                 {topStrategies.map((s) => (
                   <tr key={s.key} className="border-b border-border/50 last:border-0">
-                    <td className="py-3 pr-4 text-sm font-medium text-ink">
+                    <td className="py-3.5 pr-4 text-base font-medium text-ink">
                       {formatStrategyLabel(s.key)}
                     </td>
-                    <td className="py-3 pr-4 text-right font-mono text-sm tabular-nums text-ink-secondary">
+                    <td className="py-3.5 pr-4 text-right font-mono text-base tabular-nums text-ink-secondary">
                       {s.trades}
                     </td>
-                    <td className="py-3 pr-4 text-right font-mono text-sm tabular-nums text-ink-secondary">
+                    <td className="py-3.5 pr-4 text-right font-mono text-base tabular-nums text-ink-secondary">
                       {Math.round(s.winRate * 100)}%
                     </td>
-                    <td className={cn('py-3 text-right font-mono text-sm font-semibold tabular-nums', pnlClass(s.totalPnl))}>
+                    <td className={cn('py-3.5 text-right font-mono text-base font-semibold tabular-nums', pnlClass(s.totalPnl))}>
                       {s.totalPnl >= 0 ? '+' : ''}{money(s.totalPnl)}
                     </td>
                   </tr>
@@ -1124,7 +1124,7 @@ export function Dashboard() {
 
         <Panel title="Recent Activity">
           {closedTradesLoading && signalsLoading ? (
-            <p className="text-sm text-ink-secondary">Loading activity…</p>
+            <p className="text-base text-ink-secondary">Loading activity…</p>
           ) : recentActivity.length === 0 ? (
             <EmptyState
               title="No activity yet"
@@ -1134,34 +1134,34 @@ export function Dashboard() {
             <ul className="divide-y divide-border">
               {recentActivity.map((item) =>
                 item.kind === 'trade' ? (
-                  <li key={item.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <li key={item.id} className="flex items-start justify-between gap-3 py-3.5 first:pt-0 last:pb-0">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-ink">{item.symbol}</span>
+                        <span className="font-mono text-base font-bold text-ink">{item.symbol}</span>
                         <Badge variant={resultBadgeVariant(item.result)}>{item.result}</Badge>
                       </div>
-                      <p className="mt-1 text-xs text-ink-secondary">
+                      <p className="mt-1 text-sm text-ink-secondary">
                         {formatStrategyLabel(item.strategy)}
                         <span className="text-ink-muted"> · {minsAgo(item.at)}</span>
                       </p>
                     </div>
-                    <span className={cn('shrink-0 font-mono text-sm font-semibold tabular-nums', pnlClass(item.pnl))}>
+                    <span className={cn('shrink-0 font-mono text-base font-semibold tabular-nums', pnlClass(item.pnl))}>
                       {(item.pnl ?? 0) >= 0 ? '+' : ''}{money(item.pnl)}
                     </span>
                   </li>
                 ) : (
-                  <li key={item.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <li key={item.id} className="flex items-start justify-between gap-3 py-3.5 first:pt-0 last:pb-0">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-ink">{item.symbol}</span>
+                        <span className="font-mono text-base font-bold text-ink">{item.symbol}</span>
                         <span className={cn(
-                          'text-xs font-semibold',
+                          'text-sm font-semibold',
                           item.action === 'BUY' ? 'text-positive' : 'text-negative',
                         )}>
                           {item.action}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-ink-secondary">
+                      <p className="mt-1 text-sm text-ink-secondary">
                         {formatStrategyLabel(item.strategy)}
                         <span className="text-ink-muted">
                           {' '}· {Math.round(item.confidence)}% · {minsAgo(item.at)}
@@ -1176,7 +1176,7 @@ export function Dashboard() {
           )}
           <a
             href="/history"
-            className="mt-4 inline-block text-sm font-medium text-accent hover:underline"
+            className="mt-4 inline-block text-base font-medium text-accent hover:underline"
           >
             Full trade history →
           </a>
@@ -1184,12 +1184,12 @@ export function Dashboard() {
       </div>
 
       {/* Row 3: Positions | Heatmap | Performance */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <Panel
           title={`Positions (${positionsLoading ? '…' : (openPositionCount ?? livePositions.length)})`}
         >
           {positionsLoading ? (
-            <p className="text-sm text-ink-secondary">Loading positions…</p>
+            <p className="text-base text-ink-secondary">Loading positions…</p>
           ) : livePositions.length === 0 ? (
             <EmptyState
               title="No open positions"
@@ -1202,7 +1202,7 @@ export function Dashboard() {
           ) : (
             <DataTable>
               <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-muted">
+                <tr className="border-b border-border text-left text-sm uppercase tracking-wider text-ink-muted">
                   <th className="pb-3 pr-3 font-medium">Symbol</th>
                   <th className="pb-3 pr-3 font-medium">Side</th>
                   <th className="pb-3 pr-3 text-right font-medium">Value</th>
@@ -1216,20 +1216,20 @@ export function Dashboard() {
                   const pnlPct = p.unrealizedPnlPct ?? 0;
                   return (
                     <tr key={p.tradeId ?? p.symbol} className="border-b border-border/50 last:border-0">
-                      <td className="py-3 pr-3 font-mono text-sm font-bold text-ink">{p.symbol}</td>
+                      <td className="py-3.5 pr-3 font-mono text-base font-bold text-ink">{p.symbol}</td>
                       <td className={cn(
-                        'py-3 pr-3 text-sm font-medium',
+                        'py-3.5 pr-3 text-base font-medium',
                         p.side === 'LONG' ? 'text-positive' : 'text-negative',
                       )}>
                         {p.side === 'LONG' ? 'Long' : 'Short'}
                       </td>
-                      <td className="py-3 pr-3 text-right font-mono text-sm tabular-nums text-ink-secondary">
+                      <td className="py-3.5 pr-3 text-right font-mono text-base tabular-nums text-ink-secondary">
                         {p.marketValue != null ? money(p.marketValue) : `${p.qty} @ ${money(p.avgEntryPrice)}`}
                       </td>
-                      <td className={cn('py-3 pr-3 text-right font-mono text-sm font-semibold tabular-nums', pnlClass(pnl))}>
+                      <td className={cn('py-3.5 pr-3 text-right font-mono text-base font-semibold tabular-nums', pnlClass(pnl))}>
                         {pnl !== 0 ? `${pnl >= 0 ? '+' : ''}${money(pnl)}` : '--'}
                       </td>
-                      <td className={cn('py-3 text-right font-mono text-sm font-semibold tabular-nums', pnlClass(pnlPct))}>
+                      <td className={cn('py-3.5 text-right font-mono text-base font-semibold tabular-nums', pnlClass(pnlPct))}>
                         {pnlPct !== 0 ? `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%` : '--'}
                       </td>
                     </tr>
@@ -1240,7 +1240,7 @@ export function Dashboard() {
           )}
           <a
             href="/history"
-            className="mt-4 inline-block text-sm font-medium text-accent hover:underline"
+            className="mt-4 inline-block text-base font-medium text-accent hover:underline"
           >
             View trade history →
           </a>
@@ -1253,7 +1253,7 @@ export function Dashboard() {
               description="Add symbols to your Watchlist to see live market heatmap."
             />
           ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {heatmapData.slice(0, 7).map((t) => (
                 <HeatmapTile key={t.sym} sym={t.sym} pct={t.pct} large={t.large} />
               ))}
@@ -1265,51 +1265,51 @@ export function Dashboard() {
         </Panel>
 
         <Panel title="Performance">
-          <dl className="space-y-3">
+          <dl className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <dt className="text-sm text-ink-secondary">Today</dt>
-              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfToday))}>
+              <dt className="text-base text-ink-secondary">Today</dt>
+              <dd className={cn('font-mono text-base font-semibold tabular-nums', pnlClass(perfToday))}>
                 {perfData || alpacaDayGain != null ? `${perfToday >= 0 ? '+' : ''}${money(perfToday)}` : '--'}
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-sm text-ink-secondary">This Week</dt>
-              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfData?.weeklyPnl))}>
+              <dt className="text-base text-ink-secondary">This Week</dt>
+              <dd className={cn('font-mono text-base font-semibold tabular-nums', pnlClass(perfData?.weeklyPnl))}>
                 {perfData ? `${perfData.weeklyPnl >= 0 ? '+' : ''}${money(perfData.weeklyPnl)}` : '--'}
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-sm text-ink-secondary">This Month</dt>
-              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfData?.monthlyPnl))}>
+              <dt className="text-base text-ink-secondary">This Month</dt>
+              <dd className={cn('font-mono text-base font-semibold tabular-nums', pnlClass(perfData?.monthlyPnl))}>
                 {perfData ? `${perfData.monthlyPnl >= 0 ? '+' : ''}${money(perfData.monthlyPnl)}` : '--'}
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-sm text-ink-secondary">All Time</dt>
-              <dd className={cn('font-mono text-sm font-semibold tabular-nums', pnlClass(perfData?.totalPnl))}>
+              <dt className="text-base text-ink-secondary">All Time</dt>
+              <dd className={cn('font-mono text-base font-semibold tabular-nums', pnlClass(perfData?.totalPnl))}>
                 {perfData ? `${perfData.totalPnl >= 0 ? '+' : ''}${money(perfData.totalPnl)}` : '--'}
               </dd>
             </div>
           </dl>
           <div className="mt-4">
-            <DataSparkline values={perfPnlSeries} up={(perfData?.totalPnl ?? 0) >= 0} width={120} height={28} />
+            <DataSparkline values={perfPnlSeries} up={(perfData?.totalPnl ?? 0) >= 0} width={120} height={32} />
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
             <div>
-              <p className="text-xs text-ink-muted">Win Rate</p>
-              <p className={cn('mt-1 font-mono text-lg font-semibold tabular-nums', winRate >= 50 ? 'text-positive' : 'text-negative')}>
+              <p className="text-sm text-ink-muted">Win Rate</p>
+              <p className={cn('mt-1 font-mono text-xl font-semibold tabular-nums', winRate >= 50 ? 'text-positive' : 'text-negative')}>
                 {perfData ? `${winRate}%` : '--'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-ink-muted">Total Trades</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-ink">
+              <p className="text-sm text-ink-muted">Total Trades</p>
+              <p className="mt-1 font-mono text-xl font-semibold tabular-nums text-ink">
                 {perfData?.totalTrades ?? '--'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-ink-muted">Open</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-ink">
+              <p className="text-sm text-ink-muted">Open</p>
+              <p className="mt-1 font-mono text-xl font-semibold tabular-nums text-ink">
                 {openPositionCount ?? '…'}
               </p>
             </div>
