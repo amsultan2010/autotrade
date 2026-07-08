@@ -10,7 +10,7 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 |-------|------|--------|
 | Website + API (`apps/web`) | Vercel | Root dir `apps/web` |
 | Database | Supabase | Apply migrations `001`–`005` |
-| Bot scheduler | Vercel cron → `/api/internal/bot/scan-all` every 5 min | Configure `CRON_SECRET` |
+| Bot scheduler | Vercel cron (daily backup) + optional `apps/worker` | Hobby plan: max 1×/day cron; deploy worker for real scan intervals |
 | Optional worker (`apps/worker`) | VPS / Render / local | For always-on scans beyond cron |
 
 ## One-time dashboard steps

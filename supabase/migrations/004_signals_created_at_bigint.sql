@@ -11,6 +11,7 @@ BEGIN
       AND column_name = 'created_at'
       AND data_type = 'timestamp with time zone'
   ) THEN
+    ALTER TABLE signals ALTER COLUMN created_at DROP DEFAULT;
     ALTER TABLE signals
       ALTER COLUMN created_at TYPE BIGINT
       USING (EXTRACT(EPOCH FROM created_at) * 1000)::BIGINT;

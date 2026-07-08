@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/internal/bot/scan-all",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/email/weekly-digest",
