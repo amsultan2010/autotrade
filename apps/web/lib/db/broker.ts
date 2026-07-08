@@ -1,4 +1,4 @@
-import { AlpacaBroker } from '@autotrade/engine/public';
+import { AlpacaBroker, BadRequestError } from '@autotrade/engine/public';
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { decryptBrokerSecret, encryptBrokerSecret } from '@/lib/broker-crypto';
 import { hasLiveTradingAccess } from '@/lib/entitlements';
@@ -173,10 +173,10 @@ function isAlpacaRateLimitError(message: string): boolean {
 
 export async function syncAlpacaForClerk(
   clerkId: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; paper?: boolean },
 ): Promise<SyncResult> {
   const mode = await getBotMode(clerkId);
-  const wantPaper = mode !== 'LIVE';
+  const wantPaper = opts?.paper ?? mode !== 'LIVE';
   const cred = await getCredentialByPaper(clerkId, wantPaper);
 
   if (!cred) {
@@ -253,29 +253,58 @@ export async function connectBroker(
   const trimmedSecret = args.secret.trim();
   const { verifyAlpacaCredentials } = await import('@autotrade/engine/public');
   const check = await verifyAlpacaCredentials(trimmedKey, trimmedSecret, args.paper);
-  if (!check.ok) throw new Error(check.error ?? 'Invalid Alpaca keys');
+  if (!check.ok) throw new BadRequestError(check.error ?? 'Invalid Alpaca keys');
 
   if (!args.paper) {
     const user = await getUserByClerkId(clerkId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new BadRequestError('User not found');
     const sub = await getSubscriptionByClerkId(clerkId);
     if (!hasLiveTradingAccess(user.role, sub, user.email, user.founderPlanOverride ?? null)) {
-      throw new Error('Live Alpaca keys require a paid plan.');
+      throw new BadRequestError('Live Alpaca keys require a paid plan.');
     }
+  }
+
+  let encryptedKeyId: string;
+  let encryptedSecret: string;
+  try {
+    encryptedKeyId = encryptBrokerSecret(trimmedKey);
+    encryptedSecret = encryptBrokerSecret(trimmedSecret);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Encryption failed';
+    if (/BROKER_ENCRYPTION_KEY/i.test(message)) {
+      throw new BadRequestError(
+        'Broker encryption is not configured on the server. Set BROKER_ENCRYPTION_KEY (openssl rand -hex 32).',
+      );
+    }
+    throw new BadRequestError(message);
   }
 
   await upsertCredential({
     clerkId,
-    encryptedKeyId: encryptBrokerSecret(trimmedKey),
-    encryptedSecret: encryptBrokerSecret(trimmedSecret),
+    encryptedKeyId,
+    encryptedSecret,
     paper: args.paper,
   });
-  await syncAlpacaForClerk(clerkId, { force: true });
+
+  try {
+    const { invalidateUserMarketData } = await import('@autotrade/engine/public');
+    invalidateUserMarketData(clerkId);
+  } catch {
+    /* engine optional in some test contexts */
+  }
+
+  await syncAlpacaForClerk(clerkId, { force: true, paper: args.paper });
   return { connected: true, provider: 'alpaca', paper: args.paper };
 }
 
 export async function disconnectBroker(clerkId: string, paper: boolean): Promise<{ connected: boolean }> {
   await deleteCredential(clerkId, paper);
+  try {
+    const { invalidateUserMarketData } = await import('@autotrade/engine/public');
+    invalidateUserMarketData(clerkId);
+  } catch {
+    /* engine optional in some test contexts */
+  }
   await syncAlpacaForClerk(clerkId);
   return { connected: false };
 }

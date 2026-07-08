@@ -55,7 +55,11 @@ function engineModeFromRiskLevel(riskLevel: RiskLevel, paper: boolean): TradingM
 
 async function stockMarketOpenForUser(clerkId: string): Promise<boolean> {
   try {
-    const cred = await db.getDecryptedBrokerKeys(clerkId, true);
+    const mode = await db.getBotMode(clerkId);
+    const preferPaper = mode !== 'LIVE';
+    const cred =
+      (await db.getDecryptedBrokerKeys(clerkId, preferPaper)) ??
+      (await db.getDecryptedBrokerKeys(clerkId, !preferPaper));
     if (cred?.provider === 'alpaca') {
       return isStockMarketOpen({ keyId: cred.keyId, secret: cred.secret, paper: cred.paper });
     }

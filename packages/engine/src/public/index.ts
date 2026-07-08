@@ -32,7 +32,7 @@ export { writeAudit } from '../lib/audit';
 
 
 // Market data
-export { getMarketData, getMarketDataForUser, getQuoteForUser, MarketDataError } from '../services/marketdata/index';
+export { getMarketData, getMarketDataForUser, getQuoteForUser, invalidateUserMarketData, MarketDataError } from '../services/marketdata/index';
 export { isStockMarketOpen } from '../lib/alpaca';
 
 // Broker
@@ -67,4 +67,5 @@ export {
   countTradesOpenedSince,
   tryAcquireScanLock,
   releaseScanLock,
+  getBotMode,
 } from '../lib/supabase-db';

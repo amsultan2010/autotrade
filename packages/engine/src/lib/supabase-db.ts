@@ -320,6 +320,17 @@ function subscriptionSnapshot(row: SubscriptionRow | null) {
   };
 }
 
+/** Active bot execution mode for a user (defaults to PAPER when unset). */
+export async function getBotMode(clerkId: string): Promise<BotMode> {
+  const { data, error } = await getSupabase()
+    .from('bot_settings')
+    .select('mode')
+    .eq('clerk_id', clerkId)
+    .maybeSingle();
+  if (error) supabaseError('getBotMode', error);
+  return (data?.mode as BotMode | undefined) ?? 'PAPER';
+}
+
 export async function getBotContext(clerkId: string): Promise<BotContextRecord | null> {
   const sb = getSupabase();
 

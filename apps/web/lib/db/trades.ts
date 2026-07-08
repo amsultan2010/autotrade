@@ -253,12 +253,18 @@ async function fetchInternalQuote(base: string, secret: string, clerkId: string,
   }
 }
 
-async function closeBrokerPosition(base: string, secret: string, clerkId: string, symbol: string): Promise<number | null> {
+async function closeBrokerPosition(
+  base: string,
+  secret: string,
+  clerkId: string,
+  symbol: string,
+  paper: boolean,
+): Promise<number | null> {
   try {
     const res = await fetch(`${base}/api/internal/broker/close-position`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal-secret': secret },
-      body: JSON.stringify({ clerkId, symbol }),
+      body: JSON.stringify({ clerkId, symbol, paper }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { exitPrice?: number | null };
@@ -315,8 +321,9 @@ export async function closeAtMarket(clerkId: string, id: string) {
   const hasBrokerPosition = brokerPos != null;
 
   let exitPrice: number | null = null;
+  const brokerPaper = trade.mode !== 'LIVE';
   if ((trade.brokerOrderId || hasBrokerPosition) && base && botSecret) {
-    exitPrice = await closeBrokerPosition(base, botSecret, clerkId, trade.symbol);
+    exitPrice = await closeBrokerPosition(base, botSecret, clerkId, trade.symbol, brokerPaper);
   }
   if (exitPrice == null) {
     exitPrice = await resolveExitPrice(trade, brokerPos, clerkId);
@@ -352,7 +359,13 @@ export async function cashOutWinners(clerkId: string) {
       const needsBrokerClose = (trade.brokerOrderId || hasBrokerPosition) && base && secret;
       if (needsBrokerClose) {
         if (!brokerClosedSymbols.has(sym)) {
-          const fillPrice = await closeBrokerPosition(base, secret, clerkId, trade.symbol);
+          const fillPrice = await closeBrokerPosition(
+            base,
+            secret,
+            clerkId,
+            trade.symbol,
+            trade.mode !== 'LIVE',
+          );
           if (fillPrice == null && hasBrokerPosition) {
             skipped += 1;
             continue;

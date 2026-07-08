@@ -100,7 +100,12 @@ class CachingMarketData implements MarketDataProvider {
 }
 
 let instance: MarketDataProvider | null = null;
+/** Cache key: clerkId + active paper/live preference (invalidated on credential changes). */
 const userInstances = new Map<string, MarketDataProvider>();
+
+function userMarketDataCacheKey(clerkId: string, preferPaper: boolean): string {
+  return `${clerkId}:${preferPaper ? 'paper' : 'live'}`;
+}
 
 function wrapProvider(base: MarketDataProvider): MarketDataProvider {
   return new CachingMarketData(base);
@@ -146,18 +151,27 @@ export function getMarketData(): MarketDataProvider {
  * uses those keys so trading works even if server env keys are missing or stale.
  */
 export async function getMarketDataForUser(clerkId: string): Promise<MarketDataProvider> {
-  const cached = userInstances.get(clerkId);
+  let preferPaper = true;
+  try {
+    const mode = await db.getBotMode(clerkId);
+    preferPaper = mode !== 'LIVE';
+  } catch {
+    /* default to paper preference */
+  }
+
+  const cacheKey = userMarketDataCacheKey(clerkId, preferPaper);
+  const cached = userInstances.get(cacheKey);
   if (cached) return cached;
 
   try {
     const cred =
-      (await db.getDecryptedBrokerKeys(clerkId, true)) ??
-      (await db.getDecryptedBrokerKeys(clerkId, false));
+      (await db.getDecryptedBrokerKeys(clerkId, preferPaper)) ??
+      (await db.getDecryptedBrokerKeys(clerkId, !preferPaper));
     if (cred?.provider === 'alpaca') {
       const md = wrapProvider(
         new AlpacaProvider({ keyId: cred.keyId, secret: cred.secret, paper: cred.paper }),
       );
-      userInstances.set(clerkId, md);
+      userInstances.set(cacheKey, md);
       return md;
     }
   } catch {
@@ -167,9 +181,13 @@ export async function getMarketDataForUser(clerkId: string): Promise<MarketDataP
   return getMarketData();
 }
 
-/** Drop cached per-user provider (e.g. after Alpaca 401). */
+/** Drop cached per-user providers (e.g. after Alpaca 401 or credential change). */
 export function invalidateUserMarketData(clerkId: string): void {
-  userInstances.delete(clerkId);
+  for (const key of userInstances.keys()) {
+    if (key === clerkId || key.startsWith(`${clerkId}:`)) {
+      userInstances.delete(key);
+    }
+  }
 }
 
 function isMarketDataAuthError(err: MarketDataError): boolean {

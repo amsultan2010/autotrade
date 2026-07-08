@@ -10,9 +10,13 @@ export async function loadBrokerForSession(clerkId: string): Promise<BrokerProvi
   return new AlpacaBroker({ keyId: keys.keyId, secret: keys.secret, paper: keys.paper });
 }
 
-/** Load live Alpaca broker for an internal route (close-position) by clerkId. */
-export async function loadBrokerForClerkId(clerkId: string): Promise<BrokerProvider | null> {
-  const keys = await getDecryptedKeys(clerkId, false);
+/** Load Alpaca broker for an internal route (close-position) by clerkId and account type. */
+export async function loadBrokerForClerkId(
+  clerkId: string,
+  paper?: boolean,
+): Promise<BrokerProvider | null> {
+  const usePaper = paper ?? (await brokerStatus(clerkId)).paper ?? true;
+  const keys = await getDecryptedKeys(clerkId, usePaper);
   if (!keys) return null;
   return new AlpacaBroker({ keyId: keys.keyId, secret: keys.secret, paper: keys.paper });
 }
