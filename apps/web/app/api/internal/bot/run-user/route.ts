@@ -12,6 +12,7 @@ import { countTradesOpenedSince } from '@/lib/db/trades';
 export const maxDuration = 60;
 
 const INSTANCE_PREFIX = `vercel-run-user:${process.env.VERCEL_REGION ?? 'local'}`;
+const SCAN_LOCK_TTL_MS = (maxDuration + 30) * 1000;
 
 export async function POST(req: NextRequest) {
   const secret = process.env.BOT_INTERNAL_SECRET;
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   const lockedBy = `${INSTANCE_PREFIX}:${clerkId}`;
-  const acquired = await tryAcquireScanLock(clerkId, lockedBy);
+  const acquired = await tryAcquireScanLock(clerkId, lockedBy, SCAN_LOCK_TTL_MS);
   if (!acquired) {
     return NextResponse.json(
       { error: 'Scan already in progress', skipped: true },

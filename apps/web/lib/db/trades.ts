@@ -23,6 +23,7 @@ export async function listTrades(
     .select('*')
     .eq('clerk_id', clerkId)
     .order('opened_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit + 1);
 
   if (result) query = query.eq('result', result);
@@ -32,14 +33,18 @@ export async function listTrades(
   if (cursor) {
     const { data: cursorRow, error: cursorError } = await sb
       .from('trades')
-      .select('opened_at')
+      .select('id, opened_at')
       .eq('id', cursor)
       .eq('clerk_id', clerkId)
       .maybeSingle();
     if (cursorError) throw new Error(cursorError.message);
-    if (cursorRow?.opened_at != null) {
-      query = query.lt('opened_at', cursorRow.opened_at);
+    if (!cursorRow || cursorRow.opened_at == null) {
+      throw new BadRequestError('Invalid trade cursor');
     }
+    // Compound cursor so rows sharing opened_at are not skipped.
+    query = query.or(
+      `opened_at.lt.${cursorRow.opened_at},and(opened_at.eq.${cursorRow.opened_at},id.lt.${cursorRow.id})`,
+    );
   }
 
   const { data, error } = await query;
@@ -106,13 +111,14 @@ export async function closeTrade(
       .eq('clerk_id', clerkId)
       .maybeSingle();
     if (account) {
-      await getSupabaseServer()
+      const { error: paperError } = await getSupabaseServer()
         .from('paper_accounts')
         .update({
           balance: (account.balance as number) + pnl,
           equity: (account.equity as number) + pnl,
         })
         .eq('id', account.id);
+      if (paperError) throw new Error(paperError.message);
     }
   }
 
@@ -120,13 +126,13 @@ export async function closeTrade(
 }
 
 export async function countTradesOpenedSince(clerkId: string, sinceMs: number): Promise<number> {
-  const { data, error } = await getSupabaseServer()
+  const { count, error } = await getSupabaseServer()
     .from('trades')
-    .select('opened_at')
+    .select('id', { count: 'exact', head: true })
     .eq('clerk_id', clerkId)
     .gte('opened_at', sinceMs);
   if (error) throw new Error(error.message);
-  return (data ?? []).length;
+  return count ?? 0;
 }
 
 export async function countPaperTrades(clerkId: string): Promise<number> {
@@ -345,16 +351,15 @@ async function resolveExitPrice(
 
 
 export async function listClosedTrades(clerkId: string, limit = 200) {
-  const closedResults = await Promise.all(
-    (['WIN', 'LOSS', 'BREAKEVEN'] as const).map((result) =>
-      listTrades(clerkId, { result, limit }),
-    ),
-  );
-  const items = closedResults
-    .flatMap((r) => r.items)
-    .sort((a, b) => (b.closedAt ?? b.openedAt) - (a.closedAt ?? a.openedAt))
-    .slice(0, limit);
-  return { items };
+  const { data, error } = await getSupabaseServer()
+    .from('trades')
+    .select('*')
+    .eq('clerk_id', clerkId)
+    .neq('result', 'OPEN')
+    .order('closed_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return { items: ((data ?? []) as TradeRow[]).map(mapTrade) };
 }
 
 export async function closeAtMarket(clerkId: string, id: string) {

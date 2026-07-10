@@ -56,12 +56,27 @@ async function ensurePaperAccount(clerkId: string): Promise<{ balance: number; e
   if (data) {
     return { balance: data.balance as number, equity: data.equity as number };
   }
+
   const { error: insertError } = await sb.from('paper_accounts').insert({
     clerk_id: clerkId,
     balance: PAPER_STARTING_BALANCE,
     equity: PAPER_STARTING_BALANCE,
   });
-  if (insertError) throw new Error(insertError.message);
+  if (insertError) {
+    // Concurrent bootstrap/dashboard can race on unique clerk_id.
+    if (insertError.code === '23505') {
+      const { data: again, error: againError } = await sb
+        .from('paper_accounts')
+        .select('balance, equity')
+        .eq('clerk_id', clerkId)
+        .maybeSingle();
+      if (againError) throw new Error(againError.message);
+      if (again) {
+        return { balance: again.balance as number, equity: again.equity as number };
+      }
+    }
+    throw new Error(insertError.message);
+  }
   return { balance: PAPER_STARTING_BALANCE, equity: PAPER_STARTING_BALANCE };
 }
 
@@ -167,7 +182,9 @@ export async function getDashboardFeed(
   const equity = brokerSnapshot?.equity ?? botStatus.paperAccount?.equity ?? paperAccount.equity;
   const equityCurve = buildSimulatorEquityCurve(
     equity,
-    closedTrades.map((t) => ({ closedAt: t.closedAt, pnl: t.pnl })),
+    perfTrades
+      .filter((t) => t.result !== 'OPEN' && t.pnl != null && t.closedAt != null)
+      .map((t) => ({ closedAt: t.closedAt, pnl: t.pnl })),
     '1M',
   );
 

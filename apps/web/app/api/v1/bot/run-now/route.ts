@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   releaseScanLock,
   runCycleForUser,
+  shouldAdvanceScanSchedule,
   tryAcquireScanLock,
 } from '@autotrade/engine/public';
 import { requireUser } from '@/lib/auth';
@@ -12,11 +13,13 @@ import { countTradesOpenedSince } from '@/lib/db/trades';
 
 export const maxDuration = 60;
 
+const SCAN_LOCK_TTL_MS = (maxDuration + 30) * 1000;
+
 export async function POST() {
   try {
     const user = await requireUser();
     const lockedBy = `run-now:${user.clerkId}`;
-    const acquired = await tryAcquireScanLock(user.clerkId, lockedBy);
+    const acquired = await tryAcquireScanLock(user.clerkId, lockedBy, SCAN_LOCK_TTL_MS);
     if (!acquired) {
       return NextResponse.json(
         { error: 'A scan is already running for this account. Try again shortly.' },
@@ -27,7 +30,9 @@ export async function POST() {
     const cycleStartedMs = Date.now();
     try {
       const cycle = await runCycleForUser(user.clerkId, { manualScan: true });
-      await recordScanCompleted(user.clerkId, Date.now());
+      if (shouldAdvanceScanSchedule(cycle)) {
+        await recordScanCompleted(user.clerkId, Date.now());
+      }
 
       let signalsGenerated = 0;
       let tradesOpened = 0;

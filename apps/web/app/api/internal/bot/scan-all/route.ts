@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   releaseScanLock,
   runCycleForUser,
+  shouldAdvanceScanSchedule,
   tryAcquireScanLock,
 } from '@autotrade/engine/public';
 import { verifyCronAuth } from '@/lib/internal-auth';
@@ -13,6 +14,8 @@ export const maxDuration = 300;
 /** Cap parallel in-process scans so one cron invocation cannot stampede Active CPU. */
 const SCAN_CONCURRENCY = 5;
 const INSTANCE_ID = `vercel-scan-all:${process.env.VERCEL_REGION ?? 'local'}`;
+/** Match route maxDuration so locks do not expire mid-cycle. */
+const SCAN_LOCK_TTL_MS = (maxDuration + 60) * 1000;
 
 async function mapPool<T>(
   items: T[],
@@ -76,9 +79,10 @@ async function runScanAll(req: Request) {
   let scanned = 0;
   let skippedLocked = 0;
   let failed = 0;
+  let deferred = 0;
 
   await mapPool(clerkIds, SCAN_CONCURRENCY, async (clerkId) => {
-    const acquired = await tryAcquireScanLock(clerkId, INSTANCE_ID);
+    const acquired = await tryAcquireScanLock(clerkId, INSTANCE_ID, SCAN_LOCK_TTL_MS);
     if (!acquired) {
       skippedLocked++;
       await recordBotCycle({ clerkId, success: true, skipped: true });
@@ -86,10 +90,19 @@ async function runScanAll(req: Request) {
     }
 
     try {
-      await runCycleForUser(clerkId);
-      await recordScanCompleted(clerkId, Date.now());
-      scanned++;
-      await recordBotCycle({ clerkId, success: true });
+      const cycle = await runCycleForUser(clerkId);
+      if (shouldAdvanceScanSchedule(cycle)) {
+        await recordScanCompleted(clerkId, Date.now());
+        scanned++;
+        await recordBotCycle({ clerkId, success: true });
+      } else {
+        deferred++;
+        await recordBotCycle({
+          clerkId,
+          success: false,
+          error: cycle.reason ?? 'scan_not_advanced',
+        });
+      }
     } catch (err) {
       failed++;
       const msg = err instanceof Error ? err.message : String(err);
@@ -104,5 +117,6 @@ async function runScanAll(req: Request) {
     scanned,
     skippedLocked,
     failed,
+    deferred,
   });
 }

@@ -8,6 +8,7 @@ import {
   getUsersDueForScan,
   runCycleForUser,
   recordScanCompleted,
+  shouldAdvanceScanSchedule,
   tryAcquireScanLock,
   releaseScanLock,
 } from "@autotrade/engine/public";
@@ -15,6 +16,7 @@ import { captureWorkerError, initWorkerSentry } from "./sentry.js";
 
 const TICK_MS = Number(process.env.WORKER_TICK_MS ?? 2_000);
 const CONCURRENCY = 25;
+const SCAN_LOCK_TTL_MS = Number(process.env.WORKER_SCAN_LOCK_TTL_MS ?? 360_000);
 const limit = pLimit(CONCURRENCY);
 const instanceId = process.env.WORKER_INSTANCE_ID ?? `worker-${process.pid}`;
 const inFlight = new Set<string>();
@@ -43,12 +45,14 @@ async function schedulerTick(): Promise<void> {
       .map((clerkId) =>
         limit(async () => {
           if (inFlight.has(clerkId)) return;
-          const acquired = await tryAcquireScanLock(clerkId, instanceId);
+          const acquired = await tryAcquireScanLock(clerkId, instanceId, SCAN_LOCK_TTL_MS);
           if (!acquired) return;
           inFlight.add(clerkId);
           try {
-            await runCycleForUser(clerkId);
-            await recordScanCompleted(clerkId, Date.now());
+            const cycle = await runCycleForUser(clerkId);
+            if (shouldAdvanceScanSchedule(cycle)) {
+              await recordScanCompleted(clerkId, Date.now());
+            }
           } catch (err) {
             console.error(`scan failed for ${clerkId}`, err);
             captureWorkerError(err, { clerkId, phase: "scan_cycle" });

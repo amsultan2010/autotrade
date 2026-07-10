@@ -228,6 +228,12 @@ export interface ScanCycleResult {
   executionFailures?: string[];
 }
 
+/** Whether last_scan_at should advance after this cycle (skip transient soft failures). */
+export function shouldAdvanceScanSchedule(cycle: ScanCycleResult): boolean {
+  if (cycle.ok) return true;
+  return cycle.reason === 'bot_stopped' || cycle.reason === 'empty_watchlist';
+}
+
 export async function evaluateSymbolEntry(
   ctx: UserBotContext,
   symbol: string,

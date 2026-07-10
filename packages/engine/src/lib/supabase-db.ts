@@ -887,7 +887,7 @@ export async function recordScanCompleted(clerkId: string, at: number): Promise<
   if (error) supabaseError('recordScanCompleted', error);
 }
 
-const DEFAULT_SCAN_LOCK_MS = 120_000;
+const DEFAULT_SCAN_LOCK_MS = 360_000; // 6m — covers Vercel scan-all maxDuration (300s) + buffer
 
 /** Acquire a short-lived distributed scan lock (multi-worker safe). */
 export async function tryAcquireScanLock(
