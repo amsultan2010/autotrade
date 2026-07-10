@@ -41,6 +41,33 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: '/',
+        destination: '/site/index.html',
+      },
+      {
+        source: '/sign-in/:path*',
+        destination: '/site/index.html',
+      },
+      {
+        source: '/sign-up/:path*',
+        destination: '/site/index.html',
+      },
+      ...[
+        'privacy',
+        'terms',
+        'risk-disclosure',
+        'dashboard',
+        'watchlist',
+        'charts',
+        'history',
+        'settings',
+        'account',
+        'admin',
+      ].map((route) => ({
+        source: `/${route}`,
+        destination: '/site/index.html',
+      })),
+      {
         source: '/ingest/static/:path*',
         destination: 'https://us-assets.i.posthog.com/static/:path*',
       },

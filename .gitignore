@@ -6,6 +6,7 @@ dist/
 .next/
 out/
 *.tsbuildinfo
+apps/web/public/site/
 
 # Environment
 .env

@@ -8,7 +8,7 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 
 | Piece | Host | Status |
 |-------|------|--------|
-| Website + API (`apps/web`) | Vercel | Root dir `apps/web` |
+| Vanilla frontend + Next.js API shell (`apps/web`) | Vercel | Root dir `apps/web` |
 | Database | Supabase | Apply migrations `001`–`007` |
 | Bot scheduler | Vercel cron (daily backup) + optional `apps/worker` | Hobby plan: max 1×/day cron; deploy worker for real scan intervals |
 | Optional worker (`apps/worker`) | VPS / Render / local | For always-on scans beyond cron |
@@ -26,6 +26,9 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 
 ### 3. Vercel
 - **Root Directory**: `apps/web`
+- **Framework Preset**: Next.js (the API routes, Clerk middleware, and crons still run on Next.js).
+- **Build Command**: `cd ../.. && pnpm turbo build --filter=@autotrade/web` (also configured in `apps/web/vercel.json`).
+- The HTML/CSS/JavaScript source lives in `apps/web/frontend`; Vite emits it to `apps/web/public/site` before `next build`.
 - Copy vars from `apps/web/.env.example` (Production **and** Preview).
 - Required: `CRON_SECRET`, `BOT_INTERNAL_SECRET`, `BROKER_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`).
 - Optional: `FOUNDER_EMAILS` (comma-separated), `FOUNDER_LIVE_EMAIL`, `SUPABASE_URL` (defaults to `NEXT_PUBLIC_SUPABASE_URL`).
@@ -43,6 +46,7 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 cp apps/web/.env.example apps/web/.env.local
 # fill secrets
 bash scripts/validate-env.sh
+# Builds the vanilla frontend, then starts the Next.js API/static shell.
 pnpm dev:web
 ```
 
