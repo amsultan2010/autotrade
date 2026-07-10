@@ -115,7 +115,14 @@ export function landingPage() {
       ${marketingNav()}
       <main id="main-content" class="landing-main" tabindex="-1">
         <section class="hero">
-          <div class="hero__candles" aria-hidden="true">${buildCandleField()}</div>
+          <div class="hero__candles" aria-hidden="true">${buildCandleField(56)}</div>
+          <div class="hero__signals" aria-hidden="true">
+            <span class="float-chip float-chip--up" style="--x:8%;--y:28%">NVDA · BUY · 72%</span>
+            <span class="float-chip float-chip--down" style="--x:72%;--y:22%">TSLA · SELL · 64%</span>
+            <span class="float-chip float-chip--up" style="--x:58%;--y:48%">SPY · BUY · 61%</span>
+            <span class="float-chip float-chip--down" style="--x:18%;--y:58%">ETH · SELL · 58%</span>
+            <span class="float-chip float-chip--up" style="--x:82%;--y:62%">BTC · BUY · 69%</span>
+          </div>
           <p class="hero__index">Autonomous trading system</p>
           <div class="hero__headline">
             <h1 aria-label="Trade the markets without fear">
@@ -157,6 +164,17 @@ export function landingPage() {
               <strong>${title}</strong>
               <p>${copy}</p>
             </article>`).join('')}
+        </section>
+
+        <section class="flow-rail" aria-label="Signal path">
+          <div class="flow-rail__track">
+            ${['Watchlist', 'Scan', 'Score', 'Size', 'Route', 'Manage'].map((label, index) => `
+              <div class="flow-rail__node">
+                <span>0${index + 1}</span>
+                <strong>${label}</strong>
+              </div>
+              ${index < 5 ? '<div class="flow-rail__wire" aria-hidden="true"></div>' : ''}`).join('')}
+          </div>
         </section>
 
         <section class="statement">
@@ -345,13 +363,47 @@ export function landingPage() {
           scaleY: 1,
           opacity: 1,
           duration: 0.7,
-          stagger: { each: 0.028, from: 'start' },
+          stagger: { each: 0.022, from: 'start' },
           ease: 'power3.out',
-          delay: 0.15,
+          delay: 0.12,
+        });
+        gsap.to(candles, {
+          y: (index) => (index % 2 === 0 ? -6 : 6),
+          duration: 2.4,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          stagger: { each: 0.04, from: 'center' },
+          delay: 1.1,
         });
         gsap.to('.hero__candles', {
-          yPercent: 12,
-          opacity: 0.35,
+          yPercent: 18,
+          opacity: 0.28,
+          ease: 'none',
+          scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
+        });
+        gsap.from('.float-chip', {
+          opacity: 0,
+          y: 20,
+          scale: 0.92,
+          stagger: 0.08,
+          duration: 0.7,
+          delay: 0.85,
+          ease: 'power3.out',
+        });
+        gsap.to('.float-chip', {
+          y: (index) => (index % 2 === 0 ? -14 : 12),
+          x: (index) => (index % 2 === 0 ? 8 : -10),
+          duration: 3.2,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          stagger: 0.2,
+          delay: 1.4,
+        });
+        gsap.to('.hero__signals', {
+          yPercent: -20,
+          opacity: 0,
           ease: 'none',
           scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
         });
@@ -365,6 +417,11 @@ export function landingPage() {
           stagger: 0.1,
           ease: 'power3.out',
         });
+        gsap.to('.hero__headline', {
+          yPercent: -8,
+          ease: 'none',
+          scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
+        });
         gsap.to('.marquee__track', { xPercent: -50, duration: 28, repeat: -1, ease: 'none' });
 
         gsap.from('.proof-strip__item', {
@@ -373,57 +430,82 @@ export function landingPage() {
           stagger: 0.08,
           duration: 0.65,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '.proof-strip', start: 'top 80%', once: true },
+          scrollTrigger: { trigger: '.proof-strip', start: 'top 82%', once: true },
+        });
+
+        gsap.from('.flow-rail__node', {
+          opacity: 0,
+          y: 18,
+          stagger: 0.07,
+          duration: 0.5,
+          ease: 'power3.out',
+          scrollTrigger: { trigger: '.flow-rail', start: 'top 85%', once: true },
+        });
+        gsap.from('.flow-rail__wire', {
+          scaleX: 0,
+          transformOrigin: 'left center',
+          stagger: 0.08,
+          duration: 0.55,
+          ease: 'power2.out',
+          scrollTrigger: { trigger: '.flow-rail', start: 'top 85%', once: true },
         });
 
         gsap.from('.statement__copy', {
-          opacity: 0.18,
-          y: 40,
-          scrollTrigger: { trigger: '.statement', start: 'top 75%', end: 'center 48%', scrub: true },
+          opacity: 0.15,
+          y: 48,
+          scrollTrigger: { trigger: '.statement', start: 'top 80%', end: 'center 45%', scrub: true },
         });
 
         gsap.to('.signal-trace__progress', {
           scaleY: 1,
           ease: 'none',
-          scrollTrigger: { trigger: '.pipeline__steps', start: 'top 55%', end: 'bottom 60%', scrub: true },
+          scrollTrigger: { trigger: '.pipeline__steps', start: 'top 60%', end: 'bottom 55%', scrub: true },
         });
 
         document.querySelectorAll('.pipeline-step').forEach((step) => {
+          gsap.from(step, {
+            opacity: 0.35,
+            x: -24,
+            duration: 0.7,
+            ease: 'power3.out',
+            scrollTrigger: { trigger: step, start: 'top 82%', once: true },
+          });
           gsap.from(step.querySelectorAll('h3, p, .pipeline-step__proof'), {
             opacity: 0,
-            y: 36,
-            stagger: 0.08,
-            duration: 0.75,
+            y: 28,
+            stagger: 0.07,
+            duration: 0.65,
             ease: 'power3.out',
-            scrollTrigger: { trigger: step, start: 'top 78%', once: true },
+            scrollTrigger: { trigger: step, start: 'top 82%', once: true },
           });
         });
 
         gsap.from('.control-card', {
           opacity: 0,
           y: 30,
+          rotateX: 8,
           stagger: 0.07,
           duration: 0.6,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '.controls-grid', start: 'top 78%', once: true },
+          scrollTrigger: { trigger: '.controls-grid', start: 'top 80%', once: true },
         });
 
         gsap.from('.mode-card', {
           opacity: 0,
-          y: 40,
+          y: 36,
           stagger: 0.12,
-          duration: 0.75,
+          duration: 0.7,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '.mode-grid', start: 'top 78%', once: true },
+          scrollTrigger: { trigger: '.mode-grid', start: 'top 80%', once: true },
         });
 
         gsap.from('.console-frame', {
           opacity: 0,
-          y: 48,
-          scale: 0.985,
-          duration: 0.9,
+          y: 40,
+          scale: 0.98,
+          duration: 0.85,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '.console-section', start: 'top 75%', once: true },
+          scrollTrigger: { trigger: '.console-section', start: 'top 78%', once: true },
         });
         gsap.from('.console-feed__row', {
           opacity: 0,
@@ -431,7 +513,7 @@ export function landingPage() {
           stagger: 0.1,
           duration: 0.5,
           ease: 'power2.out',
-          scrollTrigger: { trigger: '.console-feed', start: 'top 80%', once: true },
+          scrollTrigger: { trigger: '.console-feed', start: 'top 82%', once: true },
         });
 
         gsap.from('.feature-card', {
@@ -439,7 +521,7 @@ export function landingPage() {
           y: 28,
           stagger: 0.06,
           duration: 0.65,
-          scrollTrigger: { trigger: '.feature-grid', start: 'top 78%', once: true },
+          scrollTrigger: { trigger: '.feature-grid', start: 'top 80%', once: true },
         });
 
         gsap.from('.preset-card', {
@@ -448,7 +530,7 @@ export function landingPage() {
           stagger: 0.06,
           duration: 0.55,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '.preset-rail', start: 'top 82%', once: true },
+          scrollTrigger: { trigger: '.preset-rail', start: 'top 84%', once: true },
         });
 
         gsap.from('.faq-item', {
@@ -456,7 +538,7 @@ export function landingPage() {
           y: 18,
           stagger: 0.05,
           duration: 0.5,
-          scrollTrigger: { trigger: '.faq-list', start: 'top 82%', once: true },
+          scrollTrigger: { trigger: '.faq-list', start: 'top 84%', once: true },
         });
 
         gsap.from('.finale h2, .finale .eyebrow, .finale__actions', {
@@ -465,7 +547,7 @@ export function landingPage() {
           stagger: 0.1,
           duration: 0.7,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '.finale', start: 'top 75%', once: true },
+          scrollTrigger: { trigger: '.finale', start: 'top 78%', once: true },
         });
       });
       return () => context.revert();

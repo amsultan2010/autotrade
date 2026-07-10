@@ -58,18 +58,39 @@ function bindButton(selector, handler) {
   node.addEventListener('click', handler);
 }
 
+function barMeter(value, max = 100, tone = 'positive') {
+  const pct = Math.max(0, Math.min(100, (Number(value) / max) * 100));
+  return `<div class="meter"><span class="meter__fill meter__fill--${tone}" style="width:${pct.toFixed(1)}%"></span></div>`;
+}
+
+function sparkBars(rows = [], key = 'totalPnl') {
+  if (!rows.length) return '';
+  const values = rows.map((row) => Math.abs(Number(row[key] ?? 0)));
+  const max = Math.max(...values, 1);
+  return `<div class="spark-bars">${rows.slice(0, 8).map((row) => {
+    const amount = Number(row[key] ?? 0);
+    const height = Math.max(8, (Math.abs(amount) / max) * 100);
+    return `<div class="spark-bars__item" title="${escapeHtml(row.key)}"><span style="height:${height}%" class="${amount >= 0 ? 'is-up' : 'is-down'}"></span><small>${escapeHtml(String(row.key).slice(0, 8))}</small></div>`;
+  }).join('')}</div>`;
+}
+
 export function dashboardPage() {
   const body = `
-    ${pageHeader('Dashboard', 'Overview', 'Portfolio, signals, open positions, and the control that starts or stops the bot.',
+    ${pageHeader('Dashboard', 'Overview', 'Portfolio, signals, risk, and the control that starts or stops the bot.',
       '<button class="button button--primary" type="button" id="bot-toggle" data-tour="bot-controls" disabled><span>Checking bot</span></button>')}
     <div id="dashboard-alerts"></div>
-    <section class="stats-grid" id="dashboard-stats">${Array.from({ length: 4 }, () => stat('Loading', '—')).join('')}</section>
+    <section class="stats-grid stats-grid--dense" id="dashboard-stats">${Array.from({ length: 8 }, () => stat('Loading', '—')).join('')}</section>
     <div class="content-grid" data-tour="dashboard">
       <div class="span-8" id="portfolio-panel">${panel({ eyebrow: 'Portfolio', title: 'Equity', content: '<div class="chart-frame">' + skeleton(3) + '</div>', attrs: 'data-tour="portfolio"' })}</div>
+      <div class="span-4" id="bot-panel">${panel({ eyebrow: 'Bot', title: 'Status', content: skeleton(4) })}</div>
       <div class="span-4" id="signals-panel">${panel({ eyebrow: 'Signals', title: 'Latest signals', content: skeleton(4), attrs: 'data-tour="signals"' })}</div>
+      <div class="span-4" id="pnl-panel">${panel({ eyebrow: 'P&L', title: 'Period returns', content: skeleton(3) })}</div>
+      <div class="span-4" id="risk-panel">${panel({ eyebrow: 'Risk', title: 'Exposure snapshot', content: skeleton(3) })}</div>
       <div class="span-7" id="positions-panel">${panel({ eyebrow: 'Positions', title: 'Open positions', className: 'panel--flush', content: skeleton(4) })}</div>
       <div class="span-5" id="heatmap-panel">${panel({ eyebrow: 'Watchlist', title: 'Market map', content: skeleton(3) })}</div>
-      <div class="span-12" id="analytics-panel">${panel({ eyebrow: 'Analytics', title: 'Performance by strategy', content: skeleton(3) })}</div>
+      <div class="span-6" id="strategy-panel">${panel({ eyebrow: 'Analytics', title: 'By strategy', content: skeleton(3) })}</div>
+      <div class="span-6" id="symbol-panel">${panel({ eyebrow: 'Analytics', title: 'By symbol', content: skeleton(3) })}</div>
+      <div class="span-12" id="recent-panel">${panel({ eyebrow: 'History', title: 'Recent closed trades', className: 'panel--flush', content: skeleton(4) })}</div>
     </div>`;
   return {
     title: 'Dashboard - Autotrade',
@@ -89,7 +110,7 @@ export function dashboardPage() {
           title: equity ? money(equity) : 'No portfolio data',
           attrs: 'data-tour="portfolio"',
           actions: `<div class="segmented" role="tablist" aria-label="Equity period">${['1D', '1W', '1M', '3M', '1Y'].map((item) => `<button type="button" class="${item === period ? 'is-active' : ''}" data-period="${item}">${item}</button>`).join('')}</div>`,
-          content: `<div class="chart-frame">${svgLine(series, !series.length || series.at(-1) >= series[0] ? '#00c896' : '#e14d5a')}</div>`,
+          content: `<div class="chart-frame">${svgLine(series, !series.length || series.at(-1) >= series[0] ? '#00c896' : '#ff3b52')}</div>`,
         });
         document.querySelectorAll('[data-period]').forEach((button) => button.addEventListener('click', async () => {
           period = button.dataset.period;
@@ -110,6 +131,16 @@ export function dashboardPage() {
         const paper = bot.paperAccount;
         const equity = snapshot?.equity ?? paper?.equity ?? 0;
         const cash = snapshot?.cash ?? paper?.balance ?? 0;
+        const positions = snapshot?.positions?.length ? snapshot.positions : data.openTrades ?? [];
+        const closed = data.closedTrades ?? data.trades?.filter((trade) => trade.result !== 'OPEN') ?? [];
+        const signals = data.signals ?? [];
+        const quotes = data.quotes ?? [];
+        const byStrategy = data.performance?.breakdowns?.byStrategy ?? [];
+        const bySymbol = data.performance?.breakdowns?.bySymbol ?? [];
+        const advanced = state.entitlements?.limits?.advancedAnalytics;
+        const exposure = positions.reduce((sum, position) => sum + Math.abs(Number(position.marketValue ?? (Number(position.qty) * Number(position.currentPrice ?? position.entryPrice ?? position.avgEntryPrice ?? 0)) ?? 0)), 0);
+        const unrealized = positions.reduce((sum, position) => sum + Number(position.unrealizedPnl ?? position.pnl ?? 0), 0);
+
         const toggle = document.querySelector('#bot-toggle');
         toggle.disabled = false;
         toggle.className = `button ${bot.running ? 'button--danger' : 'button--primary'}`;
@@ -119,8 +150,12 @@ export function dashboardPage() {
         document.querySelector('#dashboard-stats').innerHTML = [
           stat('Net equity', equity ? money(equity) : '—', snapshot ? 'Alpaca account' : 'Paper simulator'),
           stat('Available cash', cash ? money(cash) : '—', bot.mode ?? 'DISABLED'),
-          stat('Win rate', percent(perf.winRate), `${perf.totalTrades ?? 0} closed trades`),
-          stat('All-time P&L', signed(perf.totalPnl), `${perf.openTrades ?? 0} open`, Number(perf.totalPnl) >= 0 ? 'positive' : 'negative'),
+          stat('Win rate', percent(perf.winRate), `${perf.wins ?? 0}W / ${perf.losses ?? 0}L`),
+          stat('All-time P&L', signed(perf.totalPnl), `${perf.totalTrades ?? 0} closed`, Number(perf.totalPnl) >= 0 ? 'positive' : 'negative'),
+          stat('Today', signed(perf.dailyPnl), 'Closed P&L', Number(perf.dailyPnl) >= 0 ? 'positive' : 'negative'),
+          stat('This week', signed(perf.weeklyPnl), 'Closed P&L', Number(perf.weeklyPnl) >= 0 ? 'positive' : 'negative'),
+          stat('This month', signed(perf.monthlyPnl), 'Closed P&L', Number(perf.monthlyPnl) >= 0 ? 'positive' : 'negative'),
+          stat('Max drawdown', signed(-Math.abs(perf.maxDrawdown ?? 0)), `${perf.openTrades ?? 0} open`, 'negative'),
         ].join('');
 
         const alerts = [];
@@ -131,7 +166,22 @@ export function dashboardPage() {
 
         renderPortfolio();
 
-        const signals = data.signals ?? [];
+        document.querySelector('#bot-panel').innerHTML = panel({
+          eyebrow: 'Bot',
+          title: bot.running ? 'Running' : 'Stopped',
+          content: `
+            <div class="metric-inline">
+              <span>Mode <strong>${escapeHtml(bot.mode ?? 'DISABLED')}</strong></span>
+              <span>Open <strong>${positions.length}</strong></span>
+              <span>Signals <strong>${signals.length}</strong></span>
+            </div>
+            <div class="data-list" style="margin-top:20px">
+              <div class="data-row"><div><strong>Paper trades used</strong><span>Against plan allowance</span></div><span></span><strong>${bot.paperTradesUsed ?? 0}${bot.paperTradesLimit ? ` / ${bot.paperTradesLimit}` : ''}</strong></div>
+              <div class="data-row"><div><strong>Broker</strong><span>${data.brokerStatus?.connected ? 'Connected' : 'Simulator'}</span></div><span></span>${badge(data.brokerStatus?.connected ? 'Connected' : 'Paper')}</div>
+              <div class="data-row"><div><strong>Live entitled</strong><span>Plan gate</span></div><span></span>${badge(bot.entitled || state.entitlements?.liveEntitled ? 'Yes' : 'No')}</div>
+            </div>`,
+        });
+
         document.querySelector('#signals-panel').innerHTML = panel({
           eyebrow: 'Signals',
           title: 'Latest signals',
@@ -140,11 +190,35 @@ export function dashboardPage() {
             <article class="signal-row">
               <div class="signal-row__main"><strong>${escapeHtml(signal.ticker)}</strong><span>${escapeHtml(signal.strategy)}</span></div>
               ${badge(signal.action, statusTone(signal.action))}
-              <strong class="mono">${percent(signal.confidence, 0)}</strong>
+              <div class="signal-row__conf"><strong class="mono">${percent(signal.confidence, 0)}</strong>${barMeter(signal.confidence, 100, Number(signal.confidence) >= 65 ? 'positive' : 'neutral')}</div>
             </article>`).join('')}</div>` : emptyState('No signals yet', 'Start the bot to scan your watchlist for approved setups.'),
         });
 
-        const positions = snapshot?.positions?.length ? snapshot.positions : data.openTrades ?? [];
+        document.querySelector('#pnl-panel').innerHTML = panel({
+          eyebrow: 'P&L',
+          title: 'Period returns',
+          content: `
+            <div class="pnl-stack">
+              <div><span>Daily</span><strong class="${Number(perf.dailyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.dailyPnl)}</strong>${barMeter(Math.abs(perf.dailyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), Math.abs(perf.dailyPnl ?? 0), 1), Number(perf.dailyPnl) >= 0 ? 'positive' : 'negative')}</div>
+              <div><span>Weekly</span><strong class="${Number(perf.weeklyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.weeklyPnl)}</strong>${barMeter(Math.abs(perf.weeklyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), Math.abs(perf.weeklyPnl ?? 0), 1), Number(perf.weeklyPnl) >= 0 ? 'positive' : 'negative')}</div>
+              <div><span>Monthly</span><strong class="${Number(perf.monthlyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.monthlyPnl)}</strong>${barMeter(Math.abs(perf.monthlyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), 1), Number(perf.monthlyPnl) >= 0 ? 'positive' : 'negative')}</div>
+            </div>
+            <div class="metric-inline" style="margin-top:20px"><span>Wins <strong class="text-positive">${perf.wins ?? 0}</strong></span><span>Losses <strong class="text-negative">${perf.losses ?? 0}</strong></span><span>Open <strong>${perf.openTrades ?? 0}</strong></span></div>`,
+        });
+
+        document.querySelector('#risk-panel').innerHTML = panel({
+          eyebrow: 'Risk',
+          title: 'Exposure snapshot',
+          content: `
+            <div class="data-list">
+              <div class="data-row"><div><strong>Open exposure</strong><span>Marked positions</span></div><span></span><strong>${money(exposure)}</strong></div>
+              <div class="data-row"><div><strong>Unrealized P&L</strong><span>Open book</span></div><span></span><strong class="${unrealized >= 0 ? 'text-positive' : 'text-negative'}">${signed(unrealized)}</strong></div>
+              <div class="data-row"><div><strong>Max drawdown</strong><span>Closed equity path</span></div><span></span><strong class="text-negative">${signed(-Math.abs(perf.maxDrawdown ?? 0))}</strong></div>
+              <div class="data-row"><div><strong>Cash ratio</strong><span>Cash / equity</span></div><span></span><strong>${equity ? percent((cash / equity) * 100, 0) : '—'}</strong></div>
+            </div>
+            ${barMeter(equity ? (exposure / equity) * 100 : 0, 100, exposure / Math.max(equity, 1) > 0.7 ? 'negative' : 'positive')}`,
+        });
+
         document.querySelector('#positions-panel').innerHTML = panel({
           eyebrow: 'Positions',
           title: 'Open positions',
@@ -157,22 +231,42 @@ export function dashboardPage() {
           }).join('')}</tbody></table></div>` : emptyState('No open positions', 'Approved paper or live orders will appear here.'),
         });
 
-        const quotes = data.quotes ?? [];
         document.querySelector('#heatmap-panel').innerHTML = panel({
           eyebrow: 'Watchlist',
           title: 'Market map',
           content: quotes.length ? `<div class="heatmap">${quotes.slice(0, 12).map((quote) => `<div class="heatmap__item" style="--tone:${Number(quote.changePct) >= 0 ? 'var(--teal)' : 'var(--red)'};--strength:${Math.min(Math.abs(Number(quote.changePct)) * 7 + 7, 30)}%"><strong>${escapeHtml(quote.symbol)}</strong><span>${quote.changePct == null ? '—' : `${Number(quote.changePct) >= 0 ? '+' : ''}${percent(quote.changePct)}`}</span></div>`).join('')}</div>` : emptyState('Watchlist is empty', 'Add symbols to see price movement here.', '<a class="text-link" href="/watchlist" data-link>Manage watchlist</a>'),
         });
 
-        const breakdowns = data.performance?.breakdowns?.byStrategy ?? [];
-        const advanced = state.entitlements?.limits?.advancedAnalytics;
-        document.querySelector('#analytics-panel').innerHTML = panel({
+        const strategyContent = advanced
+          ? (byStrategy.length
+            ? `${sparkBars(byStrategy)}<div class="data-list" style="margin-top:18px">${byStrategy.slice(0, 6).map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(row.winRate)} win</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>`
+            : emptyState('No strategy history yet', 'Closed trades will show up here.'))
+          : `<div class="empty-state"><span class="empty-state__line"></span><h3>Advanced analytics</h3><p>Strategy and symbol breakdowns unlock on Pro or Unlimited.</p><button class="button button--outline" type="button" data-upgrade><span>Compare plans</span>${icon('lock')}</button></div>`;
+
+        document.querySelector('#strategy-panel').innerHTML = panel({
           eyebrow: 'Analytics',
-          title: 'Performance by strategy',
-          content: advanced
-            ? (breakdowns.length ? `<div class="data-list">${breakdowns.map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(row.winRate)} win rate</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>` : emptyState('No strategy history yet', 'Closed trades will show up here.'))
-            : `<div class="empty-state"><span class="empty-state__line"></span><h3>Advanced analytics</h3><p>Compare strategy outcomes on Pro or Unlimited.</p><button class="button button--outline" type="button" data-upgrade><span>Compare plans</span>${icon('lock')}</button></div>`,
+          title: 'By strategy',
+          content: strategyContent,
         });
+
+        document.querySelector('#symbol-panel').innerHTML = panel({
+          eyebrow: 'Analytics',
+          title: 'By symbol',
+          content: advanced
+            ? (bySymbol.length
+              ? `${sparkBars(bySymbol)}<div class="data-list" style="margin-top:18px">${bySymbol.slice(0, 6).map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(row.winRate)} win</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>`
+              : emptyState('No symbol history yet', 'Closed trades will show up here.'))
+            : `<div class="empty-state"><span class="empty-state__line"></span><h3>Symbol breakdown</h3><p>See which tickers drive P&L on Pro or Unlimited.</p><button class="button button--outline" type="button" data-upgrade><span>Compare plans</span>${icon('lock')}</button></div>`,
+        });
+
+        document.querySelector('#recent-panel').innerHTML = panel({
+          eyebrow: 'History',
+          title: 'Recent closed trades',
+          className: 'panel--flush',
+          actions: '<a class="text-link" href="/history" data-link>Open history</a>',
+          content: closed.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Symbol</th><th>Result</th><th>Side</th><th>Strategy</th><th>P&L</th><th>Closed</th></tr></thead><tbody>${closed.slice(0, 8).map((trade) => `<tr><td class="symbol">${escapeHtml(trade.symbol)}</td><td>${badge(trade.result)}</td><td>${escapeHtml(trade.side)}</td><td>${escapeHtml(trade.strategy)}</td><td class="${Number(trade.pnl) >= 0 ? 'text-positive' : 'text-negative'}">${trade.pnl == null ? '—' : signed(trade.pnl)}</td><td>${dateTime(trade.closedAt)}</td></tr>`).join('')}</tbody></table></div>` : emptyState('No closed trades yet', 'Wins and losses will land here after exits.'),
+        });
+
         window.autotrade?.bindLinks?.();
         window.autotrade?.bindUpgrade?.();
       };

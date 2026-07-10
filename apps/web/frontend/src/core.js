@@ -334,7 +334,7 @@ export function appShell(path, content, options = {}) {
   return `
     <div class="app-layout">
       <header class="app-topbar">
-        ${brandLink('/dashboard', 'brand brand--small', 'Autotrade dashboard')}
+        ${brandLink('/', 'brand brand--small', 'Autotrade home')}
         <div class="app-topbar__status" id="global-bot-status">${badge('Checking bot', 'neutral')}</div>
         <div class="app-topbar__actions">
           ${tier === 'free' ? '<button class="button button--quiet button--small" type="button" data-upgrade>Upgrade</button>' : `<span class="tier-label">${escapeHtml(tier)}</span>`}
