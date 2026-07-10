@@ -75,6 +75,74 @@ function sparkBars(rows = [], key = 'totalPnl') {
   }).join('')}</div>`;
 }
 
+/** winRate from API is 0–1; percent() expects 0–100. */
+function winRatePct(value) {
+  const rate = Number(value ?? 0);
+  if (!Number.isFinite(rate)) return 0;
+  return rate <= 1 ? rate * 100 : rate;
+}
+
+function buildSimulatorEquityCurve(currentEquity, trades = [], tab = '1M', points = 60) {
+  const windowMs = { '1D': 86_400_000, '1W': 7 * 86_400_000, '1M': 30 * 86_400_000, '3M': 90 * 86_400_000, '1Y': 365 * 86_400_000 }[tab] ?? 30 * 86_400_000;
+  const now = Date.now();
+  const startTime = now - windowMs;
+  const closed = trades
+    .filter((t) => t.closedAt != null && t.pnl != null && Number(t.closedAt) >= startTime)
+    .sort((a, b) => Number(a.closedAt) - Number(b.closedAt));
+  const pnlInWindow = closed.reduce((sum, t) => sum + Number(t.pnl ?? 0), 0);
+  const startEquity = Number(currentEquity) - pnlInWindow;
+  if (!closed.length) {
+    const flat = Number(currentEquity) > 0 ? Number(currentEquity) : startEquity;
+    return Array.from({ length: points }, () => flat);
+  }
+  const result = [];
+  for (let i = 0; i < points; i++) {
+    const t = startTime + (i / Math.max(points - 1, 1)) * windowMs;
+    const pnlToT = closed.filter((tr) => Number(tr.closedAt) <= t).reduce((sum, tr) => sum + Number(tr.pnl ?? 0), 0);
+    result.push(startEquity + pnlToT);
+  }
+  result[result.length - 1] = Number(currentEquity);
+  return result;
+}
+
+function markPositions(rawPositions, quotes = []) {
+  const quoteMap = Object.fromEntries((quotes ?? []).map((q) => [String(q.symbol).toUpperCase(), q]));
+  return (rawPositions ?? []).map((position) => {
+    const symbol = String(position.symbol ?? '').toUpperCase();
+    const quote = quoteMap[symbol];
+    const entry = Number(position.avgEntryPrice ?? position.entryPrice ?? 0);
+    const qty = Number(position.qty ?? 0);
+    const currentPrice = Number(
+      position.currentPrice
+      ?? position.current_price
+      ?? quote?.price
+      ?? entry,
+    );
+    const side = String(position.side ?? 'LONG').toUpperCase();
+    const hasBrokerPnl = position.unrealizedPnl != null || position.unrealized_pl != null;
+    const unrealized = hasBrokerPnl
+      ? Number(position.unrealizedPnl ?? position.unrealized_pl ?? 0)
+      : side === 'SHORT'
+        ? (entry - currentPrice) * qty
+        : (currentPrice - entry) * qty;
+    const marketValue = position.marketValue != null
+      ? Number(position.marketValue)
+      : Math.abs(currentPrice * qty);
+    return {
+      ...position,
+      symbol,
+      side,
+      qty,
+      avgEntryPrice: entry,
+      entryPrice: entry,
+      currentPrice,
+      marketValue,
+      unrealizedPnl: unrealized,
+      pnl: position.pnl ?? unrealized,
+    };
+  });
+}
+
 export function dashboardPage() {
   const body = `
     ${pageHeader('Dashboard', 'Overview', 'Portfolio, signals, risk, and the control that starts or stops the bot.',
@@ -100,6 +168,35 @@ export function dashboardPage() {
       let feed;
       let period = '1M';
       let portfolioValues = [];
+      let portfolioLoading = false;
+      let brokerCurveKey = '';
+
+      const currentEquity = () => {
+        const snapshot = feed?.brokerSnapshot;
+        const paper = feed?.botStatus?.paperAccount;
+        return Number(snapshot?.equity ?? paper?.equity ?? 0);
+      };
+
+      const refreshPortfolioSeries = async ({ force = false } = {}) => {
+        if (!feed) return;
+        const equity = currentEquity();
+        if (feed.brokerStatus?.connected) {
+          const key = `${period}:${feed.brokerSnapshot?.syncedAt ?? 'na'}`;
+          if (!force && brokerCurveKey === key && portfolioValues.length) return;
+          portfolioLoading = true;
+          renderPortfolio();
+          const result = await api(`/broker/portfolio-history?tab=${period}`).catch(() => null);
+          portfolioLoading = false;
+          portfolioValues = result?.equity?.length
+            ? result.equity
+            : buildSimulatorEquityCurve(equity, feed.closedTrades ?? [], period);
+          brokerCurveKey = key;
+          return;
+        }
+        portfolioValues = period === '1M' && feed.equityCurve?.length
+          ? feed.equityCurve
+          : buildSimulatorEquityCurve(equity, feed.closedTrades ?? [], period);
+      };
 
       const renderPortfolio = () => {
         const snapshot = feed?.brokerSnapshot;
@@ -108,40 +205,39 @@ export function dashboardPage() {
         const series = portfolioValues;
         document.querySelector('#portfolio-panel').innerHTML = panel({
           eyebrow: snapshot ? 'Alpaca portfolio' : 'Paper simulator',
-          title: equity ? money(equity) : 'No portfolio data',
+          title: Number.isFinite(Number(equity)) ? money(equity) : 'No portfolio data',
           attrs: 'data-tour="portfolio"',
           actions: `<div class="segmented" role="tablist" aria-label="Equity period">${['1D', '1W', '1M', '3M', '1Y'].map((item) => `<button type="button" class="${item === period ? 'is-active' : ''}" data-period="${item}">${item}</button>`).join('')}</div>`,
-          content: `<div class="chart-frame">${svgLine(series, !series.length || series.at(-1) >= series[0] ? '#00c896' : '#ff3b52')}</div>`,
+          content: `<div class="chart-frame">${portfolioLoading ? skeleton(3) : svgLine(series, !series.length || series.at(-1) >= series[0] ? '#00c896' : '#ff3b52')}</div>`,
         });
         document.querySelectorAll('[data-period]').forEach((button) => button.addEventListener('click', async () => {
           period = button.dataset.period;
-          document.querySelectorAll('[data-period]').forEach((item) => item.classList.toggle('is-active', item.dataset.period === period));
-          if (feed?.brokerStatus?.connected) {
-            const result = await api(`/broker/portfolio-history?tab=${period}`).catch(() => null);
-            portfolioValues = result?.equity ?? [];
-          }
+          document.querySelectorAll('[data-period]').forEach((item) => item.classList.toggle('is-active', item === button));
+          await refreshPortfolioSeries({ force: true });
           renderPortfolio();
         }));
       };
 
-      const render = (data) => {
+      const render = async (data) => {
         feed = data;
         const bot = data.botStatus ?? {};
         updateGlobalBotStatus(bot);
         const perf = data.performance?.summary ?? {};
         const snapshot = data.brokerSnapshot;
         const paper = bot.paperAccount;
-        const equity = snapshot?.equity ?? paper?.equity ?? 0;
-        const cash = snapshot?.cash ?? paper?.balance ?? 0;
-        const positions = snapshot?.positions?.length ? snapshot.positions : data.openTrades ?? [];
+        const equity = Number(snapshot?.equity ?? paper?.equity ?? 0);
+        const cash = Number(snapshot?.cash ?? paper?.balance ?? 0);
+        const quotes = data.quotes ?? [];
+        const rawPositions = snapshot?.positions?.length ? snapshot.positions : data.openTrades ?? [];
+        const positions = markPositions(rawPositions, quotes);
         const closed = data.closedTrades ?? data.trades?.filter((trade) => trade.result !== 'OPEN') ?? [];
         const signals = data.signals ?? [];
-        const quotes = data.quotes ?? [];
         const byStrategy = data.performance?.breakdowns?.byStrategy ?? [];
         const bySymbol = data.performance?.breakdowns?.bySymbol ?? [];
         const advanced = state.entitlements?.limits?.advancedAnalytics;
-        const exposure = positions.reduce((sum, position) => sum + Math.abs(Number(position.marketValue ?? (Number(position.qty) * Number(position.currentPrice ?? position.entryPrice ?? position.avgEntryPrice ?? 0)) ?? 0)), 0);
-        const unrealized = positions.reduce((sum, position) => sum + Number(position.unrealizedPnl ?? position.pnl ?? 0), 0);
+        const exposure = positions.reduce((sum, position) => sum + Math.abs(Number(position.marketValue ?? 0)), 0);
+        const unrealized = positions.reduce((sum, position) => sum + Number(position.unrealizedPnl ?? 0), 0);
+        const hasAccount = snapshot != null || paper != null;
 
         const toggle = document.querySelector('#bot-toggle');
         toggle.disabled = false;
@@ -150,14 +246,14 @@ export function dashboardPage() {
         toggle.dataset.running = String(Boolean(bot.running));
 
         document.querySelector('#dashboard-stats').innerHTML = [
-          stat('Net equity', equity ? money(equity) : '—', snapshot ? 'Alpaca account' : 'Paper simulator'),
-          stat('Available cash', cash ? money(cash) : '—', bot.mode ?? 'DISABLED'),
-          stat('Win rate', percent(perf.winRate), `${perf.wins ?? 0}W / ${perf.losses ?? 0}L`),
-          stat('All-time P&L', signed(perf.totalPnl), `${perf.totalTrades ?? 0} closed`, Number(perf.totalPnl) >= 0 ? 'positive' : 'negative'),
-          stat('Today', signed(perf.dailyPnl), 'Closed P&L', Number(perf.dailyPnl) >= 0 ? 'positive' : 'negative'),
-          stat('This week', signed(perf.weeklyPnl), 'Closed P&L', Number(perf.weeklyPnl) >= 0 ? 'positive' : 'negative'),
-          stat('This month', signed(perf.monthlyPnl), 'Closed P&L', Number(perf.monthlyPnl) >= 0 ? 'positive' : 'negative'),
-          stat('Max drawdown', signed(-Math.abs(perf.maxDrawdown ?? 0)), `${perf.openTrades ?? 0} open`, 'negative'),
+          stat('Net equity', hasAccount ? money(equity) : '—', snapshot ? 'Alpaca account' : 'Paper simulator'),
+          stat('Available cash', hasAccount ? money(cash) : '—', bot.mode ?? 'DISABLED'),
+          stat('Win rate', percent(winRatePct(perf.winRate)), `${perf.wins ?? 0}W / ${perf.losses ?? 0}L`),
+          stat('All-time P&L', signed(perf.totalPnl ?? 0), `${perf.totalTrades ?? 0} closed`, Number(perf.totalPnl) >= 0 ? 'positive' : 'negative'),
+          stat('Today', signed(perf.dailyPnl ?? 0), 'Closed P&L', Number(perf.dailyPnl) >= 0 ? 'positive' : 'negative'),
+          stat('This week', signed(perf.weeklyPnl ?? 0), 'Closed P&L', Number(perf.weeklyPnl) >= 0 ? 'positive' : 'negative'),
+          stat('This month', signed(perf.monthlyPnl ?? 0), 'Closed P&L', Number(perf.monthlyPnl) >= 0 ? 'positive' : 'negative'),
+          stat('Max drawdown', signed(-Math.abs(perf.maxDrawdown ?? 0)), `${perf.openTrades ?? positions.length} open`, 'negative'),
         ].join('');
 
         const alerts = [];
@@ -166,7 +262,18 @@ export function dashboardPage() {
         if (!data.brokerStatus?.connected) alerts.push('<div class="alert">Using the built-in paper simulator. Connect Alpaca in Settings when you want broker-backed paper trading.</div>');
         document.querySelector('#dashboard-alerts').innerHTML = alerts.join('');
 
-        renderPortfolio();
+        if (!data.brokerStatus?.connected) {
+          portfolioValues = (period === '1M' && data.equityCurve?.length)
+            ? data.equityCurve
+            : buildSimulatorEquityCurve(equity, closed, period);
+          renderPortfolio();
+        } else {
+          if (!portfolioValues.length) {
+            portfolioValues = data.equityCurve ?? buildSimulatorEquityCurve(equity, closed, period);
+            renderPortfolio();
+          }
+          void refreshPortfolioSeries().then(() => renderPortfolio());
+        }
 
         document.querySelector('#bot-panel').innerHTML = panel({
           eyebrow: 'Bot',
@@ -201,11 +308,11 @@ export function dashboardPage() {
           title: 'Period returns',
           content: `
             <div class="pnl-stack">
-              <div><span>Daily</span><strong class="${Number(perf.dailyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.dailyPnl)}</strong>${barMeter(Math.abs(perf.dailyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), Math.abs(perf.dailyPnl ?? 0), 1), Number(perf.dailyPnl) >= 0 ? 'positive' : 'negative')}</div>
-              <div><span>Weekly</span><strong class="${Number(perf.weeklyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.weeklyPnl)}</strong>${barMeter(Math.abs(perf.weeklyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), Math.abs(perf.weeklyPnl ?? 0), 1), Number(perf.weeklyPnl) >= 0 ? 'positive' : 'negative')}</div>
-              <div><span>Monthly</span><strong class="${Number(perf.monthlyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.monthlyPnl)}</strong>${barMeter(Math.abs(perf.monthlyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), 1), Number(perf.monthlyPnl) >= 0 ? 'positive' : 'negative')}</div>
+              <div><span>Daily</span><strong class="${Number(perf.dailyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.dailyPnl ?? 0)}</strong>${barMeter(Math.abs(perf.dailyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), Math.abs(perf.dailyPnl ?? 0), 1), Number(perf.dailyPnl) >= 0 ? 'positive' : 'negative')}</div>
+              <div><span>Weekly</span><strong class="${Number(perf.weeklyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.weeklyPnl ?? 0)}</strong>${barMeter(Math.abs(perf.weeklyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), Math.abs(perf.weeklyPnl ?? 0), 1), Number(perf.weeklyPnl) >= 0 ? 'positive' : 'negative')}</div>
+              <div><span>Monthly</span><strong class="${Number(perf.monthlyPnl) >= 0 ? 'text-positive' : 'text-negative'}">${signed(perf.monthlyPnl ?? 0)}</strong>${barMeter(Math.abs(perf.monthlyPnl ?? 0), Math.max(Math.abs(perf.monthlyPnl ?? 0), 1), Number(perf.monthlyPnl) >= 0 ? 'positive' : 'negative')}</div>
             </div>
-            <div class="metric-inline" style="margin-top:20px"><span>Wins <strong class="text-positive">${perf.wins ?? 0}</strong></span><span>Losses <strong class="text-negative">${perf.losses ?? 0}</strong></span><span>Open <strong>${perf.openTrades ?? 0}</strong></span></div>`,
+            <div class="metric-inline" style="margin-top:20px"><span>Wins <strong class="text-positive">${perf.wins ?? 0}</strong></span><span>Losses <strong class="text-negative">${perf.losses ?? 0}</strong></span><span>Open <strong>${perf.openTrades ?? positions.length}</strong></span></div>`,
         });
 
         document.querySelector('#risk-panel').innerHTML = panel({
@@ -241,7 +348,7 @@ export function dashboardPage() {
 
         const strategyContent = advanced
           ? (byStrategy.length
-            ? `${sparkBars(byStrategy)}<div class="data-list" style="margin-top:18px">${byStrategy.slice(0, 6).map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(row.winRate)} win</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>`
+            ? `${sparkBars(byStrategy)}<div class="data-list" style="margin-top:18px">${byStrategy.slice(0, 6).map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(winRatePct(row.winRate))} win</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>`
             : emptyState('No strategy history yet', 'Closed trades will show up here.'))
           : `<div class="empty-state"><span class="empty-state__line"></span><h3>Advanced analytics</h3><p>Strategy and symbol breakdowns unlock on Pro or Unlimited.</p><button class="button button--outline" type="button" data-upgrade><span>Compare plans</span>${icon('lock')}</button></div>`;
 
@@ -256,7 +363,7 @@ export function dashboardPage() {
           title: 'By symbol',
           content: advanced
             ? (bySymbol.length
-              ? `${sparkBars(bySymbol)}<div class="data-list" style="margin-top:18px">${bySymbol.slice(0, 6).map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(row.winRate)} win</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>`
+              ? `${sparkBars(bySymbol)}<div class="data-list" style="margin-top:18px">${bySymbol.slice(0, 6).map((row) => `<div class="data-row"><div><strong>${escapeHtml(row.key)}</strong><span>${row.trades} trades · ${percent(winRatePct(row.winRate))} win</span></div><span></span><strong class="${row.totalPnl >= 0 ? 'text-positive' : 'text-negative'}">${signed(row.totalPnl)}</strong></div>`).join('')}</div>`
               : emptyState('No symbol history yet', 'Closed trades will show up here.'))
             : `<div class="empty-state"><span class="empty-state__line"></span><h3>Symbol breakdown</h3><p>See which tickers drive P&L on Pro or Unlimited.</p><button class="button button--outline" type="button" data-upgrade><span>Compare plans</span>${icon('lock')}</button></div>`,
         });
@@ -273,7 +380,9 @@ export function dashboardPage() {
         window.autotrade?.bindUpgrade?.();
       };
 
-      createPoll('/dashboard/feed?signalsLimit=12&tradesLimit=200&openLimit=100&closedLimit=200', 45_000, render, (error) => {
+      createPoll('/dashboard/feed?signalsLimit=12&tradesLimit=200&openLimit=100&closedLimit=200', 45_000, (data) => {
+        void render(data);
+      }, (error) => {
         document.querySelector('#dashboard-alerts').innerHTML = `<div class="alert alert--danger">${escapeHtml(error.message)}</div>`;
       });
       bindButton('#bot-toggle', async (event) => {
@@ -283,7 +392,7 @@ export function dashboardPage() {
           await mutate('/bot-settings/mode', 'POST', { mode: button.dataset.running === 'true' ? 'DISABLED' : 'PAPER' });
           toast(button.dataset.running === 'true' ? 'Bot stopped' : 'Bot started in paper mode', 'positive');
           const updated = await api('/dashboard/feed?signalsLimit=12&tradesLimit=200&openLimit=100&closedLimit=200');
-          render(updated);
+          await render(updated);
         } catch (error) {
           toast(error.message, 'negative');
           button.disabled = false;

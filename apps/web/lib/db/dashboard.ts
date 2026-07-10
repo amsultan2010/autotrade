@@ -1,5 +1,7 @@
+import { PAPER_STARTING_BALANCE } from '@autotrade/shared';
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { getCachedQuotes } from '@/lib/quote-cache';
+import { buildSimulatorEquityCurve } from '@/lib/dashboard-charts';
 import { getBotStatus } from './botSettings';
 import { brokerStatus, getSnapshot } from './broker';
 import { mapTrade, type TradeRecord, type TradeRow } from './row-mappers';
@@ -38,9 +40,29 @@ function mapPerfTrade(row: PerfTradeRow) {
     strategy: row.strategy,
     result: row.result,
     pnl: row.pnl ?? undefined,
-    closedAt: row.closed_at ?? undefined,
+    closedAt: typeof row.closed_at === 'number' ? row.closed_at : undefined,
     openedAt: row.opened_at,
   };
+}
+
+async function ensurePaperAccount(clerkId: string): Promise<{ balance: number; equity: number }> {
+  const sb = getSupabaseServer();
+  const { data, error } = await sb
+    .from('paper_accounts')
+    .select('balance, equity')
+    .eq('clerk_id', clerkId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) {
+    return { balance: data.balance as number, equity: data.equity as number };
+  }
+  const { error: insertError } = await sb.from('paper_accounts').insert({
+    clerk_id: clerkId,
+    balance: PAPER_STARTING_BALANCE,
+    equity: PAPER_STARTING_BALANCE,
+  });
+  if (insertError) throw new Error(insertError.message);
+  return { balance: PAPER_STARTING_BALANCE, equity: PAPER_STARTING_BALANCE };
 }
 
 export async function getDashboardFeed(
@@ -53,45 +75,56 @@ export async function getDashboardFeed(
   const closedLimit = opts.closedLimit ?? 200;
   const sb = getSupabaseServer();
 
-  const [botStatus, watchlist, brokerStatusData, brokerSnapshot, signalsRes, openRes, closedRes, recentRes, perfRes] =
-    await Promise.all([
-      getBotStatus(clerkId),
-      listWatchlist(clerkId),
-      brokerStatus(clerkId),
-      getSnapshot(clerkId),
-      sb
-        .from('signals')
-        .select('id, ticker, action, strategy, confidence, entry_reason, created_at')
-        .eq('clerk_id', clerkId)
-        .order('created_at', { ascending: false })
-        .limit(signalsLimit),
-      sb
-        .from('trades')
-        .select('*')
-        .eq('clerk_id', clerkId)
-        .eq('result', 'OPEN')
-        .order('opened_at', { ascending: false })
-        .limit(openLimit),
-      sb
-        .from('trades')
-        .select('*')
-        .eq('clerk_id', clerkId)
-        .neq('result', 'OPEN')
-        .order('closed_at', { ascending: false })
-        .limit(closedLimit),
-      sb
-        .from('trades')
-        .select('*')
-        .eq('clerk_id', clerkId)
-        .order('opened_at', { ascending: false })
-        .limit(tradesLimit),
-      sb
-        .from('trades')
-        .select('symbol, strategy, result, pnl, closed_at, opened_at')
-        .eq('clerk_id', clerkId)
-        .order('opened_at', { ascending: false })
-        .limit(PERF_TRADE_CAP),
-    ]);
+  const [
+    botStatus,
+    watchlist,
+    brokerStatusData,
+    brokerSnapshot,
+    signalsRes,
+    openRes,
+    closedRes,
+    recentRes,
+    perfRes,
+    paperAccount,
+  ] = await Promise.all([
+    getBotStatus(clerkId),
+    listWatchlist(clerkId),
+    brokerStatus(clerkId),
+    getSnapshot(clerkId),
+    sb
+      .from('signals')
+      .select('id, ticker, action, strategy, confidence, entry_reason, created_at')
+      .eq('clerk_id', clerkId)
+      .order('created_at', { ascending: false })
+      .limit(signalsLimit),
+    sb
+      .from('trades')
+      .select('*')
+      .eq('clerk_id', clerkId)
+      .eq('result', 'OPEN')
+      .order('opened_at', { ascending: false })
+      .limit(openLimit),
+    sb
+      .from('trades')
+      .select('*')
+      .eq('clerk_id', clerkId)
+      .neq('result', 'OPEN')
+      .order('closed_at', { ascending: false })
+      .limit(closedLimit),
+    sb
+      .from('trades')
+      .select('*')
+      .eq('clerk_id', clerkId)
+      .order('opened_at', { ascending: false })
+      .limit(tradesLimit),
+    sb
+      .from('trades')
+      .select('symbol, strategy, result, pnl, closed_at, opened_at')
+      .eq('clerk_id', clerkId)
+      .order('opened_at', { ascending: false })
+      .limit(PERF_TRADE_CAP),
+    ensurePaperAccount(clerkId),
+  ]);
 
   if (signalsRes.error) throw new Error(`signals feed failed: ${signalsRes.error.message}`);
   if (openRes.error) throw new Error(`open trades feed failed: ${openRes.error.message}`);
@@ -118,6 +151,9 @@ export async function getDashboardFeed(
     Promise.resolve(performanceBreakdownsFromTrades(perfTrades)),
   ]);
 
+  // Prefer live open-count from status over the capped performance sample.
+  performanceSummary.openTrades = botStatus.openTrades ?? openTrades.length;
+
   const signals = (signalsRes.data ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     ticker: row.ticker as string,
@@ -128,11 +164,28 @@ export async function getDashboardFeed(
     createdAt: signalCreatedAtMs(row.created_at),
   }));
 
+  const equity = brokerSnapshot?.equity ?? botStatus.paperAccount?.equity ?? paperAccount.equity;
+  const equityCurve = buildSimulatorEquityCurve(
+    equity,
+    closedTrades.map((t) => ({ closedAt: t.closedAt, pnl: t.pnl })),
+    '1M',
+  );
+
   return {
-    botStatus,
+    botStatus: {
+      ...botStatus,
+      paperAccount: botStatus.paperAccount ?? paperAccount,
+    },
     performance: {
       summary: performanceSummary,
-      breakdowns: performanceBreakdowns,
+      breakdowns: {
+        byStrategy: [...performanceBreakdowns.byStrategy].sort(
+          (a, b) => Math.abs(b.totalPnl) - Math.abs(a.totalPnl),
+        ),
+        bySymbol: [...performanceBreakdowns.bySymbol].sort(
+          (a, b) => Math.abs(b.totalPnl) - Math.abs(a.totalPnl),
+        ),
+      },
     },
     signals,
     watchlist,
@@ -142,5 +195,6 @@ export async function getDashboardFeed(
     brokerStatus: brokerStatusData,
     brokerSnapshot,
     quotes,
+    equityCurve,
   };
 }
