@@ -1,21 +1,33 @@
 import { NextResponse } from 'next/server';
+import {
+  releaseScanLock,
+  runCycleForUser,
+  tryAcquireScanLock,
+} from '@autotrade/engine/public';
 import { verifyCronAuth } from '@/lib/internal-auth';
 import { getUsersDueForScan, recordScanCompleted } from '@/lib/db/scan';
 import { getSupabaseServer } from '@/lib/supabase-server';
 
 export const maxDuration = 300;
 
-function formatInternalApiError(status: number, body: string): string {
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string } };
-    const message = parsed.error?.message;
-    if (typeof message === 'string' && message.length > 0) {
-      return `Bot run failed (HTTP ${status}): ${message}`;
+/** Cap parallel in-process scans so one cron invocation cannot stampede Active CPU. */
+const SCAN_CONCURRENCY = 5;
+const INSTANCE_ID = `vercel-scan-all:${process.env.VERCEL_REGION ?? 'local'}`;
+
+async function mapPool<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const idx = next++;
+      await fn(items[idx]!);
     }
-  } catch {
-    /* not JSON */
-  }
-  return `Bot run failed (HTTP ${status}): ${body.slice(0, 200)}`;
+  });
+  await Promise.all(workers);
 }
 
 async function recordBotCycle(meta: {
@@ -24,6 +36,7 @@ async function recordBotCycle(meta: {
   error?: string;
   signalsGenerated?: number;
   tradesOpened?: number;
+  skipped?: boolean;
 }): Promise<void> {
   try {
     await getSupabaseServer().from('audit_logs').insert({
@@ -34,6 +47,8 @@ async function recordBotCycle(meta: {
         error: meta.error,
         signalsGenerated: meta.signalsGenerated,
         tradesOpened: meta.tradesOpened,
+        skipped: meta.skipped,
+        source: 'vercel-scan-all',
       },
       created_at: new Date().toISOString(),
     });
@@ -57,47 +72,37 @@ async function runScanAll(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const botSecret = process.env.BOT_INTERNAL_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
-  if (!botSecret || !appUrl) {
-    return NextResponse.json({ error: 'Bot not configured' }, { status: 503 });
-  }
-
   const clerkIds = await getUsersDueForScan(Date.now());
-  const baseUrl = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
+  let scanned = 0;
+  let skippedLocked = 0;
+  let failed = 0;
 
-  await Promise.allSettled(
-    clerkIds.map(async (clerkId) => {
-      try {
-        const res = await fetch(`${baseUrl}/api/internal/bot/run-user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-internal-secret': botSecret,
-          },
-          body: JSON.stringify({ clerkId }),
-        });
+  await mapPool(clerkIds, SCAN_CONCURRENCY, async (clerkId) => {
+    const acquired = await tryAcquireScanLock(clerkId, INSTANCE_ID);
+    if (!acquired) {
+      skippedLocked++;
+      await recordBotCycle({ clerkId, success: true, skipped: true });
+      return;
+    }
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(formatInternalApiError(res.status, text));
-        }
+    try {
+      await runCycleForUser(clerkId);
+      await recordScanCompleted(clerkId, Date.now());
+      scanned++;
+      await recordBotCycle({ clerkId, success: true });
+    } catch (err) {
+      failed++;
+      const msg = err instanceof Error ? err.message : String(err);
+      await recordBotCycle({ clerkId, success: false, error: msg });
+    } finally {
+      await releaseScanLock(clerkId, INSTANCE_ID).catch(() => undefined);
+    }
+  });
 
-        const data = (await res.json()) as { signalsGenerated?: number; tradesOpened?: number };
-        const completedAt = Date.now();
-        await recordScanCompleted(clerkId, completedAt);
-        await recordBotCycle({
-          clerkId,
-          success: true,
-          signalsGenerated: data.signalsGenerated,
-          tradesOpened: data.tradesOpened,
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        await recordBotCycle({ clerkId, success: false, error: msg });
-      }
-    }),
-  );
-
-  return NextResponse.json({ users: clerkIds.length });
+  return NextResponse.json({
+    users: clerkIds.length,
+    scanned,
+    skippedLocked,
+    failed,
+  });
 }

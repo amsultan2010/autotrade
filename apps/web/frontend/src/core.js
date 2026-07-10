@@ -395,8 +395,15 @@ export function cleanupRoute() {
 }
 
 export function bindGlobalShell() {
-  createPoll('/bot-settings/status', 15_000, (data) => {
+  // Slow global status poll — dashboard feed also refreshes this badge when mounted.
+  createPoll('/bot-settings/status', 60_000, (data) => {
     const node = document.querySelector('#global-bot-status');
     if (node) node.innerHTML = badge(data.running ? `${data.mode} running` : 'Bot stopped', data.running ? 'positive' : 'negative');
   });
+}
+
+export function updateGlobalBotStatus(bot) {
+  const node = document.querySelector('#global-bot-status');
+  if (!node || !bot) return;
+  node.innerHTML = badge(bot.running ? `${bot.mode} running` : 'Bot stopped', bot.running ? 'positive' : 'negative');
 }

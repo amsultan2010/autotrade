@@ -1,11 +1,17 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { runCycleForUser } from '@autotrade/engine/public';
+import {
+  releaseScanLock,
+  runCycleForUser,
+  tryAcquireScanLock,
+} from '@autotrade/engine/public';
 import { handleError } from '@/lib/api-response';
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { verifyBotSecret } from '@/lib/internal-auth';
 import { countTradesOpenedSince } from '@/lib/db/trades';
 
 export const maxDuration = 60;
+
+const INSTANCE_PREFIX = `vercel-run-user:${process.env.VERCEL_REGION ?? 'local'}`;
 
 export async function POST(req: NextRequest) {
   const secret = process.env.BOT_INTERNAL_SECRET;
@@ -28,6 +34,15 @@ export async function POST(req: NextRequest) {
     manualScan = body.manual === true;
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  const lockedBy = `${INSTANCE_PREFIX}:${clerkId}`;
+  const acquired = await tryAcquireScanLock(clerkId, lockedBy);
+  if (!acquired) {
+    return NextResponse.json(
+      { error: 'Scan already in progress', skipped: true },
+      { status: 409 },
+    );
   }
 
   const cycleStartedMs = Date.now();
@@ -55,5 +70,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...cycle, signalsGenerated, tradesOpened });
   } catch (err) {
     return handleError(err, { route: '/api/internal/bot/run-user' });
+  } finally {
+    await releaseScanLock(clerkId, lockedBy).catch(() => undefined);
   }
 }

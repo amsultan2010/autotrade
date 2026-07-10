@@ -32,7 +32,7 @@ pnpm dev:worker
 ## Deploy
 
 - **Vercel**: root `apps/web`, build `cd ../.. && pnpm turbo build --filter=@autotrade/web`
-- **Worker** (optional): `apps/worker` — local `pnpm dev:worker` or deploy to Render/Fly/VPS
+- **Worker** (required for frequent scans): `apps/worker` — local `pnpm dev:worker` or deploy to Render/Fly/VPS. Vercel cron is a daily backup only.
 - See [docs/SETUP.md](docs/SETUP.md) for the full connection checklist
 - Apply `supabase/migrations` to your Supabase project
 

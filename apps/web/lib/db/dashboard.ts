@@ -9,6 +9,9 @@ import {
 } from './trades';
 import { listWatchlist } from './watchlist';
 
+/** Cap rows used for dashboard performance math to bound Active CPU. */
+const PERF_TRADE_CAP = 2000;
+
 function signalCreatedAtMs(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -20,17 +23,24 @@ function signalCreatedAtMs(value: unknown): number {
   return Date.now();
 }
 
-function sliceTrades(
-  trades: TradeRecord[],
-  opts: { tradesLimit: number; openLimit: number; closedLimit: number },
-) {
-  const openTrades = trades.filter((t) => t.result === 'OPEN').slice(0, opts.openLimit);
-  const closedTrades = trades
-    .filter((t) => t.result !== 'OPEN')
-    .sort((a, b) => (b.closedAt ?? b.openedAt) - (a.closedAt ?? a.openedAt))
-    .slice(0, opts.closedLimit);
-  const recentTrades = trades.slice(0, opts.tradesLimit);
-  return { trades: recentTrades, openTrades, closedTrades };
+type PerfTradeRow = {
+  symbol: string;
+  strategy: string;
+  result: TradeRecord['result'];
+  pnl: number | null;
+  closed_at: number | null;
+  opened_at: number;
+};
+
+function mapPerfTrade(row: PerfTradeRow) {
+  return {
+    symbol: row.symbol,
+    strategy: row.strategy,
+    result: row.result,
+    pnl: row.pnl ?? undefined,
+    closedAt: row.closed_at ?? undefined,
+    openedAt: row.opened_at,
+  };
 }
 
 export async function getDashboardFeed(
@@ -41,35 +51,58 @@ export async function getDashboardFeed(
   const tradesLimit = opts.tradesLimit ?? 200;
   const openLimit = opts.openLimit ?? 100;
   const closedLimit = opts.closedLimit ?? 200;
+  const sb = getSupabaseServer();
 
-  const [botStatus, watchlist, brokerStatusData, brokerSnapshot, signalsRes, tradesRes] =
+  const [botStatus, watchlist, brokerStatusData, brokerSnapshot, signalsRes, openRes, closedRes, recentRes, perfRes] =
     await Promise.all([
       getBotStatus(clerkId),
       listWatchlist(clerkId),
       brokerStatus(clerkId),
       getSnapshot(clerkId),
-      getSupabaseServer()
+      sb
         .from('signals')
         .select('id, ticker, action, strategy, confidence, entry_reason, created_at')
         .eq('clerk_id', clerkId)
         .order('created_at', { ascending: false })
         .limit(signalsLimit),
-      getSupabaseServer()
+      sb
         .from('trades')
         .select('*')
         .eq('clerk_id', clerkId)
-        .order('opened_at', { ascending: false }),
+        .eq('result', 'OPEN')
+        .order('opened_at', { ascending: false })
+        .limit(openLimit),
+      sb
+        .from('trades')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .neq('result', 'OPEN')
+        .order('closed_at', { ascending: false })
+        .limit(closedLimit),
+      sb
+        .from('trades')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .order('opened_at', { ascending: false })
+        .limit(tradesLimit),
+      sb
+        .from('trades')
+        .select('symbol, strategy, result, pnl, closed_at, opened_at')
+        .eq('clerk_id', clerkId)
+        .order('opened_at', { ascending: false })
+        .limit(PERF_TRADE_CAP),
     ]);
 
   if (signalsRes.error) throw new Error(`signals feed failed: ${signalsRes.error.message}`);
-  if (tradesRes.error) throw new Error(`trades feed failed: ${tradesRes.error.message}`);
+  if (openRes.error) throw new Error(`open trades feed failed: ${openRes.error.message}`);
+  if (closedRes.error) throw new Error(`closed trades feed failed: ${closedRes.error.message}`);
+  if (recentRes.error) throw new Error(`trades feed failed: ${recentRes.error.message}`);
+  if (perfRes.error) throw new Error(`performance feed failed: ${perfRes.error.message}`);
 
-  const allTrades = ((tradesRes.data ?? []) as TradeRow[]).map(mapTrade);
-  const { trades, openTrades, closedTrades } = sliceTrades(allTrades, {
-    tradesLimit,
-    openLimit,
-    closedLimit,
-  });
+  const openTrades = ((openRes.data ?? []) as TradeRow[]).map(mapTrade);
+  const closedTrades = ((closedRes.data ?? []) as TradeRow[]).map(mapTrade);
+  const trades = ((recentRes.data ?? []) as TradeRow[]).map(mapTrade);
+  const perfTrades = ((perfRes.data ?? []) as PerfTradeRow[]).map(mapPerfTrade);
 
   const quoteSymbols = [
     ...new Set([
@@ -81,8 +114,8 @@ export async function getDashboardFeed(
 
   const [quotes, performanceSummary, performanceBreakdowns] = await Promise.all([
     getCachedQuotes(clerkId, quoteSymbols),
-    Promise.resolve(performanceSummaryFromTrades(allTrades)),
-    Promise.resolve(performanceBreakdownsFromTrades(allTrades)),
+    Promise.resolve(performanceSummaryFromTrades(perfTrades)),
+    Promise.resolve(performanceBreakdownsFromTrades(perfTrades)),
   ]);
 
   const signals = (signalsRes.data ?? []).map((row: Record<string, unknown>) => ({

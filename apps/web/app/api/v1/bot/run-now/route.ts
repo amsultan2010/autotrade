@@ -1,45 +1,55 @@
 import { NextResponse } from 'next/server';
+import {
+  releaseScanLock,
+  runCycleForUser,
+  tryAcquireScanLock,
+} from '@autotrade/engine/public';
 import { requireUser } from '@/lib/auth';
 import { handleError } from '@/lib/api-response';
 import { recordScanCompleted } from '@/lib/db/scan';
+import { getSupabaseServer } from '@/lib/supabase-server';
+import { countTradesOpenedSince } from '@/lib/db/trades';
 
-function formatInternalApiError(status: number, body: string): string {
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string } };
-    const message = parsed.error?.message;
-    if (typeof message === 'string' && message.length > 0) {
-      return `Bot run failed (HTTP ${status}): ${message}`;
-    }
-  } catch {
-    /* not JSON */
-  }
-  const snippet = body.startsWith('<!DOCTYPE') ? 'server error. Check Vercel logs' : body.slice(0, 200);
-  return `Bot run failed (HTTP ${status}): ${snippet}`;
-}
+export const maxDuration = 60;
 
 export async function POST() {
   try {
     const user = await requireUser();
-    const botSecret = process.env.BOT_INTERNAL_SECRET;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL;
-    if (!botSecret || !appUrl) {
-      return NextResponse.json({ error: 'Bot not configured' }, { status: 503 });
+    const lockedBy = `run-now:${user.clerkId}`;
+    const acquired = await tryAcquireScanLock(user.clerkId, lockedBy);
+    if (!acquired) {
+      return NextResponse.json(
+        { error: 'A scan is already running for this account. Try again shortly.' },
+        { status: 409 },
+      );
     }
 
-    const baseUrl = appUrl.startsWith('http') ? appUrl : `https://${appUrl}`;
-    const res = await fetch(`${baseUrl}/api/internal/bot/run-user`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': botSecret },
-      body: JSON.stringify({ clerkId: user.clerkId, manual: true }),
-    });
+    const cycleStartedMs = Date.now();
+    try {
+      const cycle = await runCycleForUser(user.clerkId, { manualScan: true });
+      await recordScanCompleted(user.clerkId, Date.now());
 
-    if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json({ error: formatInternalApiError(res.status, text) }, { status: 502 });
+      let signalsGenerated = 0;
+      let tradesOpened = 0;
+      try {
+        const [signalsRes, tradesOpenedCount] = await Promise.all([
+          getSupabaseServer()
+            .from('signals')
+            .select('id', { count: 'exact', head: true })
+            .eq('clerk_id', user.clerkId)
+            .gte('created_at', cycleStartedMs),
+          countTradesOpenedSince(user.clerkId, cycleStartedMs),
+        ]);
+        signalsGenerated = signalsRes.count ?? 0;
+        tradesOpened = tradesOpenedCount;
+      } catch {
+        // best-effort counts
+      }
+
+      return NextResponse.json({ ...cycle, signalsGenerated, tradesOpened });
+    } finally {
+      await releaseScanLock(user.clerkId, lockedBy).catch(() => undefined);
     }
-
-    await recordScanCompleted(user.clerkId, Date.now());
-    return NextResponse.json(await res.json());
   } catch (err) {
     return handleError(err, { route: '/api/v1/bot/run-now' });
   }

@@ -16,24 +16,38 @@ export async function listTrades(
   } = {},
 ): Promise<{ items: TradeRecord[]; nextCursor: string | null }> {
   const { result, mode, symbol, limit = 100, cursor } = opts;
-  const { data, error } = await getSupabaseServer()
+  const sb = getSupabaseServer();
+
+  let query = sb
     .from('trades')
     .select('*')
     .eq('clerk_id', clerkId)
-    .order('opened_at', { ascending: false });
+    .order('opened_at', { ascending: false })
+    .limit(limit + 1);
+
+  if (result) query = query.eq('result', result);
+  if (mode) query = query.eq('mode', mode);
+  if (symbol) query = query.eq('symbol', symbol.toUpperCase());
+
+  if (cursor) {
+    const { data: cursorRow, error: cursorError } = await sb
+      .from('trades')
+      .select('opened_at')
+      .eq('id', cursor)
+      .eq('clerk_id', clerkId)
+      .maybeSingle();
+    if (cursorError) throw new Error(cursorError.message);
+    if (cursorRow?.opened_at != null) {
+      query = query.lt('opened_at', cursorRow.opened_at);
+    }
+  }
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  const all = ((data ?? []) as TradeRow[]).map(mapTrade);
-  const filtered = all.filter((t) => {
-    if (result && t.result !== result) return false;
-    if (mode && t.mode !== mode) return false;
-    if (symbol && t.symbol !== symbol.toUpperCase()) return false;
-    return true;
-  });
-
-  const startIdx = cursor ? filtered.findIndex((t) => t._id === cursor) + 1 : 0;
-  const page = filtered.slice(startIdx, startIdx + limit);
-  const hasMore = startIdx + limit < filtered.length;
+  const rows = ((data ?? []) as TradeRow[]).map(mapTrade);
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
   return { items: page, nextCursor: hasMore ? page[page.length - 1]?._id ?? null : null };
 }
 
@@ -145,7 +159,9 @@ export async function getDigestTrades(
     }));
 }
 
-export function performanceSummaryFromTrades(trades: TradeRecord[]) {
+export function performanceSummaryFromTrades(
+  trades: Array<Pick<TradeRecord, 'result' | 'pnl' | 'closedAt'>>,
+) {
   const closed = trades.filter((t) => t.result !== 'OPEN' && t.pnl !== undefined);
   const open = trades.filter((t) => t.result === 'OPEN');
   const wins = closed.filter((t) => t.result === 'WIN');
@@ -189,12 +205,27 @@ export function performanceSummaryFromTrades(trades: TradeRecord[]) {
 }
 
 export async function performanceSummary(clerkId: string) {
-  const { data, error } = await getSupabaseServer().from('trades').select('*').eq('clerk_id', clerkId);
+  const { data, error } = await getSupabaseServer()
+    .from('trades')
+    .select('result, pnl, closed_at')
+    .eq('clerk_id', clerkId)
+    .order('opened_at', { ascending: false })
+    .limit(2000);
   if (error) throw new Error(error.message);
-  return performanceSummaryFromTrades(((data ?? []) as TradeRow[]).map(mapTrade));
+  return performanceSummaryFromTrades(
+    ((data ?? []) as Array<{ result: TradeRecord['result']; pnl: number | null; closed_at: number | null }>).map(
+      (row) => ({
+        result: row.result,
+        pnl: row.pnl ?? undefined,
+        closedAt: row.closed_at ?? undefined,
+      }),
+    ),
+  );
 }
 
-export function performanceBreakdownsFromTrades(trades: TradeRecord[]) {
+export function performanceBreakdownsFromTrades(
+  trades: Array<Pick<TradeRecord, 'result' | 'pnl' | 'strategy' | 'symbol'>>,
+) {
   const closed = trades.filter((t) => t.result !== 'OPEN');
   const byStrategy: Record<string, { trades: number; wins: number; totalPnl: number }> = {};
   const bySymbol: Record<string, { trades: number; wins: number; totalPnl: number }> = {};
@@ -219,9 +250,26 @@ export function performanceBreakdownsFromTrades(trades: TradeRecord[]) {
 }
 
 export async function performanceBreakdowns(clerkId: string) {
-  const { data, error } = await getSupabaseServer().from('trades').select('*').eq('clerk_id', clerkId);
+  const { data, error } = await getSupabaseServer()
+    .from('trades')
+    .select('symbol, strategy, result, pnl')
+    .eq('clerk_id', clerkId)
+    .order('opened_at', { ascending: false })
+    .limit(2000);
   if (error) throw new Error(error.message);
-  return performanceBreakdownsFromTrades(((data ?? []) as TradeRow[]).map(mapTrade));
+  return performanceBreakdownsFromTrades(
+    ((data ?? []) as Array<{
+      symbol: string;
+      strategy: string;
+      result: TradeRecord['result'];
+      pnl: number | null;
+    }>).map((row) => ({
+      symbol: row.symbol,
+      strategy: row.strategy,
+      result: row.result,
+      pnl: row.pnl ?? undefined,
+    })),
+  );
 }
 
 export async function assertLiveEntitled(clerkId: string, mode: string): Promise<void> {

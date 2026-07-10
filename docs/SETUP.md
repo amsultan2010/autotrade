@@ -2,7 +2,7 @@
 
 You **are** using Supabase (database + auth JWT for RLS). Apply SQL in `supabase/migrations/` to your Postgres project.
 
-You **do not** need a separate worker host unless you want scans outside Vercel cron. The website runs on **Vercel**; the database on **Supabase**.
+You **should** deploy `apps/worker` for real scan intervals. Vercel cron is only a daily backup (Hobby max 1×/day). The website runs on **Vercel**; the database on **Supabase**.
 
 ## Architecture
 
@@ -10,8 +10,8 @@ You **do not** need a separate worker host unless you want scans outside Vercel 
 |-------|------|--------|
 | Vanilla frontend + Next.js API shell (`apps/web`) | Vercel | Root dir `apps/web` |
 | Database | Supabase | Apply migrations `001`–`007` |
-| Bot scheduler | Vercel cron (daily backup) + optional `apps/worker` | Hobby plan: max 1×/day cron; deploy worker for real scan intervals |
-| Optional worker (`apps/worker`) | VPS / Render / local | For always-on scans beyond cron |
+| Bot scheduler | **`apps/worker` (primary)** + Vercel cron daily backup | Worker: always-on intervals; Vercel: safety net only |
+| Optional worker (`apps/worker`) | VPS / Render / local | Required for scans faster than once/day |
 
 ## One-time dashboard steps
 

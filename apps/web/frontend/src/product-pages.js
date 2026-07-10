@@ -20,6 +20,7 @@ import {
   stat,
   statusTone,
   toast,
+  updateGlobalBotStatus,
 } from './core.js';
 
 function signed(value) {
@@ -126,6 +127,7 @@ export function dashboardPage() {
       const render = (data) => {
         feed = data;
         const bot = data.botStatus ?? {};
+        updateGlobalBotStatus(bot);
         const perf = data.performance?.summary ?? {};
         const snapshot = data.brokerSnapshot;
         const paper = bot.paperAccount;
@@ -271,7 +273,7 @@ export function dashboardPage() {
         window.autotrade?.bindUpgrade?.();
       };
 
-      createPoll('/dashboard/feed?signalsLimit=12&tradesLimit=200&openLimit=100&closedLimit=200', 15_000, render, (error) => {
+      createPoll('/dashboard/feed?signalsLimit=12&tradesLimit=200&openLimit=100&closedLimit=200', 45_000, render, (error) => {
         document.querySelector('#dashboard-alerts').innerHTML = `<div class="alert alert--danger">${escapeHtml(error.message)}</div>`;
       });
       bindButton('#bot-toggle', async (event) => {
@@ -337,15 +339,13 @@ export function watchlistPage() {
         prices = Object.fromEntries((result ?? []).map((item) => [item.symbol, item]));
         render();
       };
-      createPoll('/watchlist', 20_000, async (data) => {
+      createPoll('/watchlist', 30_000, async (data) => {
         items = data ?? [];
         render();
         await refreshQuotes();
       }, (error) => {
         document.querySelector('#watchlist-content').innerHTML = `<div class="alert alert--danger">${escapeHtml(error.message)}</div>`;
       });
-      const quotesTimer = window.setInterval(refreshQuotes, 15_000);
-      state.routeCleanup.push(() => clearInterval(quotesTimer));
 
       const input = document.querySelector('#symbol-search');
       const resultsRoot = document.querySelector('#search-results');
@@ -540,8 +540,17 @@ export function historyPage() {
         }
       };
       load();
-      const timer = window.setInterval(load, 10_000);
-      state.routeCleanup.push(() => clearInterval(timer));
+      const timer = window.setInterval(() => {
+        if (!document.hidden) load();
+      }, 30_000);
+      const onVisibility = () => {
+        if (!document.hidden) load();
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      state.routeCleanup.push(() => {
+        clearInterval(timer);
+        document.removeEventListener('visibilitychange', onVisibility);
+      });
       document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
         filter = button.dataset.filter;
         document.querySelectorAll('[data-filter]').forEach((item) => item.classList.toggle('is-active', item === button));
