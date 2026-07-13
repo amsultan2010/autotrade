@@ -12,6 +12,7 @@
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "clean": "rm -rf apps/web/.next .turbo apps/*/.turbo packages/*/.turbo",
     "check:boundaries": "bash scripts/check-boundaries.sh",
     "env:validate": "bash scripts/validate-env.sh"
   },
